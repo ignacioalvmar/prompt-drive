@@ -1,0 +1,14 @@
+{
+  "name": "prompt-drive",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "extract": "node scripts/extract.js",
+    "build:cluster": "node scripts/build-cluster.js",
+    "build:main": "node scripts/build-main.js",
+    "build": "npm run build:cluster && npm run build:main",
+    "dev": "npx serve . -p 3000"
+  },
+  "devDependencies": {
+  }
+}

@@ -18311,9 +18311,6 @@
       this.pdT = 0.1;
       this.holdHandbrake = false;
       this.uiTimer = 0;
-      this.throttleDisplay = 0;
-      this.instrumentCluster = null;
-      this.clusterMesh = null;
       this.speedFactor = 1;
       this.distFactor = 1;
       this.onUnitsChangedBound = this.onUnitsChanged.bind(this);
@@ -18389,7 +18386,6 @@
       this.onSpeedControlChanged();
       this.dom.speed = document.getElementById("ui-speed-val");
       this.dom.dist = document.getElementById("ui-dist-val");
-      this.dom.mainStats = document.getElementById("main-stats");
       this.initialisePosition();
       this.audio = new Fd(this);
       Fe.addListener("type", this.changeVehicleBound);
@@ -18402,13 +18398,6 @@
       this.onUnitsChanged(ie.Units);
       D.addListener(this.onControllerChangedBound);
       this.onControllerChanged(D.value, true);
-      if (typeof InstrumentCluster !== "undefined" && !this.instrumentCluster) {
-        try {
-          this.instrumentCluster = new InstrumentCluster(r);
-        } catch (clusterErr) {
-          console.error("InstrumentCluster init failed", clusterErr);
-        }
-      }
       this.initVehicle(je[Fe.value.type]);
       this.changeGrip();
       this.dom.mouseMarker = document.getElementById("ui-mouse-bar-marker");
@@ -18548,14 +18537,7 @@
     positionHeadlights() {}
     initVehicle(e) {
       if (this.vehicleDef?.name == e.name) {
-        if (this.instrumentCluster) {
-          this.clusterMesh = this.instrumentCluster.applyToObject(Ae.geo, Js.value) || this.clusterMesh;
-        }
         return;
-      }
-      this.clusterMesh = null;
-      if (this.instrumentCluster) {
-        this.instrumentCluster.applyToObject(Ae.geo, false);
       }
       for (this.update = this.updatePass; Ae.geo.children.length;) {
         Ae.geo.remove(Ae.geo.children[Ae.geo.children.length - 1]);
@@ -18571,11 +18553,11 @@
       let n = e.steerObj;
       let a = e.dashObj;
       const o = new ln.a();
-      let skinPalette = _d;
+      let r = _d;
       if (e.skins) {
         let t = Object.keys(e.skins)[0];
         for (let i in e.skins[t]) {
-          skinPalette[i].color.setHex(e.skins[t][i]);
+          r[i].color.setHex(e.skins[t][i]);
         }
       }
       o.load(i.default, e => {
@@ -18599,9 +18581,6 @@
         this.updateHeadlights();
         e.rotation.y = -Math.PI / 2;
         Ae.geo.add(e);
-        if (this.instrumentCluster) {
-          this.clusterMesh = this.instrumentCluster.applyToObject(Ae.geo, Js.value) || this.clusterMesh;
-        }
       });
       o.load(s.default, t => {
         t.traverse(e => {
@@ -18646,9 +18625,6 @@
           }
           Ae.steeringWheel = e;
           Ae.steeringWheel.visible = Fe.value.showWheel;
-          e.traverse(child => {
-            if (child.isMesh) child.renderOrder = 3;
-          });
           Ae.geo.add(e);
         });
       } else if (Ae.steeringWheel) {
@@ -18676,13 +18652,7 @@
             e.position.x *= -1;
           }
           Ae.dashboard = e;
-          e.traverse(child => {
-            if (child.isMesh) child.renderOrder = 2;
-          });
           Ae.geo.add(e);
-          if (this.instrumentCluster) {
-            this.clusterMesh = this.instrumentCluster.applyToObject(Ae.geo, Js.value) || this.clusterMesh;
-          }
         });
       } else if (Ae.dashboard) {
         var l;
@@ -18843,11 +18813,6 @@
       this.updateChassisMotion(e);
       this.updateWheelState(e);
       this.audio.update(e);
-      this.uiTimer += e;
-      if (this.uiTimer > 0.033) {
-        this.uiTimer -= 0.033;
-        this.updateUI();
-      }
       this.pdT = e;
     }
     updatePass(e, t) {}
@@ -18945,41 +18910,6 @@
     updateUI() {
       this.dom.speed.innerHTML = (Bh.speed * this.speedFactor).toFixed(1);
       this.dom.dist.innerHTML = (Math.floor(Bh.dist * this.distFactor * 10) / 10).toFixed(1);
-      if (this.dom.mainStats) {
-        const hide = this.instrumentCluster && Js.value;
-        this.dom.mainStats.style.setProperty("display", hide ? "none" : "", hide ? "important" : "");
-      }
-      if (this.instrumentCluster && !Js.value) {
-        this.instrumentCluster.applyToObject(Ae.geo, false);
-      }
-      if (this.instrumentCluster && Js.value) {
-        if (!this.clusterMesh) {
-          this.clusterMesh = this.instrumentCluster.applyToObject(Ae.geo, true);
-        } else {
-          this.instrumentCluster.applyToObject(Ae.geo, true);
-        }
-        this.instrumentCluster.syncPlacement(
-          Ae.metrics.steeringPos,
-          Fe.value.side == 0 ? -1 : 1,
-        );
-        const throttleTarget = Math.min(1, Math.abs(this.inputs.accel) / Ae.metrics.accel);
-        this.throttleDisplay = this.throttleDisplay * 0.85 + throttleTarget * 0.15;
-        const driveModes = ["AWD", "FWD", "RWD"];
-        const speedUnits = ["MPH", "KPH"];
-        const distUnits = ["MI", "KM"];
-        this.instrumentCluster.draw({
-          speedKph: Bh.speed * this.speedFactor,
-          speedLerp: Ae.speedLerp,
-          odometerKm: Math.floor(Bh.dist * this.distFactor),
-          throttle: this.throttleDisplay,
-          autodrive: ce.value,
-          driveMode: driveModes[Fe.value.mode] || "AWD",
-          speedUnit: speedUnits[ie.Units] || "KPH",
-          distUnit: distUnits[ie.Units] || "KM",
-          clock: new Date()
-        });
-        this.instrumentCluster.texture.needsUpdate = true;
-      }
     }
     updateBasic(e) {
       Ae.speed += this.inputs.accel * e;
