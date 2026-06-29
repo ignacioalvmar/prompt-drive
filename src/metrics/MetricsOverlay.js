@@ -1,14 +1,24 @@
 /**
  * Live HUD overlay (DOM). Shows the selected metrics computed over a trailing
  * window from the collector buffers, refreshed on its own throttled timer so
- * nothing heavy runs on the physics thread. Toggle on/off independently of the
- * configuration panel.
+ * nothing heavy runs on the physics thread.
+ *
+ * The overlay is toggled from a button injected into the game's lower menu
+ * band (`#menu-bar-left`), built to match the native weather/scene/vehicle
+ * controls: a `.menu-item` whose `.menu-icon` fires on `mousedown`. Those
+ * controls act on a non-focusable element, so the press never pulls keyboard
+ * focus off `#game-main` (which owns the vehicle keydown listener). A plain
+ * focusable `<button>` would steal that focus and silently swallow the driving
+ * keys until something refocused the game — so we deliberately mirror the
+ * native band mechanism here.
  */
 
 import { computeMetrics } from './compute.js';
 import { getMetric } from './config.js';
 
 const OVERLAY_STYLE_ID = 'pd-overlay-style';
+const MENU_BUTTON_ID = 'pd-overlay-menu-item';
+const MENU_ICON_URL = './static/media/driver_performance.svg';
 
 const OVERLAY_CSS = `
 .pd-overlay{position:fixed;left:12px;bottom:12px;z-index:9999;min-width:210px;
@@ -37,6 +47,59 @@ export class MetricsOverlay {
     this.root.className = 'pd-overlay';
     document.body.appendChild(this.root);
     this._timer = setInterval(() => this._refresh(), 1000 / refreshHz);
+    this._buildMenuButton();
+    this._scheduled = false;
+    this._observer = new MutationObserver(() => this._scheduleInject());
+    this._observer.observe(document.body, { childList: true, subtree: true });
+    this._tryInjectMenuButton();
+  }
+
+  // --- lower-band toggle button -----------------------------------------
+  // Mirrors the native menu-bar controls (see file header): a `.menu-item`
+  // with a `.menu-icon` that toggles on `mousedown` of a non-focusable image,
+  // so the game keeps keyboard focus.
+  _buildMenuButton() {
+    const item = document.createElement('div');
+    item.className = 'menu-item';
+    item.id = MENU_BUTTON_ID;
+    item.tabIndex = -1;
+    item.title = 'Driving performance overlay';
+
+    const icon = document.createElement('img');
+    icon.className = 'menu-icon';
+    icon.src = MENU_ICON_URL;
+    icon.alt = '';
+    icon.addEventListener('mousedown', (e) => {
+      // Keep focus on #game-main so vehicle keyboard input is never captured.
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggle();
+    });
+
+    item.appendChild(icon);
+    this.menuButton = item;
+  }
+
+  _scheduleInject() {
+    if (this._scheduled) return;
+    this._scheduled = true;
+    requestAnimationFrame(() => {
+      this._scheduled = false;
+      this._tryInjectMenuButton();
+    });
+  }
+
+  /** (Re)insert the toggle into the lower band once it exists. */
+  _tryInjectMenuButton() {
+    const bar = document.getElementById('menu-bar-left');
+    if (!bar || !this.menuButton) return; // band not mounted yet
+    if (bar.contains(this.menuButton)) return;
+    bar.appendChild(this.menuButton);
+    this._updateMenuButton();
+  }
+
+  _updateMenuButton() {
+    if (this.menuButton) this.menuButton.classList.toggle('item-selected', this.visible);
   }
 
   _injectStyle() {
@@ -50,6 +113,7 @@ export class MetricsOverlay {
   setVisible(v) {
     this.visible = v;
     this.root.classList.toggle('open', v);
+    this._updateMenuButton();
     if (v) this._refresh();
   }
 
@@ -84,6 +148,8 @@ export class MetricsOverlay {
 
   dispose() {
     clearInterval(this._timer);
+    if (this._observer) this._observer.disconnect();
+    if (this.menuButton) this.menuButton.remove();
     this.root.remove();
   }
 }

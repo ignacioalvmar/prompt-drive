@@ -107,17 +107,16 @@ export class MetricsPanel {
       for (const m of metrics) this.content.appendChild(this._metricRow(m));
     }
 
-    // run controls
+    // run controls — the live overlay is toggled from the lower menu band
+    // (see MetricsOverlay) so it can't steal keyboard focus from the game.
     const controls = el('div', 'pd-controls');
     this.startBtn = el('button', 'primary', 'Start');
     this.stopBtn = el('button', null, 'Stop');
     this.resetBtn = el('button', null, 'Reset');
-    this.overlayBtn = el('button', null, 'Overlay');
     this.startBtn.addEventListener('click', () => this.app.startRun());
     this.stopBtn.addEventListener('click', () => this.app.stopRun());
     this.resetBtn.addEventListener('click', () => this.app.resetRun());
-    this.overlayBtn.addEventListener('click', () => this.app.toggleOverlay());
-    controls.append(this.startBtn, this.stopBtn, this.resetBtn, this.overlayBtn);
+    controls.append(this.startBtn, this.stopBtn, this.resetBtn);
     this.content.appendChild(controls);
 
     const exports = el('div', 'pd-controls');
