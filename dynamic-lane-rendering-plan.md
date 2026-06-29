@@ -18,12 +18,18 @@
 > consistent; the live-ahead taper remains a possible future enhancement if terrain tiles are
 > made to regenerate on demand around the car.
 >
-> **Other v1 deviations** (to keep it low-risk and verifiable): markings are *solid* (no
-> `arcStation` dashes), the divider is rendered *centred/unsigned* (asymmetric divider offset
-> not yet signed in-shader), markings are wired for the paved Hills scene only (Planet shader
-> untouched), and lane counts/width are capped to a range the terrain renders cleanly (very
-> wide carriageways bank steeply on hilly terrain). The attribute-baked dashes/divider and an
-> on-demand terrain rebuild remain the documented paths for a v2.
+> **Markings map to the real layout.** A per-vertex `laneSigned` attribute (signed lateral
+> position, `d·side`) is baked through the terrain pipeline (cell → tileReady → tileset geo)
+> and the fragment shader places lane boundaries at `dividerOffset + k·laneWidth`, so an
+> asymmetric carriageway (e.g. 3 forward + 1 oncoming) renders with the yellow divider offset
+> to the correct side and the right number of white lane lines on each side. This realises
+> the §3.2 Option A attribute-baked path (minus per-vertex dashes).
+>
+> **Remaining v1 deviations** (low-risk choices): lane lines are *solid* (no `arcStation`
+> dashes — thin solid lines already alias into a dashed look at distance), markings are wired
+> for the paved Hills scene only (Planet shader untouched), and lane counts/width are capped
+> to a range the terrain renders cleanly (very wide carriageways bank steeply on hilly
+> terrain). Per-vertex dashes and an on-demand terrain rebuild remain documented v2 paths.
 
 **Status:** Implemented (v1); §3.2 Option A realised in the no-extra-attributes form. 2026-06-29
 **Scope:** Procedurally render additional lanes — in the same direction and in the
