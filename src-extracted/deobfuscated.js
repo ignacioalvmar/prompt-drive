@@ -3046,10 +3046,15 @@
       if (typeof window !== "undefined" && window.LaneRoads) window.LaneRoads._resolved = laneResolved;
     } catch (lanePubErr) {}
   };
-  // Per-node spawn width that eases toward Yt so a runtime lane change tapers in
-  // over a few nodes (a real lane add/drop) instead of stepping discontinuously.
+  // Per-node spawn width. The lane configuration is resolved once per drive (at
+  // scene init / midline reset via laneSync) and LOCKED for that session, so the
+  // whole road is built at a single consistent width. Config changes are applied
+  // on reload — matching how the game applies topography and seed changes, and
+  // avoiding a mid-drive width mismatch (the road is committed far ahead of the
+  // car, so an in-place change can't widen the road already under/around it and
+  // would strand the autodrive off the still-narrow road). New nodes just ease
+  // toward the locked target, which keeps the very first nodes smooth.
   const laneNextWidth = prevW => {
-    laneSync();
     const step = 0.35;
     if (!(prevW > 0)) return Yt;
     const d = Yt - prevW;

@@ -6,7 +6,12 @@
  *
  * API:
  *   LaneRoads.get()            -> { forward, backward, width|null }
- *   LaneRoads.set(partial)     -> merges, validates, persists, applies ahead
+ *   LaneRoads.set(partial)     -> merges, validates, persists (applied on reload)
+ *   LaneRoads.apply()          -> reloads so the engine rebuilds the road at the
+ *                                 persisted layout (lane geometry is baked into
+ *                                 the road as it generates far ahead of the car,
+ *                                 so changes take effect on a rebuild — the same
+ *                                 model the game uses for topography/seed)
  *   LaneRoads.subscribe(fn)    -> fn(cfg) on change; returns an unsubscribe fn
  *   LaneRoads.presets          -> [{ id, label, cfg }]
  *   LaneRoads.defaults         -> default config
@@ -20,6 +25,9 @@ const panel = typeof document !== 'undefined' ? new LanePanel(store) : null;
 const LaneRoads = {
   get: () => store.get(),
   set: (partial) => store.set(partial),
+  apply: () => {
+    if (typeof location !== 'undefined') location.reload();
+  },
   subscribe: (fn) => store.subscribe(fn),
   presets: LANE_PRESETS,
   defaults: Object.assign({}, LANE_DEFAULTS),

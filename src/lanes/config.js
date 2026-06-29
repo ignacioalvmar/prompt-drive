@@ -21,17 +21,23 @@ const LANE_DEFAULTS = {
   width: null, // metres per lane; null = auto (use topography road width)
 };
 
+// Caps chosen so the resolved carriageway stays within what the procedural
+// terrain handles gracefully. Very wide roads (≳18 m) forced onto hilly
+// topography bank steeply and look uneven, so the per-direction count and lane
+// width are bounded; the common 1+1 / 2+2 / one-way layouts render cleanly.
 const LANE_LIMITS = {
-  forward: { min: 1, max: 5 },
-  backward: { min: 0, max: 5 },
-  width: { min: 2.4, max: 5 }, // only applies when not auto
+  forward: { min: 1, max: 3 },
+  backward: { min: 0, max: 3 },
+  width: { min: 2.4, max: 3.75 }, // only applies when not auto
 };
 
-// Named presets shown as one-click buttons in the settings panel.
+// Named presets shown as one-click buttons in the settings panel. Kept within
+// the width that renders cleanly on hilly terrain (see LANE_LIMITS); wider
+// layouts can still be dialled in manually with the steppers.
 const LANE_PRESETS = [
   { id: 'single', label: 'Single (1+1)', cfg: { forward: 1, backward: 1, width: null } },
   { id: 'dual', label: 'Dual 2+2', cfg: { forward: 2, backward: 2, width: 3.2 } },
-  { id: 'motorway', label: 'Motorway 3+3', cfg: { forward: 3, backward: 3, width: 3.5 } },
+  { id: 'wide', label: 'Wide 3+2', cfg: { forward: 3, backward: 2, width: 3.2 } },
   { id: 'oneway3', label: 'One-way ×3', cfg: { forward: 3, backward: 0, width: 3.2 } },
 ];
 

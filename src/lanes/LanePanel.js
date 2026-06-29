@@ -35,6 +35,8 @@ const LP_CSS = `
   background:#2a2a2a;color:#cfe9e6;border:1px solid #3a3a3a;border-radius:5px;
   padding:7px 8px;cursor:pointer;letter-spacing:1px}
 #${LP_CONTENT_ID} .pd-presets button:hover{border-color:#3ec6b5}
+#${LP_CONTENT_ID} .pd-presets button.apply{background:#1d3a36;border-color:#3ec6b5;color:#eafffb}
+#${LP_CONTENT_ID} .pd-presets button.apply:disabled{opacity:.5;cursor:default}
 #${LP_CONTENT_ID} .pd-note{font-size:11px;color:#8aa0a0;margin-top:10px;line-height:1.4}
 #${LP_CONTENT_ID} .pd-note b{color:#cfe9e6}
 `;
@@ -106,10 +108,33 @@ class LanePanel {
     }
     this.content.appendChild(presets);
 
+    // Lane geometry is baked into the road as it is generated far ahead of the
+    // car, so changes are applied by rebuilding the road from the start — the
+    // same way the game applies topography/seed changes. Adjust the values,
+    // then Apply to rebuild the drive at the new layout.
+    const applyRow = el('div', 'pd-presets');
+    this.applyBtn = el('button', 'apply', 'Apply (rebuild road)');
+    this.applyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._apply();
+    });
+    applyRow.appendChild(this.applyBtn);
+    this.content.appendChild(applyRow);
+
     this.note = el('div', 'pd-note');
     this.content.appendChild(this.note);
 
     this._applyExpanded();
+  }
+
+  _apply() {
+    // Persisted config is already current (set() runs on each change); reload so
+    // the engine rebuilds the whole road at the new lane layout from the origin.
+    try {
+      this.applyBtn.textContent = 'Rebuilding…';
+      this.applyBtn.disabled = true;
+    } catch (_e) {}
+    location.reload();
   }
 
   _stepperRow(label, onMinus, onPlus) {
@@ -161,8 +186,10 @@ class LanePanel {
     this.widthRow.val.textContent = cfg.width == null ? 'auto' : cfg.width.toFixed(1) + 'm';
     const total = cfg.forward + cfg.backward;
     this.note.innerHTML =
-      `<b>${total}</b> lane${total === 1 ? '' : 's'} total. Changes apply to road generated ` +
-      `<b>ahead</b> of you, tapering in over a short distance — keep driving to reach them.`;
+      `<b>${total}</b> lane${total === 1 ? '' : 's'} total ` +
+      `(${cfg.forward} your way, ${cfg.backward} oncoming). ` +
+      `Press <b>Apply</b> to rebuild the road at this layout — the drive restarts ` +
+      `from the start so the whole road and its markings use the new width.`;
   }
 
   dispose() {

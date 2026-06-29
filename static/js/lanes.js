@@ -24,17 +24,23 @@ const LANE_DEFAULTS = {
   width: null, // metres per lane; null = auto (use topography road width)
 };
 
+// Caps chosen so the resolved carriageway stays within what the procedural
+// terrain handles gracefully. Very wide roads (≳18 m) forced onto hilly
+// topography bank steeply and look uneven, so the per-direction count and lane
+// width are bounded; the common 1+1 / 2+2 / one-way layouts render cleanly.
 const LANE_LIMITS = {
-  forward: { min: 1, max: 5 },
-  backward: { min: 0, max: 5 },
-  width: { min: 2.4, max: 5 }, // only applies when not auto
+  forward: { min: 1, max: 3 },
+  backward: { min: 0, max: 3 },
+  width: { min: 2.4, max: 3.75 }, // only applies when not auto
 };
 
-// Named presets shown as one-click buttons in the settings panel.
+// Named presets shown as one-click buttons in the settings panel. Kept within
+// the width that renders cleanly on hilly terrain (see LANE_LIMITS); wider
+// layouts can still be dialled in manually with the steppers.
 const LANE_PRESETS = [
   { id: 'single', label: 'Single (1+1)', cfg: { forward: 1, backward: 1, width: null } },
   { id: 'dual', label: 'Dual 2+2', cfg: { forward: 2, backward: 2, width: 3.2 } },
-  { id: 'motorway', label: 'Motorway 3+3', cfg: { forward: 3, backward: 3, width: 3.5 } },
+  { id: 'wide', label: 'Wide 3+2', cfg: { forward: 3, backward: 2, width: 3.2 } },
   { id: 'oneway3', label: 'One-way ×3', cfg: { forward: 3, backward: 0, width: 3.2 } },
 ];
 
@@ -163,6 +169,8 @@ const LP_CSS = `
   background:#2a2a2a;color:#cfe9e6;border:1px solid #3a3a3a;border-radius:5px;
   padding:7px 8px;cursor:pointer;letter-spacing:1px}
 #${LP_CONTENT_ID} .pd-presets button:hover{border-color:#3ec6b5}
+#${LP_CONTENT_ID} .pd-presets button.apply{background:#1d3a36;border-color:#3ec6b5;color:#eafffb}
+#${LP_CONTENT_ID} .pd-presets button.apply:disabled{opacity:.5;cursor:default}
 #${LP_CONTENT_ID} .pd-note{font-size:11px;color:#8aa0a0;margin-top:10px;line-height:1.4}
 #${LP_CONTENT_ID} .pd-note b{color:#cfe9e6}
 `;
@@ -234,10 +242,33 @@ class LanePanel {
     }
     this.content.appendChild(presets);
 
+    // Lane geometry is baked into the road as it is generated far ahead of the
+    // car, so changes are applied by rebuilding the road from the start — the
+    // same way the game applies topography/seed changes. Adjust the values,
+    // then Apply to rebuild the drive at the new layout.
+    const applyRow = el('div', 'pd-presets');
+    this.applyBtn = el('button', 'apply', 'Apply (rebuild road)');
+    this.applyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._apply();
+    });
+    applyRow.appendChild(this.applyBtn);
+    this.content.appendChild(applyRow);
+
     this.note = el('div', 'pd-note');
     this.content.appendChild(this.note);
 
     this._applyExpanded();
+  }
+
+  _apply() {
+    // Persisted config is already current (set() runs on each change); reload so
+    // the engine rebuilds the whole road at the new lane layout from the origin.
+    try {
+      this.applyBtn.textContent = 'Rebuilding…';
+      this.applyBtn.disabled = true;
+    } catch (_e) {}
+    location.reload();
   }
 
   _stepperRow(label, onMinus, onPlus) {
@@ -289,8 +320,10 @@ class LanePanel {
     this.widthRow.val.textContent = cfg.width == null ? 'auto' : cfg.width.toFixed(1) + 'm';
     const total = cfg.forward + cfg.backward;
     this.note.innerHTML =
-      `<b>${total}</b> lane${total === 1 ? '' : 's'} total. Changes apply to road generated ` +
-      `<b>ahead</b> of you, tapering in over a short distance — keep driving to reach them.`;
+      `<b>${total}</b> lane${total === 1 ? '' : 's'} total ` +
+      `(${cfg.forward} your way, ${cfg.backward} oncoming). ` +
+      `Press <b>Apply</b> to rebuild the road at this layout — the drive restarts ` +
+      `from the start so the whole road and its markings use the new width.`;
   }
 
   dispose() {
@@ -318,7 +351,12 @@ function el(tag, cls, text) {
  *
  * API:
  *   LaneRoads.get()            -> { forward, backward, width|null }
- *   LaneRoads.set(partial)     -> merges, validates, persists, applies ahead
+ *   LaneRoads.set(partial)     -> merges, validates, persists (applied on reload)
+ *   LaneRoads.apply()          -> reloads so the engine rebuilds the road at the
+ *                                 persisted layout (lane geometry is baked into
+ *                                 the road as it generates far ahead of the car,
+ *                                 so changes take effect on a rebuild — the same
+ *                                 model the game uses for topography/seed)
  *   LaneRoads.subscribe(fn)    -> fn(cfg) on change; returns an unsubscribe fn
  *   LaneRoads.presets          -> [{ id, label, cfg }]
  *   LaneRoads.defaults         -> default config
@@ -332,6 +370,9 @@ const panel = typeof document !== 'undefined' ? new LanePanel(store) : null;
 const LaneRoads = {
   get: () => store.get(),
   set: (partial) => store.set(partial),
+  apply: () => {
+    if (typeof location !== 'undefined') location.reload();
+  },
   subscribe: (fn) => store.subscribe(fn),
   presets: LANE_PRESETS,
   defaults: Object.assign({}, LANE_DEFAULTS),

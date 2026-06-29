@@ -85,15 +85,22 @@ integration map are in
 
 - **Configuration** — open the settings panel (gear icon) and expand the **road lanes**
   section (below *driving metrics*): steppers for forward / oncoming lanes and lane width,
-  plus presets (*Single 1+1*, *Dual 2+2*, *Motorway 3+3*, *One-way ×3*). Selection persists
+  plus presets (*Single 1+1*, *Dual 2+2*, *Wide 3+2*, *One-way ×3*). Selection persists
   in `localStorage`. Default **1+1 / auto-width** reproduces the original road exactly.
-- **Applies ahead** — because road nodes and terrain tiles bake their width as they are
-  generated ahead of the car, a lane change takes effect on the road *ahead* of you and
-  **tapers in** over a short distance (a real lane add/drop). Keep driving to reach it.
-- **Programmatic API** — `window.LaneRoads`: `get()`, `set({forward, backward, width})`,
-  `subscribe(fn)`, `presets`, and `resolved()` (the engine-published geometry —
+- **Applied on rebuild** — lane geometry is baked into the road as it is generated far
+  *ahead* of the car, so a change can't widen the road already built around you. Press
+  **Apply (rebuild road)** to rebuild the whole road from the start at the new layout —
+  the same model the engine uses for topography and seed changes. The config is locked for
+  the duration of a drive, so the carriageway is uniform and the autodrive can't be stranded
+  off a not-yet-widened road.
+- **Programmatic API** — `window.LaneRoads`: `get()`, `set({forward, backward, width})`
+  (persists; applied on the next rebuild), `apply()` (rebuild now), `subscribe(fn)`,
+  `presets`, and `resolved()` (the engine-published geometry —
   `{halfWidth, laneWidth, dividerOffset, egoCenterSigned, …}`, also read by the metrics
   subsystem so lane metrics track the **ego lane** on multi-lane roads).
+- **Width range** — very wide carriageways (≳18 m) forced onto hilly terrain bank steeply
+  and look uneven, so lane counts/width are capped to a well-behaved range; 1+1, 2+2 and
+  one-way layouts render cleanly.
 
 Markings derive in the terrain shader from the existing road-proximity value plus the
 resolved half-width (no new vertex attributes): a centre divider, interior lane lines, and

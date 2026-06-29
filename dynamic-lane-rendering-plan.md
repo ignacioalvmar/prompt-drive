@@ -2,15 +2,28 @@
 
 > **Implemented** on branch `dynamic-multi-lane-roads` (2026-06-29). What shipped:
 > lane config + persistence + settings UI (`src/lanes/`, exposed as `window.LaneRoads`);
-> per-node width resolved from lane intent with a runtime taper; lane markings painted in
-> the Hills terrain fragment shader (derived from `roadProx` + a resolved half-width
-> uniform — no new vertex attributes); autodrive follows the ego lane (clamped to the
-> locally-existing road so mid-drive widening never steers off-road); and the driving-metrics
-> patch reads the resolved ego-lane geometry. **v1 deviations from the plan below** (chosen to
-> keep the change low-risk and verifiable): markings are *solid* (no `arcStation` dashes), the
-> divider is rendered *centred/unsigned* (asymmetric divider offset not yet signed in-shader),
-> and markings are wired for the paved Hills scene only (Planet shader untouched). The
-> attribute-baked dashes/divider remain the documented path for a v2.
+> per-lane width resolved from lane intent; lane markings painted in the Hills terrain
+> fragment shader (derived from `roadProx` + a resolved half-width uniform — no new vertex
+> attributes); autodrive follows the ego lane; and the driving-metrics patch reads the
+> resolved ego-lane geometry.
+>
+> **Application model — rebuild, not live-ahead.** §1.6/§4.2 below proposed applying a lane
+> change to the road *ahead* with a taper. In practice the road (midline nodes + terrain
+> tiles, which bake width at generation) is committed too far ahead for a mid-drive change to
+> widen the road near the car, and applying the ego-lane offset immediately stranded the
+> autodrive off the still-narrow road. So the shipped model **locks the lane config for a
+> drive and applies changes on a road rebuild** (the settings panel's *Apply (rebuild road)*
+> reloads) — exactly how the engine already applies topography (`setTopography` → persisted →
+> rebuild, ~line 10757) and seed (`location.reload`, ~line 2774) changes. This is robust and
+> consistent; the live-ahead taper remains a possible future enhancement if terrain tiles are
+> made to regenerate on demand around the car.
+>
+> **Other v1 deviations** (to keep it low-risk and verifiable): markings are *solid* (no
+> `arcStation` dashes), the divider is rendered *centred/unsigned* (asymmetric divider offset
+> not yet signed in-shader), markings are wired for the paved Hills scene only (Planet shader
+> untouched), and lane counts/width are capped to a range the terrain renders cleanly (very
+> wide carriageways bank steeply on hilly terrain). The attribute-baked dashes/divider and an
+> on-demand terrain rebuild remain the documented paths for a v2.
 
 **Status:** Implemented (v1); §3.2 Option A realised in the no-extra-attributes form. 2026-06-29
 **Scope:** Procedurally render additional lanes — in the same direction and in the
