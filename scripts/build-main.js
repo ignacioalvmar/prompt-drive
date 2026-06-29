@@ -22,7 +22,7 @@ function replaceOnce(haystack, needle, replacement, label) {
 src = replaceOnce(
   src,
   '      this.uiTimer = 0;\n      this.speedFactor = 1;',
-  '      this.uiTimer = 0;\n      this.throttleDisplay = 0;\n      this.instrumentCluster = null;\n      this.clusterMesh = null;\n      this.speedFactor = 1;',
+  '      this.uiTimer = 0;\n      this.throttleDisplay = 0;\n      this.instrumentCluster = null;\n      this.clusterMesh = null;\n      this.drivingMetrics = null;\n      this.speedFactor = 1;',
   'constructor fields',
 );
 
@@ -183,6 +183,13 @@ src = replaceOnce(
           console.error("InstrumentCluster init failed", clusterErr);
         }
       }
+      if (typeof DrivingMetrics !== "undefined" && !this.drivingMetrics) {
+        try {
+          this.drivingMetrics = new DrivingMetrics(r);
+        } catch (metricsErr) {
+          console.error("DrivingMetrics init failed", metricsErr);
+        }
+      }
       this.initVehicle(je[Fe.value.type]);`,
   'initialise cluster',
 );
@@ -267,6 +274,56 @@ src = replaceOnce(
     }
     updatePass(e, t) {}`,
   'updateStationed cluster UI',
+);
+
+// --- Patch: sample driving-performance telemetry each physics frame ---
+src = replaceOnce(
+  src,
+  `      Ae.pVel.copy(Ae.vel);
+      if (!isFinite(Ae.speed)) {`,
+  `      Ae.pVel.copy(Ae.vel);
+      if (this.drivingMetrics) {
+        try {
+          // ii() = engine's precise road projection: { d: perpendicular dist,
+          // s: sign, w: interpolated road width, ... } (see deobfuscated ~3209).
+          let _moff = NaN;
+          let _mhalf = null;
+          if (si.vehicleNode) {
+            const _mp = ii(Ae.position.x, Ae.position.z, si.vehicleNode, true);
+            if (_mp) {
+              // Lane position relative to LANE CENTER (not road centerline).
+              // The engine treats |rawProx| = 0.5 as the nominal driving line
+              // (deobfuscated ~17996-18001): rawProx = d / (Yt - wheels.width/2),
+              // so the lane center sits at 0.5*(Yt - wheels.width/2) from the
+              // road centerline, and the lane is symmetric about it.
+              const _usable = Yt - Ae.wheels.width / 2;
+              const _laneCenter = 0.5 * _usable;
+              _moff = (_mp.d - _laneCenter) * _mp.s; // signed deviation from lane center
+              _mhalf = _laneCenter; // lane half-width (lane center to either boundary)
+            }
+          }
+          this.drivingMetrics.sample(e, {
+            speed: Ae.speed,
+            steer: Ae.steer,
+            throttle: Math.abs(this.inputs.accel),
+            brake: this.inputs.brake,
+            accel: Ae.accel,
+            heading: Ae.heading,
+            posX: Ae.position.x,
+            posZ: Ae.position.z,
+            lateralOffset: _moff,
+            laneHalfL: _mhalf,
+            laneHalfR: _mhalf,
+            nodeIndex: si.vehicleIndex,
+            onRoad: Ae.onRoad,
+            collided: this.didCollide,
+            vehicle: Fe.value.type,
+            units: ie.Units
+          });
+        } catch (_metricsSampleErr) {}
+      }
+      if (!isFinite(Ae.speed)) {`,
+  'driving metrics sample',
 );
 
 fs.writeFileSync(outPath, src);
