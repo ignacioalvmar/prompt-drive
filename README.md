@@ -102,11 +102,14 @@ integration map are in
   and look uneven, so lane counts/width are capped to a well-behaved range; 1+1, 2+2 and
   one-way layouts render cleanly.
 
-Markings derive in the terrain shader from the existing road-proximity value plus the
-resolved half-width (no new vertex attributes): a centre divider, interior lane lines, and
-edge lines. v1 renders solid lines, a centred divider, and markings on the paved
-(summer/spring) scene; per-vertex dashes and signed asymmetric dividers are noted as
-follow-ups in the plan.
+Markings are painted by the **road-surface material's** shader (the road is a separate
+textured ribbon spanning the full carriageway, with `UV.x` running 0→1 across it). The
+shader derives the signed lateral position `S = (UV.x − 0.5)·2·halfWidth` and draws a line
+at every lane boundary `dividerOffset + k·laneWidth`, so the forward and oncoming sides get
+the correct number of white lane lines with a yellow divider at the split, plus white edge
+lines. v1 lines are solid and on the paved (summer/spring) scene; dashed lane lines are a
+follow-up. (Earlier drafts mistakenly painted markings into the terrain shader, which only
+draws the verge — the road surface is a distinct mesh.)
 
 ## Deploy
 

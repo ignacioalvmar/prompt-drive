@@ -3015,17 +3015,21 @@
     halfWidth: 3, laneWidth: 3, forward: 1, backward: 1,
     dividerOffset: 0, egoCenterSigned: 0, isDefault: true, total: 2
   };
+  // Shared marking uniforms, read by the ROAD SURFACE material (Xt) shader. The
+  // road surface is a textured ribbon spanning the full width with UV.x 0..1
+  // across it, so the shader derives the signed lateral position from UV.x and
+  // these uniforms to draw the direction divider + per-lane lines.
+  const laneU = {
+    uHalfWidth: { value: 3 },
+    uLaneWidth: { value: 3 },
+    uDividerOffset: { value: 0 }, // signed lateral of the forward/oncoming divider
+    uMarkings: { value: 1 }
+  };
   const laneApplyMarkingUniforms = () => {
-    try {
-      if (typeof Cs === "undefined" || !Cs.userData || !Cs.userData.uHalfWidth) return;
-      Cs.userData.uHalfWidth.value = laneResolved.halfWidth;
-      Cs.userData.uLaneWidth.value = laneResolved.laneWidth;
-      // Signed lateral offset of the direction divider (0 when symmetric), so the
-      // yellow divider and the per-side lane lines land where the lanes actually
-      // split (e.g. 3 forward + 1 oncoming).
-      Cs.userData.uDividerOffset.value = laneResolved.dividerOffset;
-      Cs.userData.uMarkings.value = 1;
-    } catch (laneUniformErr) {}
+    laneU.uHalfWidth.value = laneResolved.halfWidth;
+    laneU.uLaneWidth.value = laneResolved.laneWidth;
+    laneU.uDividerOffset.value = laneResolved.dividerOffset;
+    laneU.uMarkings.value = 1;
   };
   const laneSync = () => {
     let cfg = null;
@@ -3075,6 +3079,24 @@
     map: null,
     alphaTest: 0.75
   });
+  // Dynamic lane markings painted onto the road-surface ribbon. UV.x runs 0..1
+  // across the full carriageway, so signed lateral position S = (uv.x-0.5)*2*w.
+  // Boundaries tile at uDividerOffset + k*laneWidth: the forward and oncoming
+  // sides get the correct number of lines, with a yellow divider at the split.
+  Xt.onBeforeCompile = e => {
+    e.uniforms.uHalfWidth = laneU.uHalfWidth;
+    e.uniforms.uLaneWidth = laneU.uLaneWidth;
+    e.uniforms.uDividerOffset = laneU.uDividerOffset;
+    e.uniforms.uMarkings = laneU.uMarkings;
+    e.fragmentShader = e.fragmentShader.replace(
+      "#include <map_pars_fragment>",
+      "#include <map_pars_fragment>\n  uniform float uHalfWidth;\n  uniform float uLaneWidth;\n  uniform float uDividerOffset;\n  uniform float uMarkings;\n"
+    );
+    e.fragmentShader = e.fragmentShader.replace(
+      "#include <map_fragment>",
+      "#include <map_fragment>\n\n  if(uMarkings > 0.5 && uLaneWidth > 0.01) {\n    float S = (vUv.x - 0.5) * 2.0 * uHalfWidth;   // signed lateral position (m)\n    float aa = 0.05;\n    float lw = 0.10;                                  // half line width (m)\n    // suppress any markings baked into the road texture so ours define lanes\n    diffuseColor.rgb = min(diffuseColor.rgb, vec3(0.5));\n    float white = 0.0;\n    float k = floor((S - uDividerOffset) / uLaneWidth + 0.5);\n    float boundary = uDividerOffset + k * uLaneWidth;\n    if(abs(k) >= 1.0 && abs(boundary) < uHalfWidth - 0.18) {\n      white = max(white, 1.0 - smoothstep(lw - aa, lw + aa, abs(S - boundary)));\n    }\n    // edge lines just inside each kerb\n    white = max(white, 1.0 - smoothstep(lw - aa, lw + aa, abs(abs(S) - (uHalfWidth - 0.30))));\n    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.92, 0.92), white);\n    // direction divider — yellow\n    float yellow = 1.0 - smoothstep(lw - aa, lw + aa, abs(S - uDividerOffset));\n    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.90, 0.74, 0.20), yellow);\n  }\n"
+    );
+  };
   let Jt = lt.wallGenHorizon;
   let qt = lt.wallRenderHorizon;
   const Kt = 30;
@@ -3340,10 +3362,6 @@
       this.roadProx = new Float32Array(this.res1 * this.res1);
       this.treeMask = new Float32Array(this.res1 * this.res1);
       this.curves = new Float32Array(this.res1 * this.res1);
-      // Signed lateral position from the road centreline (d * side), uploaded as
-      // a vertex attribute so the terrain shader can place lane markings on the
-      // correct side of an asymmetric (e.g. 3+1) carriageway.
-      this.laneSigned = new Float32Array(this.res1 * this.res1);
       this.signedRoadProx = [];
     }
     initGeneration(e, t, i, s = false, n) {
@@ -3570,7 +3588,6 @@
         }
         this.heights[t] = s;
         this.roadProx[t] = i;
-        this.laneSigned[t] = n.d * n.s; // signed lateral position from centreline
         this.treeMask[t] = 0;
         this.verts[e] = a - this.tileset.origin.x;
         this.verts[e + 1] = s - this.tileset.origin.y;
@@ -3686,7 +3703,7 @@
     }
     display(e = false) {
       this.active = true;
-      this.tileset.tileReady(this.tileIndex, this.verts, this.norms, this.curves, this.roadProx, this.treeMask, this.centroid, e, this.laneSigned);
+      this.tileset.tileReady(this.tileIndex, this.verts, this.norms, this.curves, this.roadProx, this.treeMask, this.centroid, e);
     }
     show() {
       this.tileset.draw();
@@ -5323,19 +5340,6 @@
   Cs.userData.colouration = {
     value: [0.18, 0.08, 0.1, 0]
   };
-  // Dynamic multi-lane road markings (see laneSync / map_fragment patch below).
-  Cs.userData.uHalfWidth = {
-    value: 3
-  };
-  Cs.userData.uLaneWidth = {
-    value: 3
-  };
-  Cs.userData.uDividerOffset = {
-    value: 0
-  };
-  Cs.userData.uMarkings = {
-    value: 1
-  };
   Cs.onBeforeCompile = e => {
     e.uniforms.grassMap = Cs.userData.grassMap;
     e.uniforms.sandMap = Cs.userData.sandMap;
@@ -5348,14 +5352,10 @@
     e.uniforms.fadeRockMap = Cs.userData.fadeRockMap;
     e.uniforms.fadeFiner = Cs.userData.fadeFiner;
     e.uniforms.colouration = Cs.userData.colouration;
-    e.uniforms.uHalfWidth = Cs.userData.uHalfWidth;
-    e.uniforms.uLaneWidth = Cs.userData.uLaneWidth;
-    e.uniforms.uDividerOffset = Cs.userData.uDividerOffset;
-    e.uniforms.uMarkings = Cs.userData.uMarkings;
-    e.vertexShader = e.vertexShader.replace("#include <displacementmap_pars_vertex>", "\n\nattribute float heightOffset;\nattribute float roadProximity;\nattribute float treeMask;\nattribute float curvature;\nattribute float grass;\nattribute float laneSigned;\n\nvarying float height;\nvarying float steepness;\nvarying float roadProx;\nvarying float vTreeMask;\nvarying vec2 vWv;\nvarying vec2 vWWv;\nvarying float vCurvature;\nvarying float vGrass;\nvarying float vLightGrass;\nvarying float vDarkGrass;\nvarying float vHeather;\nvarying float vLaneSigned;\n\nfloat wuvSize = 800.0;\n\nuniform sampler2D displacementMap;\nuniform sampler2D fadeRockMap;\n\nfloat map(float value, float min1, float max1, float min2, float max2) {\n  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);\n}\n\nvec3 upvec = vec3(0.0,1.0,0.0);\n\n");
-    e.vertexShader = e.vertexShader.replace("#include <displacementmap_vertex>", "\n\n  vec4 wPos = modelMatrix * vec4( position, 1.0 );\n\n  height = wPos.y + heightOffset;\n\n  // Unclear if worthwhile...\n  // if(abs(wPos.x) > 14000.0) {\n  //   wPos.x = mod(wPos.x, 14000.0);\n  // }\n  // if(abs(wPos.z) > 14000.0) {\n  //   wPos.z = mod(wPos.z, 14000.0);\n  // }\n\n  // Set UVs from world pos\n  vUv.x = wPos.x / 10.0;\n  vUv.y = wPos.z / 10.0;\n\n\n  // 0 is perfectly flat, 1 is 90 degrees\n  steepness = 1.0 - dot(normal, upvec);\n  steepness = clamp(steepness * 2.0, 0.0, 1.0);\n\n  // Anything up to 0.8 is 1\n  // 0.8 down to 0.6\n  // 0.6 and under is 0\n\n  // steepness = 1.0 - clamp((steepness - 0.6) / 0.2, 0.0, 1.0);\n  // steepness = 1.0 - map(steepness, 0.2, 0.7, 0.0, 1.0);\n\n  // steepness = 1.0 - steepness;//clamp((steepness * 2.0), 0.0, 1.0);\n  // steepness = map(steepness, 0.0, 1.0, 0.3, 0.7);\n\n  vWv.x = wPos.x / wuvSize;\n  vWv.y = wPos.z / wuvSize;\n\n  vWWv.x = vWv.x / 8.0;\n  vWWv.y = vWv.y / 8.0;\n\n  // MAGIC NUMBERS TO BE TWEAKED BASED ON HEIGHT PARAMETERS\n  if(curvature > 0.0) {\n    vCurvature = max(-1.0, curvature * -4.0);\n  } else {\n    vCurvature = min(1.0, curvature * -4.0);\n  }\n\n  //// GET FADES\n\n  float fade0 = texture2D(fadeRockMap, vWv).r;\n  float fade1 = texture2D(fadeRockMap, vWWv).r;\n  float fade2 = (texture2D(fadeRockMap,\n    vec2(\n      vWWv.x = wPos.x / 1200.0,\n      vWWv.y = wPos.z / 1200.0\n    )\n  ).r / 2.0) + 0.5;\n\n  //// HEATHER\n\n  vHeather = smoothstep(0.47, 0.53, min(1.0,height / 170.0) * fade1 * fade2);\n\n  //// GRASSES\n\n  // Focus contrast on middle range for sharper edges\n\n  fade0 = min(max(0.0,(fade0 - 0.25) * 2.0), 1.0);\n  fade1 = min(max(0.0,(fade1 - 0.25) * 2.0), 1.0);\n\n  float heightVal = min(1.0, height/100.0);\n  vLightGrass = min(1.0, max(0.0, fade1 * heightVal * (fade0 + heightVal)));\n  if(roadProximity > 0.0 && roadProximity < 2.0) {\n    vLightGrass *= roadProximity / 4.0 + 0.5;\n    vHeather *= roadProximity / 2.0;\n  }\n  vDarkGrass = 1.0;// 1.1 - (fade1 * 0.1);\n\n\n  //// ROAD PROX\n\n  roadProx = roadProximity;\n  vLaneSigned = laneSigned;\n\n  if(roadProx < 0.0) {\n    steepness = 0.0;\n  }\n\n  //// TREE MASK\n\n  vTreeMask = treeMask;\n\n  //// GRASS  FIDDLING\n\n  // if(vCurvature > 0.0) {\n  //   vGrass = grass * vCurvature;\n  // } else {\n  //   vGrass = 0.0;\n  // }\n  // vGrass = grass * min(1.0, height / 100.0);\n\n  vGrass = grass;\n\n  vWWv.x = wPos.x / 400.0;\n  vWWv.y = wPos.z / 400.0;\n\n  transformed += vec3(0.0, heightOffset, 0.0);\n\n  // Experimenting with displacement map\n  transformed += normalize( objectNormal ) * ( texture2D( displacementMap, vUv ).x * steepness * 1.25 );\n\n");
-    e.fragmentShader = e.fragmentShader.replace("#include <map_pars_fragment>", "\n\n  varying float height;\n  varying float steepness;\n  varying float roadProx;\n  varying float vTreeMask;\n  varying float vCurvature;\n  varying float vGrass;\n  varying vec2 vWv;\n  varying vec2 vWWv;\n  varying float vLightGrass;\n  varying float vDarkGrass;\n  varying float vHeather;\n\n  uniform sampler2D grassMap;\n  uniform sampler2D sandMap;\n  uniform sampler2D rockMap;\n  uniform sampler2D rockMapBump;\n  uniform sampler2D gravelMap;\n  uniform sampler2D forestMap;\n  uniform sampler2D heatherMap;\n  uniform sampler2D fadeRockMap;\n  uniform sampler2D fadeFiner;\n\n  uniform vec4 colouration;\n\n  vec4 rockTex;\n\n  vec4 terrainBlend(vec4 tx1, float w1, vec4 tx2, float w2, float depth) {\n    // Perform the blending\n    float ma = max(tx1.a + w1, tx2.a + w2) - depth;\n    float b1 = max(tx1.a + w1 - ma, 0.0);\n    float b2 = max(tx2.a + w2 - ma, 0.0);\n\n    return ((tx1 * b1) + (tx2 * b2)) / (b1 + b2);\n  }\n\n  varying float vLaneSigned;\n  uniform float uHalfWidth;\n  uniform float uLaneWidth;\n  uniform float uDividerOffset;\n  uniform float uMarkings;\n\n  vec4 roadCol = vec4(0.45, 0.45, 0.474, 1.0);\n\n\n");
-    e.fragmentShader = e.fragmentShader.replace("#include <map_fragment>", "\n\n  float fade = texture2D(fadeRockMap, vUv).r;\n  float fade1 = texture2D(fadeRockMap, vWv).r;\n  float fade2 = (texture2D(fadeRockMap, vWWv).r / 2.0) + 0.5;\n\n  float heightVal = min(1.0, (height/ 150.0));\n\n  vec4 darkGrass = texture2D(heatherMap, vUv);\n  darkGrass.a = darkGrass.g;\n\n  //// GRASS 1\n\n  vec4 texelColor = texture2D( grassMap, vUv );\n\n  //// LIGHT GRASS\n\n  texelColor += colouration * vLightGrass;\n\n  //// HEATHER\n\n  texelColor = mix(texelColor, darkGrass, vHeather * smoothstep(0.3, 0.7, fade1));\n\n  //// TREE MASK\n\n  texelColor = mix(texelColor, texture2D(forestMap, vUv), vTreeMask);\n  // texelColor.a = 1.0;\n  // vec4 forestCol = texture2D(forestMap, vUv);\n  // forestCol.a = 1.0 + fade * 0.1;//forestCol.r;// - fade * 0.5;\n  // texelColor = terrainBlend(\n  //   texelColor,\n  //   1.0-vTreeMask,\n  //   forestCol,\n  //   vTreeMask + fade * 0.25,\n  //   0.25\n  // );\n  // texelColor.a = 1.0;\n\n  //// DARK GRASS\n\n  texelColor *= vDarkGrass;\n\n  //// SAND BLEND\n\n  if(height < 4.0) {\n    float dark = 1.0 - vTreeMask * 0.3;\n    if(height < 0.0) {\n      texelColor = texture2D(sandMap, vUv) * 0.8333;\n    } else {\n      if(height < 2.0) {\n        dark = min(dark, 1.0 - (2.0 - height) / 12.0);\n      }\n      texelColor = mix(texture2D(sandMap, vUv) * dark, texelColor, height / 4.0);\n    }\n  }\n\n  //// ROADSIDE GRAVEL\n\n  if(roadProx < -0.2) {\n    texelColor = roadCol;\n\n    //// LANE MARKINGS (signed lateral -> correct divider + per-side lane lines)\n    if(uMarkings > 0.5 && uLaneWidth > 0.01) {\n      float S = vLaneSigned;                  // signed lateral position from centre (m)\n      float aa = 0.04;\n      float lw = 0.09;                        // half line width (m)\n      float white = 0.0;\n      // lane boundaries tile at laneWidth from the direction divider, so the\n      // forward and oncoming sides get the correct number of lines each\n      float k = floor((S - uDividerOffset) / uLaneWidth + 0.5);\n      float boundary = uDividerOffset + k * uLaneWidth;\n      if(abs(k) >= 1.0 && abs(boundary) < uHalfWidth - 0.25) {\n        white = max(white, 1.0 - smoothstep(lw - aa, lw + aa, abs(S - boundary)));\n      }\n      // edge lines, inset so they fall on painted tarmac (roadProx < -0.2)\n      float edge = uHalfWidth - 0.35;\n      white = max(white, 1.0 - smoothstep(lw - aa, lw + aa, abs(abs(S) - edge)));\n      texelColor = mix(texelColor, vec4(0.82, 0.82, 0.82, 1.0), white);\n      // direction divider — yellow\n      float yellow = 1.0 - smoothstep(lw - aa, lw + aa, abs(S - uDividerOffset));\n      texelColor = mix(texelColor, vec4(0.86, 0.72, 0.20, 1.0), yellow);\n    }\n  } else if(roadProx != 0.0 && roadProx < 0.7) {\n\n    float rp = roadProx / 0.7;\n\n    texelColor = mix(\n      texture2D(gravelMap, vUv),\n      texelColor,\n      smoothstep(\n        rp + 0.15,\n        rp - 0.15,\n        fade\n      )\n    );\n    // // Texture blend mode, not worth it\n    // vec4 gravelTex = texture2D(gravelMap, vUv);\n    // // float rp = roadProx / 1.25;\n    // gravelTex.a = gravelTex.r * gravelTex.r;\n    // texelColor.a = fade;\n    //\n    // texelColor = terrainBlend(\n      //   texelColor,\n      //   rp,\n      //   gravelTex,\n      //   1.0-rp,\n      //   0.1\n      // );\n\n\n\n\n  }\n\n  //// STEEPNESS CLIFF\n\n\n  if(roadProx == 0.0) {\n    rockTex = texture2D(rockMap, vWv) * (1.0 - vTreeMask * 0.5);\n    rockTex.a = 1.0 - texture2D(rockMapBump, vWv).r;\n  } else {\n    rockTex = texture2D(rockMap, vUv) * (1.0 - vTreeMask * 0.5);\n    rockTex.a = texture2D(rockMapBump, vUv).r;\n  }\n\n  texelColor.a = 0.2 + fade1 * 0.2;\n  texelColor = terrainBlend(texelColor,0.7, rockTex, steepness, 0.06);\n  texelColor.a = 1.0;\n\n  //// FINAL COMPOSITION\n\n  diffuseColor *= texelColor;\n\n");
+    e.vertexShader = e.vertexShader.replace("#include <displacementmap_pars_vertex>", "\n\nattribute float heightOffset;\nattribute float roadProximity;\nattribute float treeMask;\nattribute float curvature;\nattribute float grass;\n\nvarying float height;\nvarying float steepness;\nvarying float roadProx;\nvarying float vTreeMask;\nvarying vec2 vWv;\nvarying vec2 vWWv;\nvarying float vCurvature;\nvarying float vGrass;\nvarying float vLightGrass;\nvarying float vDarkGrass;\nvarying float vHeather;\n\nfloat wuvSize = 800.0;\n\nuniform sampler2D displacementMap;\nuniform sampler2D fadeRockMap;\n\nfloat map(float value, float min1, float max1, float min2, float max2) {\n  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);\n}\n\nvec3 upvec = vec3(0.0,1.0,0.0);\n\n");
+    e.vertexShader = e.vertexShader.replace("#include <displacementmap_vertex>", "\n\n  vec4 wPos = modelMatrix * vec4( position, 1.0 );\n\n  height = wPos.y + heightOffset;\n\n  // Unclear if worthwhile...\n  // if(abs(wPos.x) > 14000.0) {\n  //   wPos.x = mod(wPos.x, 14000.0);\n  // }\n  // if(abs(wPos.z) > 14000.0) {\n  //   wPos.z = mod(wPos.z, 14000.0);\n  // }\n\n  // Set UVs from world pos\n  vUv.x = wPos.x / 10.0;\n  vUv.y = wPos.z / 10.0;\n\n\n  // 0 is perfectly flat, 1 is 90 degrees\n  steepness = 1.0 - dot(normal, upvec);\n  steepness = clamp(steepness * 2.0, 0.0, 1.0);\n\n  // Anything up to 0.8 is 1\n  // 0.8 down to 0.6\n  // 0.6 and under is 0\n\n  // steepness = 1.0 - clamp((steepness - 0.6) / 0.2, 0.0, 1.0);\n  // steepness = 1.0 - map(steepness, 0.2, 0.7, 0.0, 1.0);\n\n  // steepness = 1.0 - steepness;//clamp((steepness * 2.0), 0.0, 1.0);\n  // steepness = map(steepness, 0.0, 1.0, 0.3, 0.7);\n\n  vWv.x = wPos.x / wuvSize;\n  vWv.y = wPos.z / wuvSize;\n\n  vWWv.x = vWv.x / 8.0;\n  vWWv.y = vWv.y / 8.0;\n\n  // MAGIC NUMBERS TO BE TWEAKED BASED ON HEIGHT PARAMETERS\n  if(curvature > 0.0) {\n    vCurvature = max(-1.0, curvature * -4.0);\n  } else {\n    vCurvature = min(1.0, curvature * -4.0);\n  }\n\n  //// GET FADES\n\n  float fade0 = texture2D(fadeRockMap, vWv).r;\n  float fade1 = texture2D(fadeRockMap, vWWv).r;\n  float fade2 = (texture2D(fadeRockMap,\n    vec2(\n      vWWv.x = wPos.x / 1200.0,\n      vWWv.y = wPos.z / 1200.0\n    )\n  ).r / 2.0) + 0.5;\n\n  //// HEATHER\n\n  vHeather = smoothstep(0.47, 0.53, min(1.0,height / 170.0) * fade1 * fade2);\n\n  //// GRASSES\n\n  // Focus contrast on middle range for sharper edges\n\n  fade0 = min(max(0.0,(fade0 - 0.25) * 2.0), 1.0);\n  fade1 = min(max(0.0,(fade1 - 0.25) * 2.0), 1.0);\n\n  float heightVal = min(1.0, height/100.0);\n  vLightGrass = min(1.0, max(0.0, fade1 * heightVal * (fade0 + heightVal)));\n  if(roadProximity > 0.0 && roadProximity < 2.0) {\n    vLightGrass *= roadProximity / 4.0 + 0.5;\n    vHeather *= roadProximity / 2.0;\n  }\n  vDarkGrass = 1.0;// 1.1 - (fade1 * 0.1);\n\n\n  //// ROAD PROX\n\n  roadProx = roadProximity;\n\n  if(roadProx < 0.0) {\n    steepness = 0.0;\n  }\n\n  //// TREE MASK\n\n  vTreeMask = treeMask;\n\n  //// GRASS  FIDDLING\n\n  // if(vCurvature > 0.0) {\n  //   vGrass = grass * vCurvature;\n  // } else {\n  //   vGrass = 0.0;\n  // }\n  // vGrass = grass * min(1.0, height / 100.0);\n\n  vGrass = grass;\n\n  vWWv.x = wPos.x / 400.0;\n  vWWv.y = wPos.z / 400.0;\n\n  transformed += vec3(0.0, heightOffset, 0.0);\n\n  // Experimenting with displacement map\n  transformed += normalize( objectNormal ) * ( texture2D( displacementMap, vUv ).x * steepness * 1.25 );\n\n");
+    e.fragmentShader = e.fragmentShader.replace("#include <map_pars_fragment>", "\n\n  varying float height;\n  varying float steepness;\n  varying float roadProx;\n  varying float vTreeMask;\n  varying float vCurvature;\n  varying float vGrass;\n  varying vec2 vWv;\n  varying vec2 vWWv;\n  varying float vLightGrass;\n  varying float vDarkGrass;\n  varying float vHeather;\n\n  uniform sampler2D grassMap;\n  uniform sampler2D sandMap;\n  uniform sampler2D rockMap;\n  uniform sampler2D rockMapBump;\n  uniform sampler2D gravelMap;\n  uniform sampler2D forestMap;\n  uniform sampler2D heatherMap;\n  uniform sampler2D fadeRockMap;\n  uniform sampler2D fadeFiner;\n\n  uniform vec4 colouration;\n\n  vec4 rockTex;\n\n  vec4 terrainBlend(vec4 tx1, float w1, vec4 tx2, float w2, float depth) {\n    // Perform the blending\n    float ma = max(tx1.a + w1, tx2.a + w2) - depth;\n    float b1 = max(tx1.a + w1 - ma, 0.0);\n    float b2 = max(tx2.a + w2 - ma, 0.0);\n\n    return ((tx1 * b1) + (tx2 * b2)) / (b1 + b2);\n  }\n\n  vec4 roadCol = vec4(0.45, 0.45, 0.474, 1.0);\n\n\n");
+    e.fragmentShader = e.fragmentShader.replace("#include <map_fragment>", "\n\n  float fade = texture2D(fadeRockMap, vUv).r;\n  float fade1 = texture2D(fadeRockMap, vWv).r;\n  float fade2 = (texture2D(fadeRockMap, vWWv).r / 2.0) + 0.5;\n\n  float heightVal = min(1.0, (height/ 150.0));\n\n  vec4 darkGrass = texture2D(heatherMap, vUv);\n  darkGrass.a = darkGrass.g;\n\n  //// GRASS 1\n\n  vec4 texelColor = texture2D( grassMap, vUv );\n\n  //// LIGHT GRASS\n\n  texelColor += colouration * vLightGrass;\n\n  //// HEATHER\n\n  texelColor = mix(texelColor, darkGrass, vHeather * smoothstep(0.3, 0.7, fade1));\n\n  //// TREE MASK\n\n  texelColor = mix(texelColor, texture2D(forestMap, vUv), vTreeMask);\n  // texelColor.a = 1.0;\n  // vec4 forestCol = texture2D(forestMap, vUv);\n  // forestCol.a = 1.0 + fade * 0.1;//forestCol.r;// - fade * 0.5;\n  // texelColor = terrainBlend(\n  //   texelColor,\n  //   1.0-vTreeMask,\n  //   forestCol,\n  //   vTreeMask + fade * 0.25,\n  //   0.25\n  // );\n  // texelColor.a = 1.0;\n\n  //// DARK GRASS\n\n  texelColor *= vDarkGrass;\n\n  //// SAND BLEND\n\n  if(height < 4.0) {\n    float dark = 1.0 - vTreeMask * 0.3;\n    if(height < 0.0) {\n      texelColor = texture2D(sandMap, vUv) * 0.8333;\n    } else {\n      if(height < 2.0) {\n        dark = min(dark, 1.0 - (2.0 - height) / 12.0);\n      }\n      texelColor = mix(texture2D(sandMap, vUv) * dark, texelColor, height / 4.0);\n    }\n  }\n\n  //// ROADSIDE GRAVEL\n\n  if(roadProx < -0.2) {\n    texelColor = roadCol; // TODO pass in different colour as tex?\n  } else if(roadProx != 0.0 && roadProx < 0.7) {\n\n    float rp = roadProx / 0.7;\n\n    texelColor = mix(\n      texture2D(gravelMap, vUv),\n      texelColor,\n      smoothstep(\n        rp + 0.15,\n        rp - 0.15,\n        fade\n      )\n    );\n    // // Texture blend mode, not worth it\n    // vec4 gravelTex = texture2D(gravelMap, vUv);\n    // // float rp = roadProx / 1.25;\n    // gravelTex.a = gravelTex.r * gravelTex.r;\n    // texelColor.a = fade;\n    //\n    // texelColor = terrainBlend(\n      //   texelColor,\n      //   rp,\n      //   gravelTex,\n      //   1.0-rp,\n      //   0.1\n      // );\n\n\n\n\n  }\n\n  //// STEEPNESS CLIFF\n\n\n  if(roadProx == 0.0) {\n    rockTex = texture2D(rockMap, vWv) * (1.0 - vTreeMask * 0.5);\n    rockTex.a = 1.0 - texture2D(rockMapBump, vWv).r;\n  } else {\n    rockTex = texture2D(rockMap, vUv) * (1.0 - vTreeMask * 0.5);\n    rockTex.a = texture2D(rockMapBump, vUv).r;\n  }\n\n  texelColor.a = 0.2 + fade1 * 0.2;\n  texelColor = terrainBlend(texelColor,0.7, rockTex, steepness, 0.06);\n  texelColor.a = 1.0;\n\n  //// FINAL COMPOSITION\n\n  diffuseColor *= texelColor;\n\n");
     return e;
   };
   let Zs = null;
@@ -14664,7 +14664,6 @@
       this.attributes.roadProximity.needsUpdate = true;
       this.attributes.treeMask.needsUpdate = true;
       this.attributes.curvature.needsUpdate = true;
-      if (this.attributes.laneSigned) this.attributes.laneSigned.needsUpdate = true;
     }
     constructor(e, t, i) {
       super();
@@ -14711,8 +14710,6 @@
       this.attributes.treeMask.setUsage(r.l);
       this.setAttribute("curvature", new r.o(new Float32Array(l), 1));
       this.attributes.curvature.setUsage(r.l);
-      this.setAttribute("laneSigned", new r.o(new Float32Array(l), 1));
-      this.attributes.laneSigned.setUsage(r.l);
       this.setAttribute("uv", new r.o(new Float32Array(d), 2));
       this.setAttribute("wuv", new r.o(new Float32Array(c), 2));
     }
@@ -14781,7 +14778,6 @@
       this.heightOffsetArr = this.geo.attributes.heightOffset.array;
       this.roadProxArr = this.geo.attributes.roadProximity.array;
       this.treeMaskArr = this.geo.attributes.treeMask.array;
-      this.laneSignedArr = this.geo.attributes.laneSigned.array;
       this.vec3Count = this.vertexCount * 3;
       this.floatCount = this.vertexCount;
     }
@@ -14807,14 +14803,13 @@
     setRetireIndex(e) {
       this.retireIndex = Math.max(this.retireIndex, e + Rt);
     }
-    tileReady(e, t, i, s, n, a, o, r, ls) {
+    tileReady(e, t, i, s, n, a, o, r) {
       this.posArr.set(t, e * t.length);
       this.normArr.set(i, e * i.length);
       this.curveArr.set(s, e * s.length);
       this.heightOffsetArr.set(this.showHeight, e * this.showHeight.length);
       this.roadProxArr.set(n, e * n.length);
       this.treeMaskArr.set(a, e * a.length);
-      if (ls && this.laneSignedArr) this.laneSignedArr.set(ls, e * ls.length);
       this.centroids[e] = o;
       this.readyCount++;
       this.drawCount++;

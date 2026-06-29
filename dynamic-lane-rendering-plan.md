@@ -18,12 +18,18 @@
 > consistent; the live-ahead taper remains a possible future enhancement if terrain tiles are
 > made to regenerate on demand around the car.
 >
-> **Markings map to the real layout.** A per-vertex `laneSigned` attribute (signed lateral
-> position, `d·side`) is baked through the terrain pipeline (cell → tileReady → tileset geo)
-> and the fragment shader places lane boundaries at `dividerOffset + k·laneWidth`, so an
-> asymmetric carriageway (e.g. 3 forward + 1 oncoming) renders with the yellow divider offset
-> to the correct side and the right number of white lane lines on each side. This realises
-> the §3.2 Option A attribute-baked path (minus per-vertex dashes).
+> **Markings map to the real layout — and live on the road-surface mesh, not the terrain.**
+> A correction to §1.2 below: the visible road is **not** the terrain `roadProx`/`roadCol`
+> paint (that only blends the verge). The road surface is a separate **textured ribbon**
+> (class `gl`, material `Xt`) generated along the midline at `±node.w`, with `UV.x` running
+> 0→1 across the full width. Markings are therefore painted in **`Xt`'s fragment shader**:
+> it derives the signed lateral position `S = (UV.x − 0.5)·2·halfWidth` and draws a line at
+> every boundary `dividerOffset + k·laneWidth` (yellow at the divider, white lane lines and
+> edge lines), masking the texture's baked centre line. No new vertex attributes are needed.
+> An asymmetric carriageway (e.g. 3 forward + 1 oncoming) renders with the divider offset to
+> the correct side and the right number of lanes each way. (An earlier attempt painted the
+> terrain `Cs` shader and baked a `laneSigned` attribute — that renders *under* the opaque
+> road ribbon and was reverted.)
 >
 > **Remaining v1 deviations** (low-risk choices): lane lines are *solid* (no `arcStation`
 > dashes — thin solid lines already alias into a dashed look at distance), markings are wired
