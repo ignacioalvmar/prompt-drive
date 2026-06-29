@@ -19,8 +19,9 @@ Any static file server works (`npx serve .`, Python `http.server`, etc.).
 The instrument cluster and game patches are built from source:
 
 ```bash
-npm run build          # cluster + main bundle
+npm run build          # cluster + metrics + main bundle
 npm run build:cluster  # src/cluster/ → static/js/cluster.js
+npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:main     # src-extracted/deobfuscated.js → static/js/main.ca6b3355.chunk.js
 ```
 
@@ -40,12 +41,35 @@ npm run build
 | ------------------------------------------- | ------------------------------------------- |
 | `index.html`, `static/`                     | Runtime app (served as-is)                  |
 | `src/cluster/`                              | Instrument cluster source (canvas UI)       |
+| `src/metrics/`                              | Driving-performance metrics (panel/overlay/report) |
 | `src-extracted/deobfuscated.js`             | Deobfuscated game bundle; input for patches |
 | `scripts/build-*.js`                        | Build pipeline                              |
 | `static/js/main.ca6b3355.chunk.original.js` | Minified upstream bundle for re-extraction  |
 
 
 
+
+## Driving performance metrics
+
+A research-metrics subsystem (`src/metrics/`) records ego telemetry every physics
+frame and computes standard human-factors metrics: SDLP, mean lateral position,
+lane departures, mean speed / SDS, steering reversal rate, steering entropy, and
+time-to-line-crossing (plus throttle/brake/jerk and collisions).
+
+- **Configuration** — open the settings panel (gear icon) and expand the
+  **driving metrics** section (below *audio*) to choose which metrics to compute.
+  Selection persists in `localStorage`.
+- **Live overlay** — toggle with the section's *Overlay* button or the **M** key.
+  Shows selected metrics over a trailing 30 s window.
+- **Run lifecycle** — recording auto-starts when the car moves; *Start / Stop /
+  Reset* are in the panel.
+- **Export** — *Download report* (Markdown + JSON) and *Download logs* (CSV of raw
+  telemetry + events JSON).
+
+Lane metrics use the engine's own road projection (`ii()`), are measured
+relative to the **lane center** (the engine's nominal driving line), and are
+gated to on-road samples. Interaction metrics (time headway, TTC) require traffic objects;
+this build has none, so they stay disabled until a traffic configuration exists.
 
 ## Deploy
 
