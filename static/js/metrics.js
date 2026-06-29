@@ -1365,17 +1365,23 @@ const OVERLAY_STYLE_ID = 'pd-overlay-style';
 const MENU_BUTTON_ID = 'pd-overlay-menu-item';
 const MENU_ICON_URL = './static/media/driver_performance.svg';
 
+// Styled to match the native lower-band menus (.menu-panel / .menu-panel-title):
+// flat dark panel, Jura font, centred title bar. Anchored just above the 50px
+// menu band (bottom:50px) at the left so it no longer covers the band icons —
+// the toggle button stays clickable to hide it again.
 const OVERLAY_CSS = `
-.pd-overlay{position:fixed;left:12px;bottom:12px;z-index:9999;min-width:210px;
-  background:rgba(10,16,21,.86);color:#dbe7e6;border:1px solid #243842;border-radius:10px;
-  padding:10px 12px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
-  box-shadow:0 6px 24px rgba(0,0,0,.45);display:none}
+.pd-overlay{position:fixed;left:0;bottom:50px;z-index:9999;width:280px;
+  background:rgba(34,34,34,.8666666666666667);color:hsla(0,0%,100%,.7333333333333333);
+  font-family:Jura,sans-serif;padding-bottom:6px;pointer-events:none;display:none}
 .pd-overlay.open{display:block}
-.pd-overlay .t{font:600 11px system-ui;text-transform:uppercase;letter-spacing:.08em;
-  color:#7fb6ad;margin-bottom:6px}
-.pd-overlay .m{display:flex;justify-content:space-between;gap:14px;padding:2px 0}
-.pd-overlay .m .k{color:#9fb4b3}
-.pd-overlay .m .v{color:#eafffb;font-variant-numeric:tabular-nums}
+.pd-overlay .t{line-height:30px;height:30px;font-size:14px;text-align:center;
+  text-transform:uppercase;letter-spacing:.1em;color:hsla(0,0%,100%,.6);
+  background:#222;border-top:2px solid #1e1e1e;border-bottom:2px solid #1e1e1e;
+  margin-bottom:6px}
+.pd-overlay .m{display:flex;justify-content:space-between;gap:14px;
+  padding:5px 14px;font-size:14px}
+.pd-overlay .m .k{color:hsla(0,0%,100%,.6)}
+.pd-overlay .m .v{color:#fff;font-variant-numeric:tabular-nums}
 .pd-overlay .warn{color:#ffb454}
 `;
 
