@@ -291,15 +291,23 @@ src = replaceOnce(
           if (si.vehicleNode) {
             const _mp = ii(Ae.position.x, Ae.position.z, si.vehicleNode, true);
             if (_mp) {
-              // Lane position relative to LANE CENTER (not road centerline).
-              // The engine treats |rawProx| = 0.5 as the nominal driving line
-              // (deobfuscated ~17996-18001): rawProx = d / (Yt - wheels.width/2),
-              // so the lane center sits at 0.5*(Yt - wheels.width/2) from the
-              // road centerline, and the lane is symmetric about it.
-              const _usable = Yt - Ae.wheels.width / 2;
-              const _laneCenter = 0.5 * _usable;
-              _moff = (_mp.d - _laneCenter) * _mp.s; // signed deviation from lane center
-              _mhalf = _laneCenter; // lane half-width (lane center to either boundary)
+              // Lane position relative to the EGO LANE CENTER. With multi-lane
+              // roads the engine publishes the resolved lane geometry on
+              // window.LaneRoads._resolved; use it when present and non-default.
+              let _geom = null;
+              try { _geom = (typeof window !== "undefined" && window.LaneRoads) ? window.LaneRoads._resolved : null; } catch (_g) { _geom = null; }
+              if (_geom && !_geom.isDefault) {
+                _moff = (_mp.d * _mp.s) - _geom.egoCenterSigned; // signed deviation from ego-lane center
+                _mhalf = _geom.laneWidth / 2; // lane half-width (center to boundary)
+              } else {
+                // Default single carriageway: original behaviour. The engine
+                // treats |rawProx| = 0.5 as the nominal driving line, so the
+                // lane center sits at 0.5*(Yt - wheels.width/2) from the midline.
+                const _usable = Yt - Ae.wheels.width / 2;
+                const _laneCenter = 0.5 * _usable;
+                _moff = (_mp.d - _laneCenter) * _mp.s;
+                _mhalf = _laneCenter;
+              }
             }
           }
           this.drivingMetrics.sample(e, {
