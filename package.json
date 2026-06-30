@@ -6,8 +6,9 @@
     "extract": "node scripts/extract.js",
     "build:cluster": "node scripts/build-cluster.js",
     "build:metrics": "node scripts/build-metrics.js",
+    "build:lanes": "node scripts/build-lanes.js",
     "build:main": "node scripts/build-main.js",
-    "build": "npm run build:cluster && npm run build:metrics && npm run build:main",
+    "build": "npm run build:cluster && npm run build:metrics && npm run build:lanes && npm run build:main",
     "dev": "npx serve . -p 3000"
   },
   "devDependencies": {
