@@ -3013,15 +3013,26 @@
   let laneBaseRoadWidth = 3;
   let laneResolved = {
     halfWidth: 3, laneWidth: 3, forward: 1, backward: 1,
-    dividerOffset: 0, egoCenterSigned: 0, isDefault: true, total: 2, dividerRatio: 0
+    dividerOffset: 0, egoCenterSigned: 0, egoRatio: 0, isDefault: true, total: 2, dividerRatio: 0
   };
   // Global on/off for road markings; the layout itself is carried PER-NODE (see
   // laneSync / node creation) so a lane change applies to the road generated
   // ahead of the car and only becomes visible as the car drives into it.
   const laneU = { uMarkings: { value: 1 } };
+  // How many midline nodes ahead of the car a lane-config change starts applying.
+  // It must sit just BEYOND the road-surface / terrain / tree build frontier so
+  // the new layout is built fresh — and, crucially, so the autodrive line and the
+  // rendered road both meet the change at the SAME place (no early autopilot
+  // reaction the moment the config button is pressed). The change then rolls in
+  // as the car drives into it. ~60 nodes ≈ the distance the renderer already leads.
+  const LANE_LOOKAHEAD = 60;
+  // Number of midline nodes a single ±1 lane change tapers over, so a lane is
+  // added / dropped continuously (a real merge or lane-gain), not as a hard step.
+  const LANE_RAMP = 9;
+  // Latches once the car has actually started moving (see lanePublishApplied);
+  // before that, the lane-config UI/API allows any layout (initial configuration).
+  let laneHasDriven = false;
   // Re-resolve lane intent (window.LaneRoads) against the topography base width.
-  // Called on every new midline node, so config changes are picked up for the
-  // road built ahead — older nodes keep the params they were generated with.
   const laneSync = () => {
     let cfg = null;
     try {
@@ -3036,61 +3047,96 @@
     const dividerRatio = (bwd - fwd) / total; // = dividerOffset / halfWidth
     const isDefault = fwd === 1 && bwd === 1 && (!cfg || cfg.width == null);
     // Ego drives the innermost forward lane; default 1+1 keeps the original
-    // midline-centred line (egoCenterSigned 0) so driving feel is unchanged.
+    // midline-centred line (egoRatio 0) so driving feel is unchanged.
     const egoCenterSigned = isDefault ? 0 : (dividerOffset + laneWidth / 2);
-    laneResolved = { halfWidth, laneWidth, forward: fwd, backward: bwd, dividerOffset, egoCenterSigned, isDefault, total, dividerRatio };
+    const egoRatio = isDefault ? 0 : (dividerRatio + 1 / total); // = egoCenterSigned / halfWidth
+    laneResolved = { halfWidth, laneWidth, forward: fwd, backward: bwd, dividerOffset, egoCenterSigned, egoRatio, isDefault, total, dividerRatio };
     Yt = halfWidth;
     try {
       if (typeof window !== "undefined" && window.LaneRoads) window.LaneRoads._resolved = laneResolved;
     } catch (lanePubErr) {}
-    // When the config changes mid-drive, re-stamp the already-committed road
-    // ahead of the car so the new layout applies just in front and rolls in as
-    // the ribbon recycles — instead of only appearing at the distant midline
-    // frontier. The first sync (scene init) just records the signature.
-    const sig = total + ":" + dividerRatio.toFixed(3) + ":" + halfWidth.toFixed(2);
+    // When the config changes mid-drive, re-stamp the road ahead of the car so the
+    // new layout tapers in beyond the build frontier. The first sync (scene init)
+    // just records the signature. laneWidth is in the signature so width-only
+    // changes also taper in.
+    const sig = total + ":" + dividerRatio.toFixed(3) + ":" + laneWidth.toFixed(2);
     if (laneSig && laneSig !== sig) laneRestampAhead();
     laneSig = sig;
   };
   let laneSig = "";
-  // Re-stamp upcoming midline nodes with the current lane structure and ease
-  // their width toward the new target, starting a short margin ahead of the car
-  // so the vehicle isn't yanked. Cheap (property writes along the linked list).
+  // Publish the lane layout actually under the car (rounded per direction) and
+  // whether the car has started driving. The lane-config UI/API reads these to
+  // restrict mid-drive changes to ±1 lane per direction (so each transition is a
+  // single continuous merge/gain); before the car moves any layout is allowed.
+  const lanePublishApplied = () => {
+    try {
+      if (typeof window === "undefined" || !window.LaneRoads) return;
+      const node = (typeof si !== "undefined" && si && si.vehicleNode) ? si.vehicleNode : null;
+      let fwd = laneResolved.forward;
+      let bwd = laneResolved.backward;
+      if (node && node.laneTotal) {
+        const t = node.laneTotal;
+        const dr = node.laneDivRatio || 0;
+        fwd = Math.max(0, Math.round(t * (1 - dr) / 2));
+        bwd = Math.max(0, Math.round(t * (1 + dr) / 2));
+      }
+      window.LaneRoads._applied = { forward: fwd, backward: bwd };
+      if (!laneHasDriven && typeof Ae !== "undefined" && Ae && Ae.speed > 0.5) laneHasDriven = true;
+      window.LaneRoads._driving = laneHasDriven;
+    } catch (lanePubErr2) {}
+  };
+  // A node carries (laneTotal, laneDivRatio, laneEgoRatio, laneWidth,
+  // laneIsDefault) and its half-width is laneTotal*laneWidth/2. The road surface,
+  // markings, autodrive line, verge and barriers all derive from these, so a
+  // layout change is purely spatial (applies to the road ahead of the car).
+  const laneStampTarget = node => {
+    node.laneTotal = laneResolved.total;
+    node.laneDivRatio = laneResolved.dividerRatio;
+    node.laneEgoRatio = laneResolved.egoRatio;
+    node.laneWidth = laneResolved.laneWidth;
+    node.laneIsDefault = laneResolved.isDefault;
+  };
+  // Re-stamp the road ahead of the car: hold the current layout until
+  // LANE_LOOKAHEAD nodes ahead, taper to the new target over LANE_RAMP nodes,
+  // then hold the target to the tail. Width, lane count, divider and ego offset
+  // interpolate together (lane width stays constant while a lane grows in / merges
+  // out at the carriageway edge), and any barrier collision is pushed off the
+  // now-wider carriageway so it can't end up inside a lane.
   const laneRestampAhead = () => {
-    if (typeof si === "undefined" || !si || !si.vehicleNode || !si.tail) return;
+    if (typeof si === "undefined" || !si || !si.vehicleNode) return;
     let node = si.vehicleNode;
-    for (let i = 0; i < 6 && node.next; i++) node = node.next; // taper start margin
-    let prevW = node.w > 0 ? node.w : Yt;
-    const step = 0.35;
+    for (let i = 0; i < LANE_LOOKAHEAD && node.next; i++) node = node.next;
+    const from = node.prev || node;
+    const t0 = (from.laneTotal != null) ? from.laneTotal : laneResolved.total;
+    const d0 = (from.laneDivRatio != null) ? from.laneDivRatio : laneResolved.dividerRatio;
+    const e0 = (from.laneEgoRatio != null) ? from.laneEgoRatio : laneResolved.egoRatio;
+    const w0 = (from.laneWidth != null) ? from.laneWidth : laneResolved.laneWidth;
+    let step = 0;
     while (node) {
-      const d = Yt - prevW;
-      const w = d > step ? prevW + step : (d < -step ? prevW - step : Yt);
-      node.w = w;
-      prevW = w;
-      node.laneTotal = laneResolved.total;
-      node.laneDivRatio = laneResolved.dividerRatio;
-      node.laneIsDefault = laneResolved.isDefault;
+      step++;
+      const a = step >= LANE_RAMP ? 1 : (step / LANE_RAMP);
+      const s = a * a * (3 - 2 * a); // smoothstep
+      node.laneTotal = t0 + (laneResolved.total - t0) * s;
+      node.laneDivRatio = d0 + (laneResolved.dividerRatio - d0) * s;
+      node.laneEgoRatio = e0 + (laneResolved.egoRatio - e0) * s;
+      node.laneWidth = w0 + (laneResolved.laneWidth - w0) * s;
+      node.laneIsDefault = s >= 1 ? laneResolved.isDefault : false;
+      node.w = node.laneTotal * node.laneWidth / 2;
+      if (node.rWallDist != null && Math.abs(node.rWallDist) < node.w + Ut) node.rWallDist = node.w + Ut;
+      if (node.lWallDist != null && Math.abs(node.lWallDist) < node.w + Ut) node.lWallDist = -(node.w + Ut);
       node = node.next;
     }
   };
-  // Per-node spawn width: re-poll the config, then ease the previous node's width
-  // toward the current target so a change tapers in over a few nodes (a real lane
-  // add/drop) on the road ahead. The lane STRUCTURE (count + divider ratio) is
-  // snapshotted per node at creation; the road surface and markings derive
-  // everything from these, so the change is spatial (ahead-only), not global.
+  // Per-node spawn width at the (distant) midline frontier: just the current
+  // target. Near-car tapers are handled by laneRestampAhead when the config
+  // changes; between changes the config is stable so the frontier matches.
   const laneNextWidth = prevW => {
     laneSync();
-    const step = 0.35;
-    if (!(prevW > 0)) return Yt;
-    const d = Yt - prevW;
-    if (d > step) return prevW + step;
-    if (d < -step) return prevW - step;
     return Yt;
   };
   // Stamp the current lane structure onto a freshly-created midline node.
   const laneStampNode = node => {
-    node.laneTotal = laneResolved.total;
-    node.laneDivRatio = laneResolved.dividerRatio;
-    node.laneIsDefault = laneResolved.isDefault;
+    laneStampTarget(node);
   };
   const Vt = e => {
     Yt = e;
@@ -3125,7 +3171,7 @@
     );
     e.fragmentShader = e.fragmentShader.replace(
       "#include <map_fragment>",
-      "#include <map_fragment>\n\n  if(uMarkings > 0.5) {\n    float hw = max(0.5, vLaneParam.x);        // local road half-width (m)\n    float total = max(1.0, vLaneParam.y);     // lane count across the road\n    float dratio = vLaneParam.z;              // divider offset / half-width\n    float S = (vUv.x - 0.5) * 2.0 * hw;        // signed lateral position (m)\n    float laneW = 2.0 * hw / total;\n    float divOff = hw * dratio;\n    float bwd = total * (1.0 + dratio) * 0.5;  // oncoming-lane count\n    float aa = 0.05;\n    float lw = 0.10;                           // half line width (m)\n    // flatten texture to clean asphalt (removes any baked-in markings)\n    float gy = min(dot(diffuseColor.rgb, vec3(0.3333)), 0.46);\n    diffuseColor.rgb = vec3(gy);\n    float k = floor((S - divOff) / laneW + 0.5);\n    float boundary = divOff + k * laneW;\n    // same-direction lane lines: dashed (longitudinal UV drives the dash)\n    float dash = step(0.4, fract(vUv.y * 0.5));\n    float laneLine = 0.0;\n    if(abs(k) >= 1.0 && abs(boundary) < hw - 0.15) {\n      laneLine = (1.0 - smoothstep(lw - aa, lw + aa, abs(S - boundary))) * dash;\n    }\n    // edge lines: solid\n    float edge = 1.0 - smoothstep(lw - aa, lw + aa, abs(abs(S) - (hw - 0.30)));\n    float white = max(laneLine, edge);\n    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.93), white);\n    // opposing-traffic divider: solid yellow (only when there are oncoming lanes)\n    if(bwd > 0.5) {\n      float yellow = 1.0 - smoothstep(lw - aa, lw + aa, abs(S - divOff));\n      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.90, 0.74, 0.20), yellow);\n    }\n  }\n"
+      "#include <map_fragment>\n\n  if(uMarkings > 0.5) {\n    float hw = max(0.5, vLaneParam.x);        // local road half-width (m)\n    float total = max(1.0, vLaneParam.y);     // lane count across the road\n    float dratio = vLaneParam.z;              // divider offset / half-width\n    float S = (vUv.x - 0.5) * 2.0 * hw;        // signed lateral position (m)\n    float laneW = 2.0 * hw / total;\n    float divOff = hw * dratio;\n    float bwd = total * (1.0 + dratio) * 0.5;  // oncoming-lane count\n    float aa = 0.05;\n    float lw = 0.10;                           // half line width (m)\n    // flatten texture to clean asphalt (removes any baked-in markings)\n    float gy = min(dot(diffuseColor.rgb, vec3(0.3333)), 0.46);\n    diffuseColor.rgb = vec3(gy);\n    float k = floor((S - divOff) / laneW + 0.5);\n    float boundary = divOff + k * laneW;\n    // same-direction lane lines: dashed (longitudinal UV drives the dash)\n    float dash = step(0.4, fract(vUv.y * 0.5));\n    // fade a lane line as it nears the carriageway edge, so a lane that grows in\n    // (or merges out) as the road widens/narrows appears/disappears smoothly\n    float edgeFade = smoothstep(hw - 0.10, hw - 0.45, abs(boundary));\n    float laneLine = 0.0;\n    if(abs(k) >= 1.0) {\n      laneLine = (1.0 - smoothstep(lw - aa, lw + aa, abs(S - boundary))) * dash * edgeFade;\n    }\n    // edge lines: solid\n    float edge = 1.0 - smoothstep(lw - aa, lw + aa, abs(abs(S) - (hw - 0.30)));\n    float white = max(laneLine, edge);\n    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.93), white);\n    // opposing-traffic divider: solid yellow (only when there are oncoming lanes)\n    if(bwd > 0.5) {\n      float yellow = 1.0 - smoothstep(lw - aa, lw + aa, abs(S - divOff));\n      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.90, 0.74, 0.20), yellow);\n    }\n  }\n"
     );
   };
   let Jt = lt.wallGenHorizon;
@@ -6653,7 +6699,14 @@
       if (jh.value.detailLodIndex > 1 && (t.i % 2 == 0 || this.prev.endNode.i == t.i && this.prev.type == this.fenceID)) {
         i = this.fenceID;
       }
-      let s = new En(t, e, i, (t.w + Ut) * this.side);
+      // Place the rail beyond the WIDEST point of the span, not just the start
+      // node's width, so a barrier never ends up inside the carriageway where the
+      // road widens (e.g. a lane added ahead). Keeps it at the road's extreme.
+      let _bMaxW = t.w;
+      for (let _bn = t; _bn && _bn.i <= e.i; _bn = _bn.next) {
+        if (_bn.w > _bMaxW) _bMaxW = _bn.w;
+      }
+      let s = new En(t, e, i, (_bMaxW + Ut) * this.side);
       if (this.prev.endNode.i == t.i && this.prev.type == s.type) {
         this.prev.contiguousEnd = true;
         s.contiguousStart = true;
@@ -18136,13 +18189,15 @@
       // the instant the config changes.
       let _ln = Yd.m.n;
       let _total = (_ln && _ln.laneTotal) ? _ln.laneTotal : 2;
-      let _dratio = (_ln && _ln.laneDivRatio != null) ? _ln.laneDivRatio : 0;
-      let _isDef = (_ln ? _ln.laneIsDefault !== false : true) && _total === 2 && _dratio === 0;
+      let _isDef = _ln ? (_ln.laneIsDefault !== false) : true;
+      let _egoRatio = (_ln && _ln.laneEgoRatio != null) ? _ln.laneEgoRatio : 0;
       let _hw = Yd.m.w;
-      let _laneHalf = (_isDef ? _hw : _hw / _total) - Ae.wheels.width / 2;
+      let _laneW = (_ln && _ln.laneWidth) ? _ln.laneWidth : (_hw * 2 / _total);
+      let _laneHalf = (_isDef ? _hw : _laneW / 2) - Ae.wheels.width / 2;
       if (!(_laneHalf > 0.2)) _laneHalf = Math.max(0.2, _hw - Ae.wheels.width / 2);
-      // ego-lane centre derived from the local node geometry (divider + half a lane)
-      let _egoTarget = _isDef ? 0 : (_hw * _dratio + _hw / _total);
+      // ego-lane centre derived from the local node geometry; egoRatio ramps with
+      // the road so the line slides into the new lane exactly where the road does.
+      let _egoTarget = _hw * _egoRatio;
       this.roadEdgeProximity = (Yd.m.d * Yd.m.s - _egoTarget) / _laneHalf;
       if (this.roadEdgeProximity < 0) {
         this.roadEdgeProximity = Math.max(-1, Math.min(0, (this.roadEdgeProximity + 0.5) * 2));
@@ -19812,6 +19867,7 @@
       }
     }
     updateVehicleNode() {
+      lanePublishApplied();
       if (si.vehicleNode.next) {
         if (si.vehicleNode.i < this.targetVehicleNodeIndex) {
           Ae.wrongWay = false;

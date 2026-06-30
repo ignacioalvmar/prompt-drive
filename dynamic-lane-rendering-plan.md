@@ -41,7 +41,32 @@
 > to a range the terrain renders cleanly (very wide carriageways bank steeply on hilly
 > terrain). Per-vertex dashes and an on-demand terrain rebuild remain documented v2 paths.
 
-**Status:** Implemented (v1); §3.2 Option A realised in the no-extra-attributes form. 2026-06-29
+> **Update (2026-06-30) — continuous transitions, synced autopilot, clean verges & barriers.**
+> Five refinements addressing mid-drive behaviour:
+> 1. **±1 lane per direction while driving; up to 5 each way at load.** `LANE_LIMITS` max is 5;
+>    `clampLive()` in `src/lanes/config.js` clamps a mid-drive `set()` to ±1 of the layout under
+>    the car (engine publishes `window.LaneRoads._applied` / `_driving` from `lanePublishApplied`,
+>    called each frame in `updateVehicleNode`). So every change is a single continuous merge/gain.
+> 2. **Smooth taper.** A node now carries floats `laneTotal`, `laneDivRatio`, `laneEgoRatio`,
+>    `laneWidth`; `laneRestampAhead()` holds the current layout until `LANE_LOOKAHEAD` (≈60) nodes
+>    ahead, then smoothstep-interpolates all of them to the target over `LANE_RAMP` (≈9) nodes,
+>    `node.w = laneTotal·laneWidth/2`. Lane width stays constant through the ramp, so a lane grows
+>    in / merges out at the edge. The `Xt` shader adds an `edgeFade` so the appearing/disappearing
+>    boundary fades instead of popping; `laneCount` being a float makes the boundaries slide.
+> 3. **Synced autopilot.** The taper starts *beyond* the render/terrain/barrier build frontier, so
+>    the rendered road and the autodrive line (which reads the local node's `laneEgoRatio`/`laneWidth`)
+>    meet the change at the same place — no reaction the instant the button is pressed.
+> 4. **Clean verge/trees.** Because the change lands beyond the terrain (≈44) and tree (≈56) gen
+>    frontiers, those stretches bake their `roadProx`/`treeMask` from the new width → the widened
+>    road clears vegetation/verge as it is built.
+> 5. **Barriers off the carriageway.** `ga.generate` sets the rail distance from the **max `node.w`
+>    over the segment span**, and `laneRestampAhead` pushes any existing `rWallDist`/`lWallDist`
+>    outside `node.w + Ut`, so a barrier never ends up inside a lane after a widen.
+>
+> Trade-off: the taper begins ~60 nodes ahead (tens of seconds at highway speed) — the price of
+> having every consumer build the change consistently. Tunable via `LANE_LOOKAHEAD`.
+
+**Status:** Implemented (v1.1); §3.2 Option A + continuous transitions. 2026-06-30
 **Scope:** Procedurally render additional lanes — in the same direction and in the
 opposite direction — on top of the existing road geometry, configurable at start and
 changeable for the road *ahead* of the vehicle. Road geometry/shape is unchanged; only

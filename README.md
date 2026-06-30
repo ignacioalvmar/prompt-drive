@@ -87,30 +87,48 @@ integration map are in
   section (below *driving metrics*): steppers for forward / oncoming lanes and lane width,
   plus presets (*Single 1+1*, *Dual 2+2*, *Wide 3+2*, *One-way ×3*). Selection persists
   in `localStorage`. Default **1+1 / auto-width** reproduces the original road exactly.
-- **Applies to the road ahead** — each midline node is stamped with the lane layout active
-  when it is generated, and the engine re-reads the config as it builds new road. So a
-  change takes effect on the road *ahead* of the car and **tapers in** as you drive into it;
-  the road already built around you keeps its layout (no jump, autodrive stays in its lane).
-  *Rebuild from start* forces the whole road to the new layout immediately for those who
-  don't want to drive forward.
+- **How many lanes** — up to **5 lanes per direction** can be set as the initial
+  configuration (before you start driving). **Once driving, changes are restricted to ±1
+  lane per direction at a time** so every transition is a single, continuous merge / lane
+  gain — enforced in both the UI and the `set()` API (it clamps to ±1 of the layout
+  currently under the car, which the engine publishes live).
+- **Applies to the road ahead, smoothly** — a lane change is stamped onto the road a fixed
+  distance *ahead* of the car (just beyond the render / terrain / barrier build frontier)
+  and **tapers in** over a short stretch: the carriageway width, the divider and the lane
+  markings interpolate together, so a new lane **grows in at the edge** (its dashed line
+  fades up as the road widens) and a dropped lane **merges out**. Because the change sits
+  beyond the build frontier, the rendered road *and* the autodrive line meet it at the same
+  place — the autopilot no longer reacts the instant the button is pressed; it follows the
+  road into the new layout. The road already built around you keeps its layout (no jump).
+  Trees and the paved verge are regenerated from the new width as that stretch is built, so
+  a widened road doesn't run through vegetation, and roadside **barriers are placed beyond
+  the widest point of each span** (and pushed off the carriageway when it widens) so they
+  never sit inside a lane. *Rebuild from start* forces the whole road to the new layout
+  immediately for those who don't want to drive forward. (The taper begins ~60 midline
+  nodes ahead — tens of seconds at highway speed; this look-ahead is the `LANE_LOOKAHEAD`
+  engine constant and can be tuned.)
 - **Programmatic API** — `window.LaneRoads`: `get()`, `set({forward, backward, width})`
-  (persists and applies ahead), `apply()` (rebuild from start now), `subscribe(fn)`,
-  `presets`, and `resolved()` (the engine-published geometry —
-  `{halfWidth, laneWidth, dividerOffset, egoCenterSigned, …}`, also read by the metrics
-  subsystem so lane metrics track the **ego lane** on multi-lane roads).
+  (persists and applies ahead, ±1-clamped while driving), `apply()` (rebuild from start
+  now), `subscribe(fn)`, `presets`, `resolved()` (the engine-published target geometry —
+  `{halfWidth, laneWidth, dividerOffset, egoCenterSigned, egoRatio, …}`, also read by the
+  metrics subsystem so lane metrics track the **ego lane**), `applied()` (the rounded
+  `{forward, backward}` layout currently under the car) and `driving()`.
 - **Width range** — very wide carriageways (≳18 m) forced onto hilly terrain bank steeply
-  and look uneven, so lane counts/width are capped to a well-behaved range; 1+1, 2+2 and
-  one-way layouts render cleanly.
+  and look uneven, so lane width is capped to a well-behaved range; 1+1, 2+2 and one-way
+  layouts render cleanly.
 
 Markings are painted by the **road-surface material's** shader (the road is a separate
 textured ribbon spanning the full carriageway, with `UV.x` running 0→1 across it). Each
 vertex carries `laneParam = (localHalfWidth, laneCount, dividerRatio)` captured from the
-midline node it was generated from, so the markings always match that stretch's layout. The
-shader flattens the texture to clean asphalt (removing the baked-in centre line), then draws
-a boundary at every `dividerOffset + k·laneWidth`: a **solid yellow divider** at the
-forward/oncoming split, **dashed white lines** between same-direction lanes (so it reads as
-lane-changeable), and **solid white edge lines**. Markings are on the paved (summer/spring)
-scene.
+midline node it was generated from — and because those fields are interpolated along the
+road during a transition, `laneCount` is a *float* through a merge, so boundaries slide
+continuously. The shader flattens the texture to clean asphalt (removing the baked-in centre
+line), then draws a boundary at every `dividerOffset + k·laneWidth`: a **solid yellow
+divider** at the forward/oncoming split, **dashed white lines** between same-direction lanes
+(so it reads as lane-changeable), and **solid white edge lines**. Each lane line **fades out
+as it nears the carriageway edge**, so a lane that grows in (or merges out) as the road
+widens / narrows appears / disappears smoothly rather than popping. Markings are on the paved
+(summer/spring) scene.
 
 ## Deploy
 

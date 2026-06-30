@@ -21,13 +21,14 @@ const LANE_DEFAULTS = {
   width: null, // metres per lane; null = auto (use topography road width)
 };
 
-// Caps chosen so the resolved carriageway stays within what the procedural
-// terrain handles gracefully. Very wide roads (≳18 m) forced onto hilly
-// topography bank steeply and look uneven, so the per-direction count and lane
-// width are bounded; the common 1+1 / 2+2 / one-way layouts render cleanly.
+// Caps on the per-direction lane count and lane width. Up to 5 lanes per
+// direction may be set as the INITIAL configuration (before the car starts
+// moving). Once driving, changes are additionally restricted to ±1 lane per
+// direction at a time (see clampLive) so every transition is a single,
+// continuous merge / lane-gain on the road ahead.
 const LANE_LIMITS = {
-  forward: { min: 1, max: 3 },
-  backward: { min: 0, max: 3 },
+  forward: { min: 1, max: 5 },
+  backward: { min: 0, max: 5 },
   width: { min: 2.4, max: 3.75 }, // only applies when not auto
 };
 
@@ -65,6 +66,34 @@ function sanitise(cfg) {
   return out;
 }
 
+/**
+ * While the car is driving, restrict a requested layout to ±1 lane per direction
+ * relative to what is actually on the road under the car, so each change is a
+ * single continuous transition (one lane added/dropped per stretch of road).
+ * Before the car moves (initial configuration) any layout up to the caps is
+ * allowed. The engine publishes the live state on `window.LaneRoads`.
+ */
+function clampLive(req) {
+  let live = null;
+  try {
+    live =
+      typeof window !== 'undefined' && window.LaneRoads && window.LaneRoads._driving
+        ? window.LaneRoads._applied
+        : null;
+  } catch (_e) {
+    live = null;
+  }
+  if (!live) return req;
+  const out = Object.assign({}, req);
+  if (Number.isFinite(live.forward)) {
+    out.forward = Math.max(live.forward - 1, Math.min(live.forward + 1, req.forward));
+  }
+  if (Number.isFinite(live.backward)) {
+    out.backward = Math.max(live.backward - 1, Math.min(live.backward + 1, req.backward));
+  }
+  return out;
+}
+
 /** Tiny observable store: get / set (merge) / subscribe, with persistence. */
 class LaneStore {
   constructor() {
@@ -97,7 +126,10 @@ class LaneStore {
 
   /** Merge a partial config, validate, persist, and notify subscribers. */
   set(partial) {
-    const next = sanitise(Object.assign({}, this._cfg, partial || {}));
+    const merged = sanitise(Object.assign({}, this._cfg, partial || {}));
+    // Enforce the ±1-per-direction limit live while driving, then re-sanitise so
+    // the result is always valid (e.g. never an empty road).
+    const next = sanitise(clampLive(merged));
     const changed =
       next.forward !== this._cfg.forward ||
       next.backward !== this._cfg.backward ||

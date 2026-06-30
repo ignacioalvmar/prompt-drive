@@ -186,11 +186,22 @@ class LanePanel {
     this.bwdRow.val.textContent = String(cfg.backward);
     this.widthRow.val.textContent = cfg.width == null ? 'auto' : cfg.width.toFixed(1) + 'm';
     const total = cfg.forward + cfg.backward;
+    let driving = false;
+    try {
+      driving = typeof window !== 'undefined' && window.LaneRoads && window.LaneRoads._driving;
+    } catch (_e) {
+      driving = false;
+    }
+    const liveNote = driving
+      ? `While driving you can add or drop <b>one lane per direction</b> at a time; ` +
+        `the change tapers in on the road <b>ahead</b> as you reach it. `
+      : `Set any layout up to 5 lanes each way before you start. Once driving, ` +
+        `changes are limited to ±1 lane at a time and taper in ahead. `;
     this.note.innerHTML =
       `<b>${total}</b> lane${total === 1 ? '' : 's'} total ` +
       `(${cfg.forward} your way, ${cfg.backward} oncoming). ` +
-      `Changes apply to the road <b>ahead</b> — keep driving and the new layout ` +
-      `tapers in as you reach it. Use <b>Rebuild from start</b> for it now.`;
+      liveNote +
+      `Use <b>Rebuild from start</b> to apply a full layout immediately.`;
   }
 
   dispose() {

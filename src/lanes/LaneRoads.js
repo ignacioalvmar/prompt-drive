@@ -38,6 +38,19 @@ const LaneRoads = {
   resolved() {
     return this._resolved ? Object.assign({}, this._resolved) : null;
   },
+  // The engine writes the lane layout actually under the car here every frame,
+  // plus whether the car has started driving. While `_driving` is true, set()
+  // restricts changes to ±1 lane per direction from `_applied` so each change is
+  // a single continuous transition; before driving, any layout up to the caps is
+  // allowed (initial configuration).
+  _applied: null,
+  _driving: false,
+  applied() {
+    return this._applied ? Object.assign({}, this._applied) : null;
+  },
+  driving() {
+    return !!this._driving;
+  },
   _panel: panel,
 };
 
