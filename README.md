@@ -87,14 +87,14 @@ integration map are in
   section (below *driving metrics*): steppers for forward / oncoming lanes and lane width,
   plus presets (*Single 1+1*, *Dual 2+2*, *Wide 3+2*, *One-way ×3*). Selection persists
   in `localStorage`. Default **1+1 / auto-width** reproduces the original road exactly.
-- **Applied on rebuild** — lane geometry is baked into the road as it is generated far
-  *ahead* of the car, so a change can't widen the road already built around you. Press
-  **Apply (rebuild road)** to rebuild the whole road from the start at the new layout —
-  the same model the engine uses for topography and seed changes. The config is locked for
-  the duration of a drive, so the carriageway is uniform and the autodrive can't be stranded
-  off a not-yet-widened road.
+- **Applies to the road ahead** — each midline node is stamped with the lane layout active
+  when it is generated, and the engine re-reads the config as it builds new road. So a
+  change takes effect on the road *ahead* of the car and **tapers in** as you drive into it;
+  the road already built around you keeps its layout (no jump, autodrive stays in its lane).
+  *Rebuild from start* forces the whole road to the new layout immediately for those who
+  don't want to drive forward.
 - **Programmatic API** — `window.LaneRoads`: `get()`, `set({forward, backward, width})`
-  (persists; applied on the next rebuild), `apply()` (rebuild now), `subscribe(fn)`,
+  (persists and applies ahead), `apply()` (rebuild from start now), `subscribe(fn)`,
   `presets`, and `resolved()` (the engine-published geometry —
   `{halfWidth, laneWidth, dividerOffset, egoCenterSigned, …}`, also read by the metrics
   subsystem so lane metrics track the **ego lane** on multi-lane roads).
@@ -103,13 +103,14 @@ integration map are in
   one-way layouts render cleanly.
 
 Markings are painted by the **road-surface material's** shader (the road is a separate
-textured ribbon spanning the full carriageway, with `UV.x` running 0→1 across it). The
-shader derives the signed lateral position `S = (UV.x − 0.5)·2·halfWidth` and draws a line
-at every lane boundary `dividerOffset + k·laneWidth`, so the forward and oncoming sides get
-the correct number of white lane lines with a yellow divider at the split, plus white edge
-lines. v1 lines are solid and on the paved (summer/spring) scene; dashed lane lines are a
-follow-up. (Earlier drafts mistakenly painted markings into the terrain shader, which only
-draws the verge — the road surface is a distinct mesh.)
+textured ribbon spanning the full carriageway, with `UV.x` running 0→1 across it). Each
+vertex carries `laneParam = (localHalfWidth, laneCount, dividerRatio)` captured from the
+midline node it was generated from, so the markings always match that stretch's layout. The
+shader flattens the texture to clean asphalt (removing the baked-in centre line), then draws
+a boundary at every `dividerOffset + k·laneWidth`: a **solid yellow divider** at the
+forward/oncoming split, **dashed white lines** between same-direction lanes (so it reads as
+lane-changeable), and **solid white edge lines**. Markings are on the paved (summer/spring)
+scene.
 
 ## Deploy
 

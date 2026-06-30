@@ -108,12 +108,12 @@ class LanePanel {
     }
     this.content.appendChild(presets);
 
-    // Lane geometry is baked into the road as it is generated far ahead of the
-    // car, so changes are applied by rebuilding the road from the start — the
-    // same way the game applies topography/seed changes. Adjust the values,
-    // then Apply to rebuild the drive at the new layout.
+    // Changes apply to the road generated ahead of the car automatically (the
+    // engine re-reads the config as it builds new road). This button forces an
+    // immediate full rebuild from the start for those who don't want to drive
+    // forward to reach the new layout.
     const applyRow = el('div', 'pd-presets');
-    this.applyBtn = el('button', 'apply', 'Apply (rebuild road)');
+    this.applyBtn = el('button', 'apply', 'Rebuild from start');
     this.applyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this._apply();
@@ -128,8 +128,9 @@ class LanePanel {
   }
 
   _apply() {
-    // Persisted config is already current (set() runs on each change); reload so
-    // the engine rebuilds the whole road at the new lane layout from the origin.
+    // Optional immediate full rebuild from the origin. Day-to-day changes already
+    // apply to the road ahead without this — set() persists and the engine picks
+    // the new layout up as it generates road in front of the car.
     try {
       this.applyBtn.textContent = 'Rebuilding…';
       this.applyBtn.disabled = true;
@@ -188,8 +189,8 @@ class LanePanel {
     this.note.innerHTML =
       `<b>${total}</b> lane${total === 1 ? '' : 's'} total ` +
       `(${cfg.forward} your way, ${cfg.backward} oncoming). ` +
-      `Press <b>Apply</b> to rebuild the road at this layout — the drive restarts ` +
-      `from the start so the whole road and its markings use the new width.`;
+      `Changes apply to the road <b>ahead</b> — keep driving and the new layout ` +
+      `tapers in as you reach it. Use <b>Rebuild from start</b> for it now.`;
   }
 
   dispose() {

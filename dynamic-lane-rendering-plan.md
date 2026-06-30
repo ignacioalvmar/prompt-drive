@@ -7,16 +7,16 @@
 > attributes); autodrive follows the ego lane; and the driving-metrics patch reads the
 > resolved ego-lane geometry.
 >
-> **Application model — rebuild, not live-ahead.** §1.6/§4.2 below proposed applying a lane
-> change to the road *ahead* with a taper. In practice the road (midline nodes + terrain
-> tiles, which bake width at generation) is committed too far ahead for a mid-drive change to
-> widen the road near the car, and applying the ego-lane offset immediately stranded the
-> autodrive off the still-narrow road. So the shipped model **locks the lane config for a
-> drive and applies changes on a road rebuild** (the settings panel's *Apply (rebuild road)*
-> reloads) — exactly how the engine already applies topography (`setTopography` → persisted →
-> rebuild, ~line 10757) and seed (`location.reload`, ~line 2774) changes. This is robust and
-> consistent; the live-ahead taper remains a possible future enhancement if terrain tiles are
-> made to regenerate on demand around the car.
+> **Application model — live, ahead of the car (§1.6/§4.2 realised).** Each midline node is
+> stamped at creation with the lane structure then active (`node.laneTotal`,
+> `node.laneDivRatio`); `node.w` eases toward the new half-width as a taper. The road-surface
+> ribbon copies these onto a per-vertex `laneParam` attribute, so each stretch of road
+> renders the layout it was generated with. The engine re-reads the config on every new node
+> (`laneNextWidth → laneSync`), so a change applies to the road generated *ahead* and tapers
+> in as the car reaches it; road already built keeps its layout, and the autodrive reads the
+> *local* node's geometry so it stays in-lane through the transition. A *Rebuild from start*
+> button still forces an immediate full rebuild. (An earlier iteration locked the config per
+> drive and applied only on reload; that limitation is now lifted.)
 >
 > **Markings map to the real layout — and live on the road-surface mesh, not the terrain.**
 > A correction to §1.2 below: the visible road is **not** the terrain `roadProx`/`roadCol`
