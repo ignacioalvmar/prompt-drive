@@ -9,7 +9,10 @@ const root = path.join(__dirname, '..');
 const sourcePath = path.join(root, 'src-extracted/deobfuscated.js');
 const outPath = path.join(root, 'static/js/main.ca6b3355.chunk.js');
 
-let src = fs.readFileSync(sourcePath, 'utf8');
+// Normalize line endings to LF. The patch anchors below are written with
+// `\n`, so a CRLF checkout (e.g. Windows with core.autocrlf=true) would
+// otherwise fail to match every multi-line anchor.
+let src = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
 
 function replaceOnce(haystack, needle, replacement, label) {
   if (!haystack.includes(needle)) {

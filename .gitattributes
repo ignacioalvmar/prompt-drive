@@ -1,0 +1,4 @@
+# Normalize line endings to LF in the repo. The build script's patch anchors
+# are written with `\n`, so checking these out with CRLF (e.g. Windows with
+# core.autocrlf=true) would break anchor matching in scripts/build-main.js.
+* text=auto eol=lf
