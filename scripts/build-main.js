@@ -9,7 +9,7 @@ const root = path.join(__dirname, '..');
 const sourcePath = path.join(root, 'src-extracted/deobfuscated.js');
 const outPath = path.join(root, 'static/js/main.ca6b3355.chunk.js');
 
-let src = fs.readFileSync(sourcePath, 'utf8');
+let src = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
 
 function replaceOnce(haystack, needle, replacement, label) {
   if (!haystack.includes(needle)) {
