@@ -27,6 +27,18 @@ if (typeof window !== 'undefined' && window.DrivingMetrics) {
 
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'INIT') {
+        if (event.data.lanes && typeof window !== 'undefined' && window.LaneRoads) {
+            const current = window.LaneRoads.get();
+            const requested = event.data.lanes;
+            if (
+                current.forward !== requested.forward ||
+                current.backward !== requested.backward ||
+                current.width !== requested.width
+            ) {
+                window.LaneRoads.set(requested);
+                window.LaneRoads.apply();
+            }
+        }
         if (event.data.autostart) {
             if (activeMetricsInstance && typeof activeMetricsInstance.startRun === 'function' && !activeMetricsInstance.isRecording) {
                 activeMetricsInstance.startRun();
@@ -40,6 +52,29 @@ window.addEventListener('message', (event) => {
                 }, 100);
                 setTimeout(() => clearInterval(interval), 5000);
             }
+        }
+    } else if (event.data && event.data.type === 'PROMPT_ACTIVE') {
+        if (event.data.sim_lanes && typeof window !== 'undefined' && window.LaneRoads) {
+            try {
+                const requested = typeof event.data.sim_lanes === 'string'
+                    ? JSON.parse(event.data.sim_lanes)
+                    : event.data.sim_lanes;
+                const current = window.LaneRoads.get();
+                if (
+                    current.forward !== requested.forward ||
+                    current.backward !== requested.backward ||
+                    current.width !== requested.width
+                ) {
+                    window.LaneRoads.set(requested);
+                    window.LaneRoads.apply();
+                }
+            } catch (e) {
+                console.warn('[bridge] PROMPT_ACTIVE: sim_lanes parse error', e);
+            }
+        }
+    } else if (event.data && event.data.type === 'TOGGLE_CONSOLE') {
+        if (activeMetricsInstance && activeMetricsInstance.overlay) {
+            activeMetricsInstance.overlay.setVisible(!!event.data.visible);
         }
     }
 });
