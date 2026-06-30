@@ -3043,6 +3043,34 @@
     try {
       if (typeof window !== "undefined" && window.LaneRoads) window.LaneRoads._resolved = laneResolved;
     } catch (lanePubErr) {}
+    // When the config changes mid-drive, re-stamp the already-committed road
+    // ahead of the car so the new layout applies just in front and rolls in as
+    // the ribbon recycles — instead of only appearing at the distant midline
+    // frontier. The first sync (scene init) just records the signature.
+    const sig = total + ":" + dividerRatio.toFixed(3) + ":" + halfWidth.toFixed(2);
+    if (laneSig && laneSig !== sig) laneRestampAhead();
+    laneSig = sig;
+  };
+  let laneSig = "";
+  // Re-stamp upcoming midline nodes with the current lane structure and ease
+  // their width toward the new target, starting a short margin ahead of the car
+  // so the vehicle isn't yanked. Cheap (property writes along the linked list).
+  const laneRestampAhead = () => {
+    if (typeof si === "undefined" || !si || !si.vehicleNode || !si.tail) return;
+    let node = si.vehicleNode;
+    for (let i = 0; i < 6 && node.next; i++) node = node.next; // taper start margin
+    let prevW = node.w > 0 ? node.w : Yt;
+    const step = 0.35;
+    while (node) {
+      const d = Yt - prevW;
+      const w = d > step ? prevW + step : (d < -step ? prevW - step : Yt);
+      node.w = w;
+      prevW = w;
+      node.laneTotal = laneResolved.total;
+      node.laneDivRatio = laneResolved.dividerRatio;
+      node.laneIsDefault = laneResolved.isDefault;
+      node = node.next;
+    }
   };
   // Per-node spawn width: re-poll the config, then ease the previous node's width
   // toward the current target so a change tapers in over a few nodes (a real lane
@@ -18103,10 +18131,13 @@
       // Multi-lane: keep the autodrive line in the ego lane using the LOCAL node's
       // lane structure, so the target tracks the road as a lane change tapers in
       // under the car. Default 1+1 reproduces the original midline-centred line.
+      // Use the LOCAL node's lane structure only (no global fallback), so the
+      // autodrive transitions exactly where the rendered road transitions — not
+      // the instant the config changes.
       let _ln = Yd.m.n;
-      let _isDef = _ln ? _ln.laneIsDefault !== false && _ln.laneTotal === 2 && (_ln.laneDivRatio || 0) === 0 : laneResolved.isDefault;
-      let _total = (_ln && _ln.laneTotal) ? _ln.laneTotal : laneResolved.total;
-      let _dratio = _ln ? (_ln.laneDivRatio || 0) : laneResolved.dividerRatio;
+      let _total = (_ln && _ln.laneTotal) ? _ln.laneTotal : 2;
+      let _dratio = (_ln && _ln.laneDivRatio != null) ? _ln.laneDivRatio : 0;
+      let _isDef = (_ln ? _ln.laneIsDefault !== false : true) && _total === 2 && _dratio === 0;
       let _hw = Yd.m.w;
       let _laneHalf = (_isDef ? _hw : _hw / _total) - Ae.wheels.width / 2;
       if (!(_laneHalf > 0.2)) _laneHalf = Math.max(0.2, _hw - Ae.wheels.width / 2);

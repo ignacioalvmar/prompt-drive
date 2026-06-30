@@ -8,15 +8,19 @@
 > resolved ego-lane geometry.
 >
 > **Application model — live, ahead of the car (§1.6/§4.2 realised).** Each midline node is
-> stamped at creation with the lane structure then active (`node.laneTotal`,
+> stamped with the lane structure active when it is generated (`node.laneTotal`,
 > `node.laneDivRatio`); `node.w` eases toward the new half-width as a taper. The road-surface
-> ribbon copies these onto a per-vertex `laneParam` attribute, so each stretch of road
-> renders the layout it was generated with. The engine re-reads the config on every new node
-> (`laneNextWidth → laneSync`), so a change applies to the road generated *ahead* and tapers
-> in as the car reaches it; road already built keeps its layout, and the autodrive reads the
-> *local* node's geometry so it stays in-lane through the transition. A *Rebuild from start*
-> button still forces an immediate full rebuild. (An earlier iteration locked the config per
-> drive and applied only on reload; that limitation is now lifted.)
+> ribbon copies these onto a per-vertex `laneParam` attribute, so each stretch renders the
+> layout it was built with. On a mid-drive config change, `laneSync` detects the new
+> signature and `laneRestampAhead()` re-stamps the already-committed upcoming nodes (from a
+> short margin ahead of the car to the tail, easing the width), so the change isn't stranded
+> at the distant midline frontier — it sits just ahead and **rolls in as the ribbon recycles
+> its segments forward** while driving. The autodrive reads the *local* node's geometry only
+> (no global fallback), so it transitions exactly where the rendered road transitions rather
+> than the instant the config changes. *Rebuild from start* still forces an immediate full
+> rebuild. (Earlier iterations locked the config per drive / applied only at the far frontier;
+> both limitations are now lifted. Note: ribbon segments already displayed refresh as they
+> recycle — within roughly one segment of driving — not instantaneously under the car.)
 >
 > **Markings map to the real layout — and live on the road-surface mesh, not the terrain.**
 > A correction to §1.2 below: the visible road is **not** the terrain `roadProx`/`roadCol`
