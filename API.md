@@ -8,7 +8,8 @@ configuration and **submit** two kinds of change:
   reloads the sim so the engine regenerates the world.
 - **Dynamic config** — live changes a running sim applies without a restart
   (weather, skin, day-night, lanes ±1, drive mode, grip/speed, autodrive,
-  headlights, camera, cruise, FOV, units) plus programmatic **drive inputs**.
+  headlights, camera, cruise, FOV, units, menu lockdown) plus programmatic
+  **drive inputs**.
 
 It also exposes a **telemetry + event stream** so the caller can observe the
 result of its changes and the ego vehicle's state.
@@ -115,6 +116,7 @@ dynamic.weather(idxOrName)    dynamic.skin(name)     dynamic.cycle(idx)
 dynamic.headlights(bool)      dynamic.autodrive(bool) dynamic.driveMode(m)
 dynamic.camera(mode)          dynamic.lanes(cfg)     dynamic.cruise(cfg)
 dynamic.grip(f)   dynamic.speed(f)   dynamic.fov(f)   dynamic.units(u)
+dynamic.hideMenu(bool)        // participant lockdown: hide the bottom-bar menu icons
 dynamic.input(signals)        // live drive: forward/backward/left/right/boost/handbrake
 
 telemetry.state()             // instantaneous ego snapshot
@@ -223,6 +225,7 @@ Convenience wrappers each call `dynamic.set` for one field:
 | `cruise(cfg)` | `controls.cruise` | `{ enabled, speed, unit }`. `speed` is m/s by default; pass `unit:'display'` to give it in the current display units (MPH/KPH) — the autopilot's target speed. Returns `{ enabled, speedMs, speedDisplay, unit }`. |
 | `fov(f)` | `graphics.verticalFov` | `40`–`80`. |
 | `units(u)` | `units` | `0` MPH/MI, `1` KPH/KM. |
+| `hideMenu(bool)` | `ui.hideMenu` | Participant lockdown — hides the bottom-bar menu icons + autodrive toggle so a participant can't change conditions. Live toggle does **not** persist; use `config.set`/`apply` (or `?hideMenu=1`) to bake it across reloads. |
 
 **Live drive inputs** — `dynamic.input(signals)` feeds a virtual input source
 that is OR'd into the per-frame controls, letting a service *drive* the car:
@@ -442,6 +445,12 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `general.showWorm` | enum | **S+D** | `0` Always, `1` Manual drive only, `2` Never |
 | `general.barriers` | boolean | **S+D** | walls & roadside barriers (regenerated on reload) |
 
+### UI / participant lockdown
+
+| Path | Type | Class | Values / range |
+| --- | --- | --- | --- |
+| `ui.hideMenu` | boolean | **S+D** | Hide the bottom-bar menu icons (`#menu-bar`) and the autodrive toggle (`#autodrive`) so participants can't change simulation conditions. A DOM-overlay flag (no engine backing): live via `dynamic.hideMenu`, persisted via static `config.apply` or the `?hideMenu=1` query param. In-cabin cluster and HUD read-outs stay visible. |
+
 Out-of-range numeric values are clamped (result carries `clamped: true`);
 enum values outside the declared set are rejected as `bad_value`.
 
@@ -603,7 +612,8 @@ It is organised into three tabs plus a persistent live-feed footer:
 
 - **① Static config** — grouped to mirror the in-game settings: *World & launch*
   (seed, node, scene, topography, vehicle, antialias, and the **Auto-start /
-  bypass “begin”** toggle), *General settings* (units, road worm, barriers),
+  bypass “begin”** toggle), *General settings* (units, road worm, barriers, and
+  the **Hide menu icons** participant-lockdown switch),
   *Graphics* (view distance, detail, render scale), *Weather*, *Vehicle* (drive
   mode, autodrive lane, grip/speed, interior side/seat/wheel/rotation/adjustment/
   height), *Road lanes* (forward/oncoming/width), and *Driving metrics to
@@ -611,8 +621,8 @@ It is organised into three tabs plus a persistent live-feed footer:
   and *Apply & (re)launch*.
 - **② Dynamic config** — weather/skin/cycle, drive mode, grip/speed (inline
   **Set** buttons), cruise (On/Off), autodrive and headlights (**toggle
-  switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, and
-  press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
+  switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, the
+  **Hide menu icons** lockdown switch, and press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
   fields apply on their Set button.
 - **③ Metrics & logs** — run *Start/Stop/Reset/Status*, *Get report (JSON)*,
   *Download report / logs*, and **End simulation & export** (finalize + auto
@@ -641,6 +651,7 @@ straight into a live sim.
 | `src/api/postmessage.js` | Iframe `postMessage` transport + origin allow-list. |
 | `src/api/broadcast.js` | Cross-tab `BroadcastChannel` transport. |
 | `src/api/autostart.js` | Optional “begin”-splash bypass. |
+| `src/api/hidemenu.js` | Participant lockdown — hides the bottom-bar menu icons (`ui.hideMenu` / `?hideMenu=1`). |
 | `scripts/build-api.js` | Bundles `src/api/` → `static/js/api.js`. |
 | `api-test.html` | Local test console. |
 

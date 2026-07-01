@@ -15,7 +15,7 @@ const dir = path.join(root, 'src/api');
 
 // Dependency order: config (schema/validation) → bridge (registry) → facade
 // (uses both) → postmessage (uses the facade).
-const files = ['config.js', 'bridge.js', 'PromptDriveApi.js', 'postmessage.js', 'broadcast.js', 'autostart.js'];
+const files = ['config.js', 'bridge.js', 'PromptDriveApi.js', 'postmessage.js', 'broadcast.js', 'autostart.js', 'hidemenu.js'];
 
 function stripModuleSyntax(src) {
   return src

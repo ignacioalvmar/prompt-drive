@@ -141,6 +141,8 @@
             <select id="s-worm"><option value="0">Always</option><option value="1">Manual drive only</option><option value="2">Never</option></select></div>
           <div class="row"><label>Walls &amp; barriers</label>
             <select id="s-barriers"><option value="true">enabled</option><option value="false">disabled</option></select></div>
+          <div class="row"><label>Hide menu icons (lockdown)</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="s-hidemenu" /><span class="track"></span></label><span class="state" id="s-hidemenu-s">off</span></div></div>
         </div>
       </div>
 
@@ -268,6 +270,8 @@
             <div class="setrow"><input type="number" id="d-fov" min="40" max="80" value="68" /><button data-call="fov" data-live>Set</button></div></div>
           <div class="row"><label>Units</label>
             <select id="d-units" data-dyn="units" data-live><option value="0">MPH/MI</option><option value="1">KPH/KM</option></select></div>
+          <div class="row"><label>Hide menu icons (lockdown)</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="d-hidemenu" data-dyn="hideMenu" data-live /><span class="track"></span></label><span class="state" id="d-hidemenu-s">off</span></div></div>
           <p class="hint">Live lane changes clamp to ±1 per direction once moving. Dropdowns/switches apply on change;
             numeric fields apply on their <b>Set</b> button.</p>
         </div>
@@ -465,6 +469,7 @@
     let r;
     if (kind === 'autodrive') { document.getElementById('d-autodrive-s').textContent = el.checked ? 'on' : 'off'; r = await op('dynamic.autodrive', el.checked); }
     else if (kind === 'headlights') { document.getElementById('d-lights-s').textContent = el.checked ? 'on' : 'off'; r = await op('dynamic.headlights', el.checked); }
+    else if (kind === 'hideMenu') { document.getElementById('d-hidemenu-s').textContent = el.checked ? 'on' : 'off'; r = await op('dynamic.hideMenu', el.checked); }
     else if (kind === 'driveMode') r = await op('dynamic.driveMode', el.value);
     else if (kind === 'cycle') r = await op('dynamic.cycle', Number(el.value));
     else if (kind === 'camera') r = await op('dynamic.camera', el.value);
@@ -473,6 +478,11 @@
     else if (kind === 'units') { r = await op('dynamic.set', { units: Number(el.value) }); setTimeout(populateLive, 200); }
     log(kind, r, r && r.ok === false ? 'err' : 'applied');
   }));
+
+  // Static hide-menu switch just reflects its own label; it is committed on Stage/Apply.
+  document.getElementById('s-hidemenu').addEventListener('change', (e) => {
+    document.getElementById('s-hidemenu-s').textContent = e.target.checked ? 'on' : 'off';
+  });
 
   // Populate live-dependent dropdowns (cameras, weather, skin) + cruise unit.
   async function populateLive() {
@@ -518,6 +528,7 @@
     p['units'] = num('s-units');
     p['general.showWorm'] = num('s-worm');
     p['general.barriers'] = val('s-barriers') === 'true';
+    p['ui.hideMenu'] = checked('s-hidemenu');
     p['graphics.viewLodIndex'] = num('s-view');
     p['graphics.detailLodIndex'] = num('s-detail');
     p['graphics.renderScale'] = num('s-render');
@@ -550,6 +561,7 @@
     set('s-seed', g.scene.seed); set('s-scene', g.scene.sceneName); set('s-topo', g.scene.topography);
     set('s-aa', String(g.scene.antialias));
     set('s-units', g.units); if (g.general) { set('s-worm', g.general.showWorm); set('s-barriers', String(!!g.general.barriers)); }
+    if (g.ui) { const hm = document.getElementById('s-hidemenu'); if (hm) { hm.checked = !!g.ui.hideMenu; document.getElementById('s-hidemenu-s').textContent = g.ui.hideMenu ? 'on' : 'off'; } }
     set('s-view', g.graphics.viewLodIndex); set('s-detail', g.graphics.detailLodIndex); set('s-render', g.graphics.renderScale);
     set('s-mode', g.vehicle.mode); set('s-autolane', g.controls.autodriveSideIndex);
     set('s-grip', g.vehicle.gripFactor); set('s-speed', g.vehicle.speedFactor);

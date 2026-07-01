@@ -86,6 +86,9 @@ const FIELDS = [
   // --- general game settings (engine GameConfig) ---
   { path: 'general.showWorm', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: ['Always', 'Manual drive only', 'Never'], desc: 'Show the upcoming-road worm guide.' },
   { path: 'general.barriers', type: FieldType.Boolean, cls: 'both', desc: 'Walls and collidable roadside barriers (regenerated on reload).' },
+
+  // --- UI lockdown (participant mode) — DOM overlay, no engine backing ---
+  { path: 'ui.hideMenu', type: FieldType.Boolean, cls: 'both', desc: 'Hide the bottom-bar menu icons and the autodrive toggle so participants (users without config privileges) cannot change simulation conditions. Static/persisted via config.apply; live via dynamic.hideMenu.' },
 ];
 
 // Driving-metrics families and their metric ids — mirrors src/metrics/config.js
