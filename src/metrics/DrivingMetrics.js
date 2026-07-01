@@ -8,7 +8,7 @@
 import { MetricsCollector } from './MetricsCollector.js';
 import { MetricsPanel } from './MetricsPanel.js';
 import { MetricsOverlay } from './MetricsOverlay.js';
-import { loadSelection, saveSelection } from './config.js';
+import { loadSelection, saveSelection, METRIC_FAMILIES, METRICS } from './config.js';
 import { isComputable } from './compute.js';
 import { buildReport, downloadReport, downloadLogs } from './report.js';
 
@@ -71,6 +71,22 @@ export class DrivingMetrics {
 
   isComputable(id) {
     return isComputable(id, this.trafficAvailable);
+  }
+
+  /** Metric registry (families + metrics) so external tools/the API can list
+   *  and toggle metric selection without duplicating the config. */
+  getRegistry() {
+    return {
+      families: METRIC_FAMILIES.map((f) => Object.assign({}, f)),
+      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic })),
+    };
+  }
+
+  /** Toggle every metric in a family at once (used by the API/static config). */
+  setFamilySelected(family, on) {
+    for (const m of METRICS) {
+      if (m.family === family) this.setSelected(m.id, on);
+    }
   }
 
   /** Future hook: flip on when a traffic config is added to the sim. */
