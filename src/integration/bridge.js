@@ -66,7 +66,6 @@ window.addEventListener('message', (event) => {
                     current.width !== requested.width
                 ) {
                     window.LaneRoads.set(requested);
-                    window.LaneRoads.apply();
                 }
             } catch (e) {
                 console.warn('[bridge] PROMPT_ACTIVE: sim_lanes parse error', e);
