@@ -199,6 +199,18 @@
       </div>
 
       <div class="group">
+        <h3>Traffic vehicles</h3>
+        <div class="body">
+          <div class="row"><label>Traffic</label>
+            <select id="s-traffic"><option value="false">disabled</option><option value="true">enabled</option></select></div>
+          <div class="row"><label>Vehicles</label><input type="number" id="s-tdensity" min="0" max="16" value="6" /></div>
+          <div class="row"><label>Speed (m/s)</label><input type="number" id="s-tspeed" min="2" max="45" value="15" /></div>
+          <div class="row"><label>Oncoming traffic</label>
+            <select id="s-toncoming"><option value="true">yes</option><option value="false">no</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
         <h3>Driving metrics to collect</h3>
         <div class="body checkcol">
           <label><input type="checkbox" id="m-lane" checked /> Lane keeping</label>
@@ -274,6 +286,21 @@
             <div class="switchwrap"><label class="switch"><input type="checkbox" id="d-hidemenu" data-dyn="hideMenu" data-live /><span class="track"></span></label><span class="state" id="d-hidemenu-s">off</span></div></div>
           <p class="hint">Live lane changes clamp to ±1 per direction once moving. Dropdowns/switches apply on change;
             numeric fields apply on their <b>Set</b> button.</p>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Traffic events</h3>
+        <div class="body">
+          <div class="row"><label>Stopped vehicle: dist (m) / lane</label>
+            <div class="setrow"><input type="number" id="d-tdist" min="30" max="600" value="100" /><input type="number" id="d-tlane" min="-5" max="5" value="1" /><button data-call="trafficStop" data-live>Spawn</button></div></div>
+          <div class="btnrow">
+            <button data-call="trafficState" class="sec" data-live>Traffic state</button>
+            <button data-call="trafficClear" class="sec" data-live>Clear traffic</button>
+          </div>
+          <p class="hint">Spawns a stationary vehicle ahead of the ego (lane 1 = ego's lane; negative = oncoming).
+            Requires traffic assets — works with traffic enabled or not.</p>
+          <pre class="out" id="traffic-out" style="display:none"></pre>
         </div>
       </div>
 
@@ -547,6 +574,8 @@
     p['vehicle.seatHeight'] = num('s-seath');
     p['lanes'] = { forward: num('s-fwd') || 1, backward: val('s-bwd') === '' ? 1 : num('s-bwd'),
       width: val('s-width') === '' ? null : num('s-width') };
+    p['traffic'] = { enabled: val('s-traffic') === 'true', density: num('s-tdensity'),
+      speed: num('s-tspeed'), oncoming: val('s-toncoming') === 'true' };
     return p;
   }
   const METRIC_FAMILIES = ['lane', 'longitudinal', 'steering', 'safety', 'events'];
@@ -569,6 +598,8 @@
     set('s-steer', g.vehicle.steerRotationIndex); set('s-seatadj', g.vehicle.seatAdjustment); set('s-seath', g.vehicle.seatHeight);
     if (g.controls) set('s-camera', g.controls.cameraMode);
     if (g.lanes) { set('s-fwd', g.lanes.forward); set('s-bwd', g.lanes.backward); set('s-width', g.lanes.width == null ? '' : g.lanes.width); }
+    if (g.traffic) { set('s-traffic', String(!!g.traffic.enabled)); set('s-tdensity', g.traffic.density);
+      set('s-tspeed', g.traffic.speed); set('s-toncoming', String(!!g.traffic.oncoming)); }
     await populateLive();
     const sel = await op('metrics.selection');
     if (sel && sel.ok !== false) {
@@ -589,6 +620,9 @@
     speed: () => op('dynamic.speed', num('d-speed')),
     cruiseSet: () => op('dynamic.cruise', { enabled: true, speed: num('d-cruise'), unit: 'display' }),
     lanes: () => op('dynamic.lanes', { forward: num('d-fwd'), backward: num('d-bwd') }),
+    trafficStop: async () => { const r = await op('traffic.spawnStopped', { distance: num('d-tdist'), lane: num('d-tlane') }); showOut('traffic-out', r); return r; },
+    trafficState: async () => { const r = await op('traffic.state'); showOut('traffic-out', r); return r; },
+    trafficClear: () => op('traffic.clear'),
     fov: () => op('dynamic.fov', num('d-fov')),
     loadCurrent: loadCurrent,
     stage: async () => { await applyMetricFamilies(); return op('config.set', collectStatic()); },

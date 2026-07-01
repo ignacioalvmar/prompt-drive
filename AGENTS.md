@@ -16,6 +16,7 @@ Edit the **source**, then rebuild:
 | Instrument cluster UI | `src/cluster/` | `npm run build:cluster` |
 | Driving metrics | `src/metrics/` | `npm run build:metrics` |
 | Dynamic lanes | `src/lanes/` | `npm run build:lanes` |
+| Traffic road actors | `src/traffic/` | `npm run build:traffic` |
 | Integration API | `src/api/` | `npm run build:api` |
 | Game-engine behavior | `scripts/build-main.js` (patches `src-extracted/deobfuscated.js`) | `npm run build:main` |
 
@@ -47,12 +48,14 @@ subsystems are layered on top as separate IIFE bundles, each exposed as a
 | Instrument cluster | `src/cluster/` | `static/js/cluster.js` | `InstrumentCluster` |
 | Driving metrics | `src/metrics/` | `static/js/metrics.js` | `DrivingMetrics` |
 | Dynamic lanes | `src/lanes/` | `static/js/lanes.js` | `LaneRoads` |
+| Traffic road actors | `src/traffic/` | `static/js/traffic.js` | `RoadTraffic` |
 | Integration API | `src/api/` | `static/js/api.js` | `PromptDrive` (+ `PromptDriveBridge`) |
 
 **Script load order matters** (see `index.html`): `cluster → metrics → lanes →
-api → main`. The API bundle must load after `lanes.js` (it delegates lane
-changes to `LaneRoads`) and before the main bundle (so `PromptDriveBridge`
-exists when the patched engine attaches handles). Preserve this order.
+traffic → api → main`. The API bundle must load after `lanes.js` and
+`traffic.js` (it delegates lane changes to `LaneRoads` and traffic calls to
+`RoadTraffic`) and before the main bundle (so `PromptDriveBridge` exists when
+the patched engine attaches handles). Preserve this order.
 
 ### The extension pattern
 

@@ -1,6 +1,42 @@
 # Traffic Road Actors — Design & Plan
 
-**Status:** Proposed (awaiting review). Branch `feat/traffic-vehicles`, 2026-07-02.
+> **Implemented** on branch `feat/traffic-vehicles` (2026-07-02). What shipped matches
+> this plan with four deviations discovered against the real engine:
+>
+> 1. **Out-of-view spawning (§6)** — a pure camera-frustum rule can never pass ahead of a
+>    forward-looking camera on a straight, so **ahead spawns are placed beyond the fog's
+>    hiding distance** (`fog.near · 1.05`, read live) where a car is a fully fogged-out
+>    dot; behind spawns keep the frustum test. And the engine **retains road-midline
+>    nodes only from the ego's node forward** (the head of the node list tracks the
+>    vehicle, `deobfuscated.js` midline `update()`), so *driving* spawns behind the ego
+>    are structurally impossible — traffic appears behind the ego naturally as it is
+>    overtaken (retired nodes keep their `next` links, so overtaken vehicles keep
+>    driving; oncoming vehicles are recycled shortly after passing the ego when they
+>    reach the severed `prev` chain). The recycle corridor is [−400 m, +1200 m].
+> 2. **Autodrive ego-lane fix** — the ego autopilot's target offset was `Yt/2`
+>    (half the road half-width): correct for the default 1+1 carriageway but the
+>    **lane-1/lane-2 boundary** on multi-lane roads, while markings and metrics use the
+>    per-node ego-lane centre. `updateTarget()`/`resetToNode()` now use
+>    `node.laneEgoRatio · node.w` on non-default roads (per-node, so lane-change tapers
+>    still apply); default roads keep `Yt/2` exactly. Verified: ego lat 1.6 on a 2+2
+>    road (was 3.2), unchanged ≈1.5 on default 1+1.
+> 3. **Ego collision response (§7)** — a one-shot wheel-impulse let the ego tunnel
+>    through at speed. Shipped: a **per-contact-frame velocity cap** — wheel velocity is
+>    derived by the engine as `(worldPos − pPos)/pdT`, so writing
+>    `pPos = worldPos − vTarget·dt` each frame of overlap caps the ego's along-road
+>    speed to the NPC's (with a small bounce) and feeds momentum into the NPC. Event /
+>    scrape audio / metrics-collision fire once per contact episode via
+>    `didCollide`/`collisionStrength`.
+> 4. **Default 1+1 + traffic (§3)** — implemented as proposed via a latched
+>    `trafficLaneCentred()` check in `laneSync` (isDefault forced off while traffic is
+>    enabled; latched at scene init so the ego line can never jump mid-drive).
+>
+> Engine glue lives directly in `src-extracted/deobfuscated.js` (lanes precedent):
+> the `trafficTick()` seam after `var si = $t;`, one call in the view update after
+> `zl.update(e, t)`, and the two autodrive offsets. Everything else is the
+> `src/traffic/` bundle (`window.RoadTraffic`).
+
+**Status:** Implemented (v1). Branch `feat/traffic-vehicles`, 2026-07-02.
 **Scope:** Add AI-controlled traffic vehicles alongside the ego vehicle: constant-speed
 lane-following autopilot, physics + collisions, random colors, out-of-view spawning, a
 front anti-collision sensor, and a "stopped vehicle ahead" scriptable event — configurable

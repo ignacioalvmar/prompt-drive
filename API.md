@@ -33,6 +33,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Dynamic config — `dynamic.*`](#dynamic-config--dynamic)
   - [Static config — `config.*`](#static-config--config)
   - [Telemetry — `telemetry.*`](#telemetry--telemetry)
+  - [Traffic — `traffic.*`](#traffic--traffic)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -122,6 +123,12 @@ dynamic.input(signals)        // live drive: forward/backward/left/right/boost/h
 telemetry.state()             // instantaneous ego snapshot
 telemetry.metrics()           // computed driving-performance report
 telemetry.report()            // alias of metrics()
+
+traffic.get()                 // traffic config { enabled, density, speed, oncoming, seed }
+traffic.set(cfg)              // persist config (applies on reload)
+traffic.state()               // live actor list (id, lane, mode, speed)
+traffic.spawnStopped(o)       // stopped-vehicle event: { distance, lane }
+traffic.clear()               // remove all traffic vehicles
 
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
@@ -290,7 +297,9 @@ they are applied live before the reload so they also persist.
   autodrive,    // bool
   driveMode,    // "AWD" | "FWD" | "RWD"
   units,        // 0 | 1
-  lane          // { forward, backward } under the car, when multi-lane roads are active
+  lane,         // { forward, backward } under the car, when multi-lane roads are active
+  traffic       // { count, lead: { gap, speed, lane, id } | null } when traffic is active —
+                // the ego's lead vehicle (bumper gap in m, speed m/s), for THW/TTC measures
 }
 ```
 
@@ -298,6 +307,44 @@ they are applied live before the reload so they also persist.
 driving-performance report from the metrics subsystem (SDLP, lateral position,
 lane departures, speed/SDS, steering reversals/entropy, TTLC, throttle/brake/jerk,
 collisions), or `null` if metrics are unavailable.
+
+### Traffic — `traffic.*`
+
+AI traffic road actors (`window.RoadTraffic`, `src/traffic/`). The **config**
+is static — persist it and reload (it also stages through
+`config.set({ traffic: {…} })` / `config.apply`); the **stopped-vehicle event**
+is live.
+
+```js
+PromptDrive.traffic.get();   // { ok:true, value:{ enabled, density, speed, oncoming, seed } }
+PromptDrive.traffic.set({ enabled: true, density: 8, speed: 18 });
+// → { ok:true, value:{ …persisted config }, appliesOn:'reload' }
+
+PromptDrive.traffic.state();
+// → { ok:true, value:{ enabled, attached, count,
+//      vehicles:[ { id, lane, mode:'driving'|'stopped'|'crashed', speed, nodeIndex, event } ] } }
+
+PromptDrive.traffic.spawnStopped({ distance: 120, lane: 1 });
+// → { ok:true, value:{ id, distance, lane, nodeIndex } }
+//   | { ok:false, error:'engine_rejected' }   (sim not live)
+//   | { ok:false, error:'bad_value', message } (no such lane / road not built)
+
+PromptDrive.traffic.clear();  // remove all traffic vehicles
+```
+
+- `enabled` (bool, default off), `density` 0–16 vehicles, `speed` 2–45 m/s
+  (constant cruise speed for all traffic), `oncoming` (bool), `seed`
+  (string | null — null derives from the scene seed; the same seed reproduces
+  the same colors and spawn pattern).
+- **Lane addressing**: `1..forward` are ego-direction lanes (`1` = the ego's
+  lane, adjacent to the divider); `-1..-backward` are oncoming.
+- Traffic vehicles hold their lane at the configured speed and brake — down to
+  a full stop — behind anything in their lane (other traffic, a stopped
+  vehicle, or the ego). Ego↔traffic collisions play the engine's collision
+  audio and count in the driving-metrics `collisions` events.
+- With traffic enabled, a default 1+1 road is treated as **lane-centred**: same
+  width, but the ego autopilot follows its own lane's centre (markings drawn)
+  so the oncoming lane is clear.
 
 ### Metrics run & export — `run.*`
 
@@ -378,6 +425,9 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `paused` | bool | Engine |
 | `wrongWay` | — | Engine |
 | `resetCount` | count | Engine |
+| `trafficSpawned` | `{ id, lane, mode, color, vehicle }` | Traffic — a vehicle entered the world. |
+| `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
+| `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |
 | `vehicleController` | `{ distance, speed, … }` | Engine (periodic) |
 | `stats` | `{ fps, drawCalls, playTime }` | Engine (periodic) |
 | `loadTimes` | timings | Engine |
@@ -405,6 +455,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.dayNightCycle` | enum | **S+D** | `0` off, `1`=180 s, `2`=480 s, `3`=900 s |
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
+| `traffic` | object | **S** | `{ enabled, density 0–16, speed 2–45 m/s, oncoming, seed }`; the stopped-vehicle event is live via [`traffic.spawnStopped`](#traffic--traffic) |
 
 ### Vehicle
 
