@@ -89,6 +89,9 @@ const FIELDS = [
   // --- general game settings (engine GameConfig) ---
   { path: 'general.showWorm', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: ['Always', 'Manual drive only', 'Never'], desc: 'Show the upcoming-road worm guide.' },
   { path: 'general.barriers', type: FieldType.Boolean, cls: 'both', desc: 'Walls and collidable roadside barriers (regenerated on reload).' },
+
+  // --- UI lockdown (participant mode) — DOM overlay, no engine backing ---
+  { path: 'ui.hideMenu', type: FieldType.Boolean, cls: 'both', desc: 'Hide the bottom-bar menu icons and the autodrive toggle so participants (users without config privileges) cannot change simulation conditions. Static/persisted via config.apply; live via dynamic.hideMenu.' },
 ];
 
 // Driving-metrics families and their metric ids — mirrors src/metrics/config.js
@@ -399,6 +402,10 @@ function snapshot() {
       showWorm: h.units.ShowWorm,
       barriers: h.units.Barriers,
     },
+    ui: {
+      hideMenu: (typeof window !== 'undefined' && window.PromptDriveHideMenu)
+        ? window.PromptDriveHideMenu.state() : false,
+    },
   };
 }
 
@@ -493,6 +500,13 @@ function applyDynamic(path, value, opts) {
     case 'general.showWorm': h.units.set('ShowWorm', value); return ok(value);
     case 'general.barriers': h.units.set('Barriers', value ? 1 : 0); return ok(!!value);
 
+    // UI-only lockdown (no engine handle needed). The live toggle does not
+    // persist — bake it across reloads via static config (config.set/apply).
+    case 'ui.hideMenu': {
+      if (typeof window === 'undefined' || !window.PromptDriveHideMenu) return err('unavailable', { path });
+      return ok(window.PromptDriveHideMenu.set(!!value, { persist: false }));
+    }
+
     default:
       return err('unknown_key', { path });
   }
@@ -553,6 +567,19 @@ function commitStagedField(path, value) {
     return true;
   }
   if (path.indexOf('metrics.') === 0) return true; // handled by the metrics namespace directly
+
+  // ui.hideMenu is a DOM-overlay flag owned by hidemenu.js (its own storage
+  // key/format); persist through it so a reload re-applies the lockdown.
+  if (path === 'ui.hideMenu') {
+    if (typeof window !== 'undefined' && window.PromptDriveHideMenu) {
+      window.PromptDriveHideMenu.set(!!value, { persist: true });
+      return true;
+    }
+    try {
+      if (value) localStorage.setItem('pd-hide-menu', '1'); else localStorage.removeItem('pd-hide-menu');
+      return true;
+    } catch (_e) { return false; }
+  }
 
   const key = STAGE_STORAGE[path];
   if (!key) return false; // e.g. scene.dayNightCycle has no persistent store
@@ -794,6 +821,8 @@ const PromptDrive = {
     speed: (f) => setDynamic({ 'vehicle.speedFactor': f }),
     fov: (f) => setDynamic({ 'graphics.verticalFov': f }),
     units: (u) => setDynamic({ units: u }),
+    // Participant lockdown: hide the bottom-bar menu icons + autodrive toggle.
+    hideMenu: (on) => setDynamic({ 'ui.hideMenu': on }),
     // §5.4 live drive-input hook (requires the build-main virtual input patch).
     input: (signals) => {
       if (typeof window !== 'undefined' && window.PromptDriveBridge) {
@@ -1092,6 +1121,90 @@ startPostMessageBridge();
 
   // Expose for the bridge/test console to invoke or inspect.
   window.PromptDriveAutostart = { tryClick, enabled };
+})();
+
+
+/* --- hidemenu.js --- */
+/**
+ * Optional "participant lockdown": hide the bottom-bar menu icons (`#menu-bar` —
+ * the settings / scene / config icon groups) and the centre autodrive toggle
+ * (`#autodrive`) so a participant without config-change privileges cannot open
+ * the settings panels or flip drive conditions mid-study.
+ *
+ * Exposed two ways, mirroring autostart.js:
+ *   - a static launch option — persisted to localStorage 'pd-hide-menu' (or the
+ *     query param ?hideMenu=1), read on load and applied before the bar mounts;
+ *   - a live dynamic toggle — PromptDrive.dynamic.hideMenu(bool) / the
+ *     `ui.hideMenu` field — which shows/hides it on a running sim.
+ *
+ * Purely a DOM-overlay concern (it touches no engine state), so it lives in the
+ * API bundle rather than a build-main engine patch. It injects a <style> rule
+ * rather than toggling the nodes directly, so the rule takes effect the instant
+ * the React-rendered bar appears — regardless of when that is relative to load.
+ * The in-cabin instrument cluster (a 3D canvas) and passive HUD read-outs are
+ * left untouched, so drivers still see their speed and autodrive status.
+ */
+(function () {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  var STORAGE_KEY = 'pd-hide-menu';
+  var STYLE_ID = 'pd-hide-menu-style';
+  // The interactive bottom-bar chrome: the menu icon groups (#menu-bar) and the
+  // centre autodrive on/off toggle (#autodrive).
+  var CSS = '#menu-bar,#autodrive{display:none!important;}';
+
+  function readFlag() {
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      var q = qs.get('hideMenu') || qs.get('hidemenu');
+      if (q === '1' || q === 'true') return true;
+      if (q === '0' || q === 'false') return false;
+    } catch (_e) { /* no URLSearchParams */ }
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw != null) return raw === '1' || raw === 'true';
+    } catch (_e) { /* storage unavailable */ }
+    return false;
+  }
+
+  // Inject or remove the hide rule. Idempotent.
+  function apply(on) {
+    var existing = document.getElementById(STYLE_ID);
+    if (on) {
+      if (!existing) {
+        var el = document.createElement('style');
+        el.id = STYLE_ID;
+        el.textContent = CSS;
+        (document.head || document.documentElement).appendChild(el);
+      }
+    } else if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+    return on;
+  }
+
+  // Apply live and (by default) remember the choice so it survives a reload.
+  // Static config passes { persist: true }; a purely live dynamic toggle passes
+  // { persist: false } to match the other live-only dynamic fields.
+  function set(on, opts) {
+    on = !!on;
+    if (!opts || opts.persist !== false) {
+      try {
+        if (on) window.localStorage.setItem(STORAGE_KEY, '1');
+        else window.localStorage.removeItem(STORAGE_KEY);
+      } catch (_e) { /* storage unavailable */ }
+    }
+    return apply(on);
+  }
+
+  function state() { return !!document.getElementById(STYLE_ID); }
+
+  // Honour the persisted / query flag on load.
+  if (readFlag()) apply(true);
+
+  window.PromptDriveHideMenu = {
+    set: set, apply: apply, state: state, readFlag: readFlag, STORAGE_KEY: STORAGE_KEY,
+  };
 })();
 
 })();
