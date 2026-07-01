@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Prompt Drive — API Test Console</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel2: #1f232c; --line: #2a2f3a;
+    --txt: #e6e9ef; --dim: #9aa3b2; --accent: #4da3ff; --ok: #46d18b; --warn: #ffcf5c; --err: #ff6b6b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); height: 100vh; overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .head { padding: 12px 20px 8px; border-bottom: 1px solid var(--line); }
+  .headrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1100px; margin: 0 auto; width: 100%; }
+  h1 { font-size: 15px; margin: 0 0 3px; letter-spacing: .3px; }
+  .sub { color: var(--dim); font-size: 11.5px; margin: 0; }
+  .sub a { color: var(--accent); }
+  .headright { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .badge { padding: 4px 10px; border-radius: 6px; font: 12px var(--mono); border: 1px solid var(--line); color: var(--dim); }
+  .badge.ready { color: var(--accent); border-color: var(--accent); }
+  .badge.live { color: var(--ok); border-color: var(--ok); }
+  .badge.waiting { color: var(--warn); border-color: var(--warn); }
+  .tabs { display: flex; gap: 4px; padding: 8px 20px 0; border-bottom: 1px solid var(--line); }
+  .tabs .inner { max-width: 1100px; margin: 0 auto; width: 100%; display: flex; gap: 4px; }
+  .tabs button { background: transparent; color: var(--dim); border: 1px solid transparent; border-bottom: none;
+    border-radius: 7px 7px 0 0; padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 13px; }
+  .tabs button.active { color: var(--txt); background: var(--panel2); border-color: var(--line); }
+  .tabwrap { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .tab-panel { display: none; max-width: 1100px; margin: 0 auto; }
+  .tab-panel.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: start; }
+  .tab-panel .full { grid-column: 1 / -1; }
+  .group { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .group > h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim);
+    margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: grab; user-select: none; }
+  .group > h3:active { cursor: grabbing; }
+  .group > h3 .handle { color: var(--line); margin-right: 8px; letter-spacing: -1px; }
+  .group > h3:hover .handle { color: var(--dim); }
+  .group.dragging { opacity: .4; outline: 2px dashed var(--accent); }
+  .tab-panel.dropping { outline: 1px dashed var(--line); outline-offset: 6px; border-radius: 8px; }
+  .group .body { padding: 8px 12px 12px; }
+  .row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; margin: 6px 0; }
+  .row label { color: var(--dim); font-size: 12px; }
+  input, select, button { font: inherit; color: var(--txt); }
+  input, select { background: #11141a; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; width: 100%; }
+  input[type=checkbox] { width: auto; }
+  button { background: var(--accent); color: #06121f; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 600; }
+  button.sec { background: #2b313d; color: var(--txt); }
+  button.go { background: var(--ok); color: #03210f; }
+  button.danger { background: var(--err); color: #2a0606; }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .setrow { display: flex; gap: 6px; }
+  .setrow input, .setrow select { flex: 1; }
+  .setrow button { flex: 0 0 auto; padding: 5px 12px; }
+  .hint { color: var(--dim); font-size: 11px; margin: 6px 0 0; }
+  .pillrow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pillrow button { background: #2b313d; color: var(--txt); padding: 5px 11px; font-weight: 500; font-size: 12px; }
+  .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .track { position: absolute; inset: 0; background: #2b313d; border-radius: 24px; transition: .15s; }
+  .switch .track::before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px;
+    background: #9aa3b2; border-radius: 50%; transition: .15s; }
+  .switch input:checked + .track { background: var(--ok); }
+  .switch input:checked + .track::before { transform: translateX(22px); background: #03210f; }
+  .switchwrap { display: flex; align-items: center; gap: 10px; }
+  .switchwrap .state { font: 12px var(--mono); color: var(--dim); }
+  .gate { display: none; background: rgba(255,207,92,.1); border: 1px solid var(--warn); color: var(--warn);
+    border-radius: 8px; padding: 10px 12px; font-size: 12px; }
+  body:not(.is-live) #tab-dynamic .gate, body:not(.is-live) #tab-metrics .gate { display: block; }
+  body:not(.is-live) #tab-dynamic .group:not(.gate), body:not(.is-live) #tab-metrics .needslive { opacity: .45; pointer-events: none; }
+  .foot { border-top: 1px solid var(--line); background: var(--panel); }
+  .foot .cols { display: grid; grid-template-columns: 1fr 1fr; max-width: 1100px; margin: 0 auto; }
+  .foot .telem { font: 11px var(--mono); padding: 8px 12px; border-right: 1px solid var(--line); max-height: 150px; overflow-y: auto; }
+  .foot .telem div { display: flex; justify-content: space-between; padding: 1px 0; }
+  .foot .telem .k { color: var(--dim); } .foot .telem .v { color: var(--accent); }
+  #log { font: 11px var(--mono); padding: 8px 12px; height: 150px; overflow-y: auto; white-space: pre-wrap; }
+  #log .e { color: var(--dim); }
+  #log .e b { color: var(--txt); }
+  #log .e.applied b { color: var(--ok); }
+  #log .e.err b { color: var(--err); }
+  .foot h4 { margin: 0; padding: 6px 12px 2px; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); }
+  pre.out { background: #0a0c10; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: 11px var(--mono);
+    max-height: 200px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; }
+  .checkcol label { display: flex; gap: 8px; align-items: center; color: var(--txt); font-size: 13px; margin: 5px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div class="headrow">
+      <div>
+        <h1>Prompt Drive — API Test Console</h1>
+        <p class="sub">Configuration &amp; telemetry only — drives a running sim over a <b>BroadcastChannel</b>.
+          Run the simulation at <a href="/" target="_blank">localhost:3000</a>.</p>
+      </div>
+      <div class="headright">
+        <span class="badge waiting" id="badge">waiting for sim…</span>
+        <button id="open-sim" class="sec">Open simulation ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs"><div class="inner">
+    <button data-tab="static" class="active">① Static config</button>
+    <button data-tab="dynamic">② Dynamic config</button>
+    <button data-tab="metrics">③ Metrics &amp; logs</button>
+  </div></div>
+
+  <div class="tabwrap">
+    <!-- ============ STATIC ============ -->
+    <div class="tab-panel active" id="tab-static">
+      <div class="group">
+        <h3>World &amp; launch</h3>
+        <div class="body">
+          <div class="row"><label>Auto-start</label>
+            <label style="display:flex;gap:8px;align-items:center;color:var(--txt)">
+              <input type="checkbox" id="autostart" /> Bypass the “begin” splash on load</label></div>
+          <div class="row"><label>Seed</label><input type="text" id="s-seed" placeholder="blank = keep / random" /></div>
+          <div class="row"><label>Start node</label><input type="number" id="s-node" min="0" placeholder="0" /></div>
+          <div class="row"><label>Scene</label>
+            <select id="s-scene"><option value="">(keep)</option><option>Hills</option><option>Planet</option></select></div>
+          <div class="row"><label>Topography</label>
+            <select id="s-topo"><option value="">(keep)</option><option>straight</option><option>casual</option><option>easy</option><option>normal</option><option>hard</option></select></div>
+          <div class="row"><label>Vehicle</label>
+            <select id="s-veh"><option value="">(keep)</option><option>Roadster</option><option>Coach</option></select></div>
+          <div class="row"><label>Antialias</label>
+            <select id="s-aa"><option value="">(keep)</option><option value="true">on</option><option value="false">off</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>General settings</h3>
+        <div class="body">
+          <div class="row"><label>Units</label>
+            <select id="s-units"><option value="0">Miles / MPH</option><option value="1">Kilometres / KPH</option></select></div>
+          <div class="row"><label>Show road worm</label>
+            <select id="s-worm"><option value="0">Always</option><option value="1">Manual drive only</option><option value="2">Never</option></select></div>
+          <div class="row"><label>Walls &amp; barriers</label>
+            <select id="s-barriers"><option value="true">enabled</option><option value="false">disabled</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Graphics</h3>
+        <div class="body">
+          <div class="row"><label>View distance</label>
+            <select id="s-view"><option value="0">Low</option><option value="1">Medium</option><option value="2">High</option><option value="3">Ultra</option><option value="4">Ultra+</option></select></div>
+          <div class="row"><label>Environment detail</label>
+            <select id="s-detail"><option value="0">Low</option><option value="1">Medium</option><option value="2">High</option><option value="3">Ultra</option></select></div>
+          <div class="row"><label>Render scale</label>
+            <select id="s-render"><option value="0">50%</option><option value="1">75%</option><option value="2">100%</option><option value="3">150%</option><option value="4">200%</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Weather (initial)</h3>
+        <div class="body">
+          <div class="row"><label>Skin</label><select id="s-skin"><option value="">(keep)</option></select></div>
+          <div class="row"><label>Weather</label><select id="s-weather"><option value="">(keep)</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Vehicle</h3>
+        <div class="body">
+          <div class="row"><label>Drive mode</label>
+            <select id="s-mode"><option value="0">AWD</option><option value="1">FWD</option><option value="2">RWD</option></select></div>
+          <div class="row"><label>Autodrive lane</label>
+            <select id="s-autolane"><option value="0">Left</option><option value="1">None</option><option value="2">Right</option></select></div>
+          <div class="row"><label>Tyre grip factor</label><input type="number" id="s-grip" step="0.05" min="0.25" max="3" value="1" /></div>
+          <div class="row"><label>Speed factor</label><input type="number" id="s-speed" step="0.05" min="0.5" max="2" value="1" /></div>
+          <div class="row"><label>Interior: driver side</label>
+            <select id="s-side"><option value="0">right</option><option value="1">left</option></select></div>
+          <div class="row"><label>Interior: seat</label>
+            <select id="s-seat"><option value="0">driver</option><option value="1">passenger</option></select></div>
+          <div class="row"><label>Interior: show wheel</label>
+            <select id="s-wheel"><option value="true">shown</option><option value="false">hidden</option></select></div>
+          <div class="row"><label>Max wheel rotation</label>
+            <select id="s-steer"><option value="0">270°</option><option value="1">360°</option><option value="2">450°</option><option value="3">720°</option><option value="4">900°</option></select></div>
+          <div class="row"><label>Camera (initial)</label><select id="s-camera"></select></div>
+          <div class="row"><label>Seat adjustment</label><input type="number" id="s-seatadj" step="0.01" min="-0.25" max="0.25" value="0" /></div>
+          <div class="row"><label>Seat height</label><input type="number" id="s-seath" step="0.01" min="-0.05" max="0.05" value="0" /></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Road lanes</h3>
+        <div class="body">
+          <div class="row"><label>Forward lanes</label><input type="number" id="s-fwd" min="1" max="5" value="1" /></div>
+          <div class="row"><label>Oncoming lanes</label><input type="number" id="s-bwd" min="0" max="5" value="1" /></div>
+          <div class="row"><label>Lane width (m)</label><input type="number" id="s-width" step="0.05" min="2.4" max="3.75" placeholder="blank = auto" /></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Driving metrics to collect</h3>
+        <div class="body checkcol">
+          <label><input type="checkbox" id="m-lane" checked /> Lane keeping</label>
+          <label><input type="checkbox" id="m-longitudinal" checked /> Speed</label>
+          <label><input type="checkbox" id="m-steering" checked /> Steering control</label>
+          <label><input type="checkbox" id="m-safety" checked /> Safety margin</label>
+          <label><input type="checkbox" id="m-events" checked /> Events</label>
+        </div>
+      </div>
+
+      <div class="group full">
+        <h3>Apply</h3>
+        <div class="body">
+          <div class="btnrow">
+            <button data-call="loadCurrent" class="sec">Load current values</button>
+            <button data-call="stage" class="sec">Stage</button>
+            <button data-call="pending" class="sec">Show pending</button>
+            <button data-call="apply" class="go">Apply &amp; (re)launch</button>
+          </div>
+          <p class="hint">Apply commits every field to the sim's <code>localStorage</code> and reloads it so the engine
+            regenerates the world. Requires a running sim (or click <b>Open simulation</b>). Auto-start bypasses “begin”.</p>
+          <pre class="out" id="static-out" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DYNAMIC ============ -->
+    <div class="tab-panel" id="tab-dynamic">
+      <div class="gate full">⚠ Dynamic controls require a <b>live running simulation</b>. Open the sim
+        (<a href="/" target="_blank" style="color:inherit">localhost:3000</a> or “Open simulation”) and start it — the
+        badge turns green when the live feed is flowing.</div>
+
+      <div class="group">
+        <h3>Weather &amp; world</h3>
+        <div class="body">
+          <div class="row"><label>Weather</label><select id="d-weather" data-dyn="weather" data-live></select></div>
+          <div class="row"><label>Skin</label><select id="d-skin" data-dyn="skin" data-live></select></div>
+          <div class="row"><label>Day-night cycle</label>
+            <select id="d-cycle" data-dyn="cycle" data-live><option value="0">off</option><option value="1">180s</option><option value="2">480s</option><option value="3">900s</option></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Vehicle &amp; autopilot</h3>
+        <div class="body">
+          <div class="row"><label>Drive mode</label>
+            <select id="d-mode" data-dyn="driveMode" data-live><option>AWD</option><option>FWD</option><option>RWD</option></select></div>
+          <div class="row"><label>Grip factor</label>
+            <div class="setrow"><input type="number" id="d-grip" step="0.05" min="0.25" max="3" value="1" /><button data-call="grip" data-live>Set</button></div></div>
+          <div class="row"><label>Speed factor</label>
+            <div class="setrow"><input type="number" id="d-speed" step="0.05" min="0.5" max="2" value="1" /><button data-call="speed" data-live>Set</button></div></div>
+          <div class="row"><label id="d-cruise-label">Cruise target (mph)</label>
+            <div class="setrow"><input type="number" id="d-cruise" min="0" value="40" /><button data-call="cruiseSet" data-live>Set</button></div></div>
+          <div class="row"><label>Autodrive</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="d-autodrive" data-dyn="autodrive" data-live /><span class="track"></span></label><span class="state" id="d-autodrive-s">off</span></div></div>
+          <div class="row"><label>Headlights</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="d-lights" data-dyn="headlights" data-live /><span class="track"></span></label><span class="state" id="d-lights-s">off</span></div></div>
+          <div class="row"><label>Camera</label>
+            <select id="d-camera" data-dyn="camera" data-live></select></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Lanes, FOV &amp; units</h3>
+        <div class="body">
+          <div class="row"><label>Lanes fwd / bwd</label>
+            <div class="setrow"><input type="number" id="d-fwd" min="1" max="5" value="1" /><input type="number" id="d-bwd" min="0" max="5" value="1" /><button data-call="lanes" data-live>Set</button></div></div>
+          <div class="row"><label>Vertical FOV</label>
+            <div class="setrow"><input type="number" id="d-fov" min="40" max="80" value="68" /><button data-call="fov" data-live>Set</button></div></div>
+          <div class="row"><label>Units</label>
+            <select id="d-units" data-dyn="units" data-live><option value="0">MPH/MI</option><option value="1">KPH/KM</option></select></div>
+          <p class="hint">Live lane changes clamp to ±1 per direction once moving. Dropdowns/switches apply on change;
+            numeric fields apply on their <b>Set</b> button.</p>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Drive inputs (§5.4 — press &amp; hold)</h3>
+        <div class="body">
+          <div class="pillrow">
+            <button id="drv-f" data-live>▲ forward</button>
+            <button id="drv-b" data-live>▼ brake/rev</button>
+            <button id="drv-l" data-live>◀ left</button>
+            <button id="drv-r" data-live>right ▶</button>
+            <button id="drv-boost" data-live>boost</button>
+            <button id="drv-clear" class="sec" data-live>clear</button>
+          </div>
+          <p class="hint">Programmatic throttle/steer (turn autodrive off first).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ METRICS ============ -->
+    <div class="tab-panel" id="tab-metrics">
+      <div class="gate full">⚠ Metrics collection requires a <b>live running simulation</b>.</div>
+      <div class="group needslive">
+        <h3>Run lifecycle</h3>
+        <div class="body">
+          <p class="hint">A run auto-starts when the car first moves; these control it explicitly.</p>
+          <div class="btnrow">
+            <button data-call="runStart" data-live>Start run</button>
+            <button data-call="runStop" class="sec" data-live>Stop</button>
+            <button data-call="runReset" class="sec" data-live>Reset</button>
+            <button data-call="runStatus" class="sec" data-live>Status</button>
+          </div>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Report &amp; logs</h3>
+        <div class="body">
+          <div class="btnrow">
+            <button data-call="report" data-live>Get report (JSON)</button>
+            <button data-call="dlReport" class="sec" data-live>Download report (.md)</button>
+            <button data-call="dlLogs" class="sec" data-live>Download logs (.json/.csv)</button>
+          </div>
+          <pre class="out" id="metrics-out" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>End simulation</h3>
+        <div class="body">
+          <p class="hint">Ends the run, <b>automatically downloads the driver-performance report + logs</b>,
+            and halts the sim. Downloads are produced by the sim tab.</p>
+          <div class="btnrow"><button data-call="end" class="danger" data-live>End simulation &amp; export</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PERSISTENT FOOTER: live feed ============ -->
+  <div class="foot">
+    <div class="cols">
+      <div>
+        <h4>Telemetry (live feed)</h4>
+        <div class="telem" id="telem"><div><span class="k">waiting for live feed…</span></div></div>
+      </div>
+      <div>
+        <h4>Event &amp; response log <button id="log-clear" class="sec" style="float:right;padding:1px 8px;font-size:10px;margin:-2px 6px 0 0">clear</button></h4>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const NS = 'promptdrive';
+  const badge = document.getElementById('badge');
+  const logEl = document.getElementById('log');
+  const telemEl = document.getElementById('telem');
+  let msgId = 1;
+  const pending = new Map();
+  let connected = false;
+  let lastTickAt = 0;
+  let live = false;
+
+  // --- BroadcastChannel transport to the running sim -------------------------
+  const bc = new BroadcastChannel(NS);
+  function op(name, ...args) {
+    return new Promise((resolve) => {
+      const id = msgId++;
+      pending.set(id, resolve);
+      bc.postMessage({ ns: NS, kind: 'req', id, op: name, args });
+      setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve({ ok: false, error: 'timeout' }); } }, 4000);
+    });
+  }
+  bc.onmessage = (e) => {
+    const d = e.data;
+    if (!d || d.ns !== NS) return;
+    if (d.kind === 'res' && pending.has(d.id)) { pending.get(d.id)(d.result); pending.delete(d.id); return; }
+    if (d.kind === 'event') handleEvent(d.event, d.payload);
+  };
+
+  function handleEvent(event, payload) {
+    if (event === 'tick') { lastTickAt = Date.now(); renderTelem(payload); setLive(true); return; }
+    if (event === 'ready' && !connected) waitForReady();
+    const cls = event === 'applied' || event === 'ended' ? 'applied' : (payload && payload.ok === false ? 'err' : '');
+    log(event, payload, cls);
+  }
+
+  // --- connection / live-feed state ------------------------------------------
+  function setBadge() {
+    if (live) { badge.textContent = 'live feed ✓'; badge.className = 'badge live'; }
+    else if (connected) { badge.textContent = 'connected (paused)'; badge.className = 'badge ready'; }
+    else { badge.textContent = 'waiting for sim…'; badge.className = 'badge waiting'; }
+  }
+  function setLive(v) {
+    if (v === live) return;
+    live = v;
+    document.body.classList.toggle('is-live', live);
+    setBadge();
+    if (live) log('live feed', { source: 'tick stream' }, 'applied');
+  }
+  setInterval(() => { if (live && Date.now() - lastTickAt > 1800) setLive(false); }, 600);
+
+  // Poll for a running sim; reconnects automatically when one appears/reloads.
+  let polling = false;
+  async function waitForReady() {
+    if (polling) return;
+    polling = true;
+    connected = false; setLive(false); setBadge();
+    while (!connected) {
+      const r = await op('get');
+      if (r && r.ok !== false && r.scene) {
+        connected = true; setBadge(); log('connected', { transport: 'BroadcastChannel' }, 'applied'); populateLive();
+      } else {
+        await new Promise((res) => setTimeout(res, 800));
+      }
+    }
+    polling = false;
+  }
+
+  function log(label, data, cls) {
+    const line = document.createElement('div');
+    line.className = 'e ' + (cls || '');
+    line.innerHTML = `<span>${new Date().toLocaleTimeString()}</span> <b>${label}</b> ` +
+      (data !== undefined ? escapeHtml(JSON.stringify(data)) : '');
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    while (logEl.childNodes.length > 250) logEl.removeChild(logEl.firstChild);
+  }
+  const escapeHtml = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  function renderTelem(s) {
+    if (!s) return;
+    const fmt = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
+    const rows = [
+      ['speed (m/s)', fmt(s.speed)], ['heading', fmt(s.heading)], ['steer (rad)', fmt(s.steerRad)],
+      ['pos x', fmt(s.posX)], ['pos z', fmt(s.posZ)], ['onRoad', s.onRoad], ['wrongWay', s.wrongWay],
+      ['autodrive', s.autodrive], ['headlights', s.headlights], ['driveMode', s.driveMode], ['units', s.units],
+    ];
+    telemEl.innerHTML = rows.map(([k, v]) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    syncSwitch('d-autodrive', s.autodrive);
+    syncSwitch('d-lights', s.headlights);
+  }
+  function syncSwitch(id, on) {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) { el.checked = !!on; document.getElementById(id + '-s').textContent = on ? 'on' : 'off'; }
+  }
+
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach((x) => x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-' + b.getAttribute('data-tab')).classList.add('active');
+  }));
+
+  const val = (id) => document.getElementById(id).value;
+  const num = (id) => Number(document.getElementById(id).value);
+  const checked = (id) => document.getElementById(id).checked;
+
+  // --- open / launch the simulation window -----------------------------------
+  document.getElementById('open-sim').addEventListener('click', () => window.open('/', 'promptdrive-sim'));
+
+  // --- auto-start (shared same-origin localStorage; affects the sim's load) ---
+  const autoBox = document.getElementById('autostart');
+  autoBox.checked = localStorage.getItem('pd-autostart') === '1';
+  autoBox.addEventListener('change', () => {
+    try { if (autoBox.checked) localStorage.setItem('pd-autostart', '1'); else localStorage.removeItem('pd-autostart'); } catch (_e) {}
+    log('autostart', { enabled: autoBox.checked, note: "applies on the sim's next load" }, 'applied');
+  });
+
+  // --- dynamic apply-on-change (dropdowns + switches) ------------------------
+  document.querySelectorAll('[data-dyn]').forEach((el) => el.addEventListener('change', async () => {
+    const kind = el.getAttribute('data-dyn');
+    let r;
+    if (kind === 'autodrive') { document.getElementById('d-autodrive-s').textContent = el.checked ? 'on' : 'off'; r = await op('dynamic.autodrive', el.checked); }
+    else if (kind === 'headlights') { document.getElementById('d-lights-s').textContent = el.checked ? 'on' : 'off'; r = await op('dynamic.headlights', el.checked); }
+    else if (kind === 'driveMode') r = await op('dynamic.driveMode', el.value);
+    else if (kind === 'cycle') r = await op('dynamic.cycle', Number(el.value));
+    else if (kind === 'camera') r = await op('dynamic.camera', el.value);
+    else if (kind === 'weather') r = await op('dynamic.weather', Number(el.value));
+    else if (kind === 'skin') { r = await op('dynamic.skin', el.value); setTimeout(populateLive, 400); }
+    else if (kind === 'units') { r = await op('dynamic.set', { units: Number(el.value) }); setTimeout(populateLive, 200); }
+    log(kind, r, r && r.ok === false ? 'err' : 'applied');
+  }));
+
+  // Populate live-dependent dropdowns (cameras, weather, skin) + cruise unit.
+  async function populateLive() {
+    const g = await op('get');
+    if (!g || g.ok === false || !g.scene) return;
+    document.getElementById('d-cruise-label').textContent = 'Cruise target (' + (g.units === 1 ? 'kph' : 'mph') + ')';
+
+    const cams = await op('cameraModes');
+    if (Array.isArray(cams)) {
+      fillSelect('d-camera', cams.map((c) => ({ v: c.key, t: c.label })).concat([{ v: 'next', t: '↻ Next' }]), g.controls && g.controls.camera);
+      fillSelect('s-camera', cams.map((c) => ({ v: c.index, t: c.label })), g.controls && g.controls.cameraMode);
+    }
+    const wx = await op('weathers');
+    if (Array.isArray(wx) && wx.length) {
+      const opts = wx.map((w) => ({ v: w.index, t: w.index + ' — ' + w.name }));
+      fillSelect('d-weather', opts, g.scene.weatherIndex);
+      fillSelect('s-weather', [{ v: '', t: '(keep)' }].concat(opts), g.scene.weatherIndex);
+    }
+    const sch = await op('schema');
+    const scene = sch && sch.scenes && sch.scenes[g.scene.sceneName];
+    if (scene && scene.skins) {
+      const opts = scene.skins.map((s) => ({ v: s, t: s }));
+      fillSelect('d-skin', opts, g.scene.skin);
+      fillSelect('s-skin', [{ v: '', t: '(keep)' }].concat(opts), g.scene.skin);
+    }
+  }
+  function fillSelect(id, opts, selected) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = opts.map((o) => `<option value="${o.v}">${o.t}</option>`).join('');
+    if (selected != null) el.value = String(selected);
+  }
+
+  // --- static collect / load -------------------------------------------------
+  function collectStatic() {
+    const p = {};
+    if (val('s-seed')) p['scene.seed'] = val('s-seed');
+    if (val('s-node') !== '') p['scene.startNode'] = num('s-node');
+    if (val('s-scene')) p['scene.sceneName'] = val('s-scene');
+    if (val('s-topo')) p['scene.topography'] = val('s-topo');
+    if (val('s-veh')) p['vehicle.type'] = val('s-veh');
+    if (val('s-aa')) p['scene.antialias'] = val('s-aa') === 'true';
+    p['units'] = num('s-units');
+    p['general.showWorm'] = num('s-worm');
+    p['general.barriers'] = val('s-barriers') === 'true';
+    p['graphics.viewLodIndex'] = num('s-view');
+    p['graphics.detailLodIndex'] = num('s-detail');
+    p['graphics.renderScale'] = num('s-render');
+    if (val('s-skin')) p['scene.skin'] = val('s-skin');
+    if (val('s-weather') !== '') p['scene.weatherIndex'] = num('s-weather');
+    p['vehicle.mode'] = num('s-mode');
+    p['controls.autodriveSideIndex'] = num('s-autolane');
+    p['vehicle.gripFactor'] = num('s-grip');
+    p['vehicle.speedFactor'] = num('s-speed');
+    p['vehicle.side'] = num('s-side');
+    p['vehicle.seat'] = num('s-seat');
+    p['vehicle.showWheel'] = val('s-wheel') === 'true';
+    p['vehicle.steerRotationIndex'] = num('s-steer');
+    if (val('s-camera') !== '') p['controls.cameraMode'] = num('s-camera');
+    p['vehicle.seatAdjustment'] = num('s-seatadj');
+    p['vehicle.seatHeight'] = num('s-seath');
+    p['lanes'] = { forward: num('s-fwd') || 1, backward: val('s-bwd') === '' ? 1 : num('s-bwd'),
+      width: val('s-width') === '' ? null : num('s-width') };
+    return p;
+  }
+  const METRIC_FAMILIES = ['lane', 'longitudinal', 'steering', 'safety', 'events'];
+  async function applyMetricFamilies() {
+    for (const f of METRIC_FAMILIES) await op('metrics.selectFamily', f, checked('m-' + f));
+  }
+
+  async function loadCurrent() {
+    const g = await op('get');
+    if (!g || g.ok === false || !g.scene) { log('loadCurrent', g, 'err'); return; }
+    const set = (id, v) => { const el = document.getElementById(id); if (el != null && v != null) el.value = v; };
+    set('s-seed', g.scene.seed); set('s-scene', g.scene.sceneName); set('s-topo', g.scene.topography);
+    set('s-aa', String(g.scene.antialias));
+    set('s-units', g.units); if (g.general) { set('s-worm', g.general.showWorm); set('s-barriers', String(!!g.general.barriers)); }
+    set('s-view', g.graphics.viewLodIndex); set('s-detail', g.graphics.detailLodIndex); set('s-render', g.graphics.renderScale);
+    set('s-mode', g.vehicle.mode); set('s-autolane', g.controls.autodriveSideIndex);
+    set('s-grip', g.vehicle.gripFactor); set('s-speed', g.vehicle.speedFactor);
+    set('s-side', g.vehicle.side); set('s-seat', g.vehicle.seat); set('s-wheel', String(!!g.vehicle.showWheel));
+    set('s-steer', g.vehicle.steerRotationIndex); set('s-seatadj', g.vehicle.seatAdjustment); set('s-seath', g.vehicle.seatHeight);
+    if (g.controls) set('s-camera', g.controls.cameraMode);
+    if (g.lanes) { set('s-fwd', g.lanes.forward); set('s-bwd', g.lanes.backward); set('s-width', g.lanes.width == null ? '' : g.lanes.width); }
+    await populateLive();
+    const sel = await op('metrics.selection');
+    if (sel && sel.ok !== false) {
+      const on = (ids) => ids.some((i) => sel[i]);
+      document.getElementById('m-lane').checked = on(['sdlp', 'meanLP', 'laneDepartures']);
+      document.getElementById('m-longitudinal').checked = on(['meanSpeed', 'sds']);
+      document.getElementById('m-steering').checked = on(['swrr', 'steeringEntropy']);
+      document.getElementById('m-safety').checked = on(['tlc']);
+      document.getElementById('m-events').checked = on(['collisions', 'throttleBrake']);
+    }
+    log('loadCurrent', { ok: true }, 'applied');
+  }
+
+  function showOut(id, data) { const el = document.getElementById(id); el.style.display = 'block'; el.textContent = JSON.stringify(data, null, 2); }
+
+  const calls = {
+    grip: () => op('dynamic.grip', num('d-grip')),
+    speed: () => op('dynamic.speed', num('d-speed')),
+    cruiseSet: () => op('dynamic.cruise', { enabled: true, speed: num('d-cruise'), unit: 'display' }),
+    lanes: () => op('dynamic.lanes', { forward: num('d-fwd'), backward: num('d-bwd') }),
+    fov: () => op('dynamic.fov', num('d-fov')),
+    loadCurrent: loadCurrent,
+    stage: async () => { await applyMetricFamilies(); return op('config.set', collectStatic()); },
+    pending: () => op('config.pending'),
+    apply: async () => {
+      if (!connected) { log('apply', { error: 'no sim connected — click Open simulation' }, 'err'); window.open('/', 'promptdrive-sim'); return; }
+      await applyMetricFamilies();
+      const set = await op('config.set', collectStatic());
+      showOut('static-out', set);
+      op('config.apply', { mode: 'reload' }); // reloads the sim tab; response may not return
+      log('config.apply', { mode: 'reload', note: 'reloading sim…' }, 'applied');
+      setTimeout(waitForReady, 1500);
+    },
+    runStart: () => op('run.start'),
+    runStop: () => op('run.stop'),
+    runReset: () => op('run.reset'),
+    runStatus: async () => { const r = await op('run.status'); showOut('metrics-out', r); return r; },
+    report: async () => { const r = await op('telemetry.report'); showOut('metrics-out', r); return r; },
+    dlReport: () => op('run.downloadReport'),
+    dlLogs: () => op('run.downloadLogs'),
+    end: async () => { const r = await op('end'); showOut('metrics-out', r && r.value ? r.value.report : r); return r; },
+  };
+
+  document.querySelectorAll('button[data-call]').forEach((b) => b.addEventListener('click', async () => {
+    const name = b.getAttribute('data-call');
+    const r = await calls[name]();
+    if (r !== undefined) log(name, r, r && r.ok === false ? 'err' : 'applied');
+  }));
+
+  // --- live drive (press-and-hold) ------------------------------------------
+  function hold(id, signals) {
+    const el = document.getElementById(id);
+    const press = (e) => { e.preventDefault(); op('dynamic.input', signals); };
+    const release = () => op('dynamic.input', { forward: 0, backward: 0, left: 0, right: 0, boost: 0, handbrake: 0 });
+    el.addEventListener('mousedown', press);
+    el.addEventListener('touchstart', press, { passive: false });
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+    el.addEventListener('touchend', release);
+  }
+  hold('drv-f', { forward: 1 });
+  hold('drv-b', { backward: 1 });
+  hold('drv-l', { left: 1 });
+  hold('drv-r', { right: 1 });
+  hold('drv-boost', { forward: 1, boost: 1 });
+  document.getElementById('drv-clear').addEventListener('click', () =>
+    op('dynamic.input', { forward: 0, backward: 0, left: 0, right: 0, boost: 0, handbrake: 0 }));
+
+  document.getElementById('log-clear').addEventListener('click', () => { logEl.innerHTML = ''; });
+
+  // --- draggable / reorderable groups ---------------------------------------
+  // Each group's header is a drag handle. Dragging reorders groups within the
+  // tab's CSS grid, which reflows so the card snaps into the nearest cell. The
+  // arrangement per tab is persisted in localStorage.
+  const LAYOUT_KEY = 'pd-console-layout';
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  let dragging = null;
+
+  function panels() { return [...document.querySelectorAll('.tab-panel')]; }
+  function groupsIn(panel) { return [...panel.children].filter((c) => c.classList.contains('group')); }
+
+  function saveLayout() {
+    const layout = {};
+    panels().forEach((p) => { layout[p.id.replace('tab-', '')] = groupsIn(p).map((g) => g.dataset.gid); });
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (_e) {}
+  }
+  function restoreLayout() {
+    let layout;
+    try { layout = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}'); } catch (_e) { layout = {}; }
+    panels().forEach((p) => {
+      const order = layout[p.id.replace('tab-', '')];
+      if (!Array.isArray(order)) return;
+      const byId = {};
+      groupsIn(p).forEach((g) => { byId[g.dataset.gid] = g; });
+      order.forEach((gid) => { if (byId[gid]) p.appendChild(byId[gid]); }); // reflow in saved order
+      groupsIn(p).forEach((g) => { if (order.indexOf(g.dataset.gid) < 0) p.appendChild(g); });
+    });
+  }
+
+  // Insert the dragged group nearest to the pointer (grid-aware: nearest card
+  // center, before/after by side) — this is the "snap to closest position".
+  function reorderTo(panel, x, y) {
+    let closest = null, min = Infinity, after = false;
+    for (const el of groupsIn(panel)) {
+      if (el === dragging) continue;
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < min) {
+        min = d; closest = el;
+        after = (y > cy + r.height / 2) || (Math.abs(y - cy) <= r.height / 2 && x > cx);
+      }
+    }
+    if (!closest) { panel.appendChild(dragging); return; }
+    panel.insertBefore(dragging, after ? closest.nextSibling : closest);
+  }
+
+  function initGroupDrag() {
+    document.querySelectorAll('.group').forEach((group) => {
+      const h3 = group.querySelector('h3');
+      if (!h3) return;
+      if (!group.dataset.gid) group.dataset.gid = slug(h3.textContent);
+      if (!h3.querySelector('.handle')) h3.insertAdjacentHTML('afterbegin', '<span class="handle">⠿</span>');
+      h3.setAttribute('draggable', 'true');
+      h3.addEventListener('dragstart', (e) => {
+        dragging = group;
+        group.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', group.dataset.gid); } catch (_e) {}
+        try { e.dataTransfer.setDragImage(group, 24, 16); } catch (_e) {}
+      });
+      h3.addEventListener('dragend', () => {
+        if (dragging) dragging.classList.remove('dragging');
+        panels().forEach((p) => p.classList.remove('dropping'));
+        dragging = null;
+        saveLayout();
+      });
+    });
+    panels().forEach((panel) => {
+      panel.addEventListener('dragover', (e) => {
+        if (!dragging || dragging.parentElement !== panel) return; // reorder within the same tab
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        panel.classList.add('dropping');
+        reorderTo(panel, e.clientX, e.clientY);
+      });
+      panel.addEventListener('drop', (e) => { if (dragging) e.preventDefault(); });
+    });
+  }
+
+  initGroupDrag();
+  restoreLayout();
+
+  waitForReady();
+})();
+</script>
+</body>
+</html>

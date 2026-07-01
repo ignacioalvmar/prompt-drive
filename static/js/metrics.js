@@ -9,8 +9,7 @@
  *
  * `requiresTraffic: true` metrics are only selectable/computed when the
  * simulation has traffic objects enabled (see DrivingMetrics.setTrafficAvailable).
- */
-const METRIC_FAMILIES = [
+ */const METRIC_FAMILIES = [
   { id: 'lane', label: 'Lane keeping' },
   { id: 'longitudinal', label: 'Speed' },
   { id: 'steering', label: 'Steering control' },
@@ -22,8 +21,7 @@ const METRIC_FAMILIES = [
 /**
  * dataDeps documents which logged channels a metric needs:
  *   'offset' | 'speed' | 'steer' | 'lane' | 'accel' | 'events' | 'traffic'
- */
-const METRICS = [
+ */const METRICS = [
   // --- Lane keeping (Phase 1) ---
   {
     id: 'sdlp',
@@ -151,16 +149,13 @@ const METRICS = [
     params: { thresholdSec: 3 },
     hint: 'Closing-conflict severity, plus TET/TIT exposure (needs traffic).',
   },
-];
-const STORAGE_KEY = 'promptdrive.metrics.selected';
+];const STORAGE_KEY = 'promptdrive.metrics.selected';
 
-/** Default selection: every defaultOn metric. */
-function defaultSelection() {
+/** Default selection: every defaultOn metric. */function defaultSelection() {
   const sel = {};
   for (const m of METRICS) sel[m.id] = !!m.defaultOn;
   return sel;
-}
-function loadSelection() {
+}function loadSelection() {
   const base = defaultSelection();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -169,20 +164,17 @@ function loadSelection() {
     /* ignore corrupt/blocked storage */
   }
   return base;
-}
-function saveSelection(sel) {
+}function saveSelection(sel) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sel));
   } catch (_) {
     /* ignore */
   }
-}
-function getMetric(id) {
+}function getMetric(id) {
   return METRICS.find((m) => m.id === id);
 }
 
-/** Merge any per-metric params overrides with registry defaults. */
-function paramsFor(id, overrides) {
+/** Merge any per-metric params overrides with registry defaults. */function paramsFor(id, overrides) {
   const m = getMetric(id);
   return Object.assign({}, (m && m.params) || {}, (overrides && overrides[id]) || {});
 }
@@ -202,33 +194,28 @@ function paramsFor(id, overrides) {
 
 // ---------------------------------------------------------------------------
 // Basic statistics
-// ---------------------------------------------------------------------------
-function finiteValues(xs) {
+// ---------------------------------------------------------------------------function finiteValues(xs) {
   return xs.filter(Number.isFinite);
-}
-function mean(xs) {
+}function mean(xs) {
   const ys = finiteValues(xs);
   if (!ys.length) return NaN;
   return ys.reduce((a, b) => a + b, 0) / ys.length;
 }
 
-/** Unbiased (N-1) sample standard deviation. Used for SDLP and SDS. */
-function sampleSD(xs) {
+/** Unbiased (N-1) sample standard deviation. Used for SDLP and SDS. */function sampleSD(xs) {
   const ys = finiteValues(xs);
   if (ys.length < 2) return NaN;
   const m = mean(ys);
   const ss = ys.reduce((s, x) => s + (x - m) ** 2, 0);
   return Math.sqrt(ss / (ys.length - 1));
-}
-function median(xs) {
+}function median(xs) {
   const ys = finiteValues(xs).sort((a, b) => a - b);
   if (!ys.length) return NaN;
   const mid = Math.floor(ys.length / 2);
   return ys.length % 2 ? ys[mid] : 0.5 * (ys[mid - 1] + ys[mid]);
 }
 
-/** Linear-interpolated percentile (p in [0,100]). */
-function percentile(xs, p) {
+/** Linear-interpolated percentile (p in [0,100]). */function percentile(xs, p) {
   const ys = finiteValues(xs).sort((a, b) => a - b);
   if (!ys.length) return NaN;
   if (ys.length === 1) return ys[0];
@@ -237,8 +224,7 @@ function percentile(xs, p) {
   const hi = Math.ceil(rank);
   if (lo === hi) return ys[lo];
   return ys[lo] + (ys[hi] - ys[lo]) * (rank - lo);
-}
-function meanAbs(xs) {
+}function meanAbs(xs) {
   return mean(xs.map((v) => (Number.isFinite(v) ? Math.abs(v) : NaN)));
 }
 
@@ -254,8 +240,7 @@ function meanAbs(xs) {
  * @param {number[]} x   values aligned with t
  * @param {number} hz    target sample rate
  * @returns {{t:number[], x:number[], fs:number}}
- */
-function resampleUniform(t, x, hz) {
+ */function resampleUniform(t, x, hz) {
   const out = { t: [], x: [], fs: hz };
   const n = Math.min(t.length, x.length);
   if (n < 2 || !(hz > 0)) return out;
@@ -284,8 +269,7 @@ function resampleUniform(t, x, hz) {
  * Second-order (biquad) low-pass Butterworth filter, applied forward only.
  * Used to condition the steering signal before reversal detection
  * (Report 1 SRR; Report 2 SWRR signal-conditioning, ~0.6 Hz cutoff).
- */
-function butterworth2(signal, cutoffHz, fs) {
+ */function butterworth2(signal, cutoffHz, fs) {
   const n = signal.length;
   if (n === 0 || !(fs > 0) || !(cutoffHz > 0)) return signal.slice();
   const wc = Math.tan((Math.PI * cutoffHz) / fs);
@@ -315,8 +299,7 @@ function butterworth2(signal, cutoffHz, fs) {
 
 // ---------------------------------------------------------------------------
 // Lane metrics (offsets in meters, signed)
-// ---------------------------------------------------------------------------
-function computeLaneStats(offsetsM) {
+// ---------------------------------------------------------------------------function computeLaneStats(offsetsM) {
   return {
     meanLP: mean(offsetsM),
     medianLP: median(offsetsM),
@@ -334,8 +317,7 @@ function computeLaneStats(offsetsM) {
  * @param {number[]} halfWidthsM   lane half-width per sample (boundary distance)
  * @param {number[]} t             timestamps (s) per sample
  * @param {number}   vehHalfWidthM half the vehicle width
- */
-function detectLaneDepartures(offsetsM, halfWidthsM, t, vehHalfWidthM) {
+ */function detectLaneDepartures(offsetsM, halfWidthsM, t, vehHalfWidthM) {
   const events = [];
   let inEvent = false;
   let startIdx = -1;
@@ -377,8 +359,7 @@ function detectLaneDepartures(offsetsM, halfWidthsM, t, vehHalfWidthM) {
 
 // ---------------------------------------------------------------------------
 // Speed metrics
-// ---------------------------------------------------------------------------
-function speedStats(speedMs) {
+// ---------------------------------------------------------------------------function speedStats(speedMs) {
   return { meanSpeedMs: mean(speedMs), sdsMs: sampleSD(speedMs) };
 }
 
@@ -405,8 +386,7 @@ function findTurningPoints(xs) {
  * @param {number}   gapDeg     reversal amplitude threshold (deg)
  * @param {number}   cutoffHz   low-pass cutoff (default 0.6 Hz, per SWRR algo)
  * @returns {{reversals:number, reversalsPerMin:number}}
- */
-function steeringReversalRate(steerDeg, fs, gapDeg = 3, cutoffHz = 0.6) {
+ */function steeringReversalRate(steerDeg, fs, gapDeg = 3, cutoffHz = 0.6) {
   if (steerDeg.length < 3 || !(fs > 0)) {
     return { reversals: 0, reversalsPerMin: NaN };
   }
@@ -429,8 +409,7 @@ function steeringReversalRate(steerDeg, fs, gapDeg = 3, cutoffHz = 0.6) {
 // distribution. (Report 2 §Steering Entropy.)
 // ---------------------------------------------------------------------------
 
-/** Prediction errors e(n) = θ(n) - θp(n) for a uniformly-sampled signal. */
-function steeringPredictionErrors(steerResampled) {
+/** Prediction errors e(n) = θ(n) - θp(n) for a uniformly-sampled signal. */function steeringPredictionErrors(steerResampled) {
   const e = [];
   for (let n = 3; n < steerResampled.length; n++) {
     const pred =
@@ -442,8 +421,7 @@ function steeringPredictionErrors(steerResampled) {
   return e;
 }
 
-/** alpha = 90th percentile of |baseline prediction errors|. */
-function steeringEntropyBaseline(baselineSteerResampled) {
+/** alpha = 90th percentile of |baseline prediction errors|. */function steeringEntropyBaseline(baselineSteerResampled) {
   const pe = steeringPredictionErrors(baselineSteerResampled).map(Math.abs);
   const alpha = percentile(pe, 90);
   return { alpha: Number.isFinite(alpha) && alpha > 0 ? alpha : NaN };
@@ -469,8 +447,7 @@ function entropyBinEdges(alpha) {
 /**
  * Steering entropy Hp of an evaluation segment against a baseline alpha.
  * Returns Hp (bits, 0..~log2(9)) plus the bin probabilities.
- */
-function steeringEntropy(evalSteerResampled, alpha) {
+ */function steeringEntropy(evalSteerResampled, alpha) {
   if (!Number.isFinite(alpha) || alpha <= 0) return { Hp: NaN, probs: [] };
   const errors = steeringPredictionErrors(evalSteerResampled);
   const edges = entropyBinEdges(alpha);
@@ -517,8 +494,7 @@ function steeringEntropy(evalSteerResampled, alpha) {
  * @param {number} halfRightM   distance from centerline to right boundary
  * @param {number} lateralVelMs signed lateral velocity (+ = toward left)
  * @param {number} vehHalfWidthM half the vehicle width (edge offset)
- */
-function tlcInstant(offsetM, halfLeftM, halfRightM, lateralVelMs, vehHalfWidthM = 0) {
+ */function tlcInstant(offsetM, halfLeftM, halfRightM, lateralVelMs, vehHalfWidthM = 0) {
   if (!Number.isFinite(offsetM) || !Number.isFinite(lateralVelMs)) return Infinity;
   if (Math.abs(lateralVelMs) <= 1e-3) return Infinity; // not drifting
   if (lateralVelMs > 0) {
@@ -536,8 +512,7 @@ function tlcInstant(offsetM, halfLeftM, halfRightM, lateralVelMs, vehHalfWidthM 
 /**
  * Aggregate a TLC series. Researchers use the minimum and the robust 15th
  * percentile rather than the (skewed) mean. (Report 2 §TLC.)
- */
-function tlcStats(tlcSeries) {
+ */function tlcStats(tlcSeries) {
   const finite = tlcSeries.filter((v) => Number.isFinite(v));
   if (!finite.length) return { minTlc: NaN, p15Tlc: NaN, count: 0 };
   return {
@@ -552,15 +527,13 @@ function tlcStats(tlcSeries) {
 // Kept here so they're ready the moment per-frame lead-vehicle state is wired.
 // ---------------------------------------------------------------------------
 
-/** Bumper-to-bumper time gap (s). +Inf if stationary. (Report 1.) */
-function timeGap(rangeM, egoSpeedMs) {
+/** Bumper-to-bumper time gap (s). +Inf if stationary. (Report 1.) */function timeGap(rangeM, egoSpeedMs) {
   if (!Number.isFinite(rangeM) || !Number.isFinite(egoSpeedMs) || egoSpeedMs <= 0)
     return Infinity;
   return rangeM / egoSpeedMs;
 }
 
-/** 1-D TTC with optional constant-accel terms. (Report 1 ttc1D.) */
-function ttc1D(rangeM, egoSpeedMs, leadSpeedMs, egoAccMs2 = 0, leadAccMs2 = 0) {
+/** 1-D TTC with optional constant-accel terms. (Report 1 ttc1D.) */function ttc1D(rangeM, egoSpeedMs, leadSpeedMs, egoAccMs2 = 0, leadAccMs2 = 0) {
   if (!Number.isFinite(rangeM) || rangeM <= 0) return 0;
   const vRel = egoSpeedMs - leadSpeedMs;
   const aRel = egoAccMs2 - leadAccMs2;
@@ -576,8 +549,7 @@ function ttc1D(rangeM, egoSpeedMs, leadSpeedMs, egoAccMs2 = 0, leadAccMs2 = 0) {
   return roots.length ? roots[0] : Infinity;
 }
 
-/** Time-exposed & time-integrated TTC against a threshold. (Report 1.) */
-function tetTit(ttcSeriesSec, dtSec, thresholdSec = 3) {
+/** Time-exposed & time-integrated TTC against a threshold. (Report 1.) */function tetTit(ttcSeriesSec, dtSec, thresholdSec = 3) {
   let tet = 0;
   let tit = 0;
   for (const ttc of ttcSeriesSec) {
@@ -611,8 +583,7 @@ const RAD2DEG = 180 / Math.PI;
  *   @param {boolean} opts.trafficAvailable gate interaction metrics
  *   @param {[number,number]} opts.baselineRange [tStart,tEnd] for steering entropy
  * @returns {object} {metricId: {value|values, unit, ...}}
- */
-function computeMetrics(cols, selection, opts = {}) {
+ */function computeMetrics(cols, selection, opts = {}) {
   const out = {};
   const trafficAvailable = !!opts.trafficAvailable;
   const overrides = opts.paramOverrides || {};
@@ -731,8 +702,7 @@ function computeMetrics(cols, selection, opts = {}) {
   if (has('ttc')) out.ttc = { value: NaN, unit: 's', note: 'awaiting traffic stream' };
 
   return out;
-}
-function isComputable(id, trafficAvailable) {
+}function isComputable(id, trafficAvailable) {
   const m = getMetric(id);
   if (!m) return false;
   if (m.requiresTraffic && !trafficAvailable) return false;
@@ -824,8 +794,7 @@ function longitudinalJerk(cols) {
 
 
 
-/** Build the structured report object for a finished run. */
-function buildReport(collector, selection, opts = {}) {
+/** Build the structured report object for a finished run. */function buildReport(collector, selection, opts = {}) {
   const cols = collector.columns();
   const results = computeMetrics(cols, selection, {
     paramOverrides: opts.paramOverrides,
@@ -854,8 +823,7 @@ function fmt(v, digits = 3) {
   return Number(v).toFixed(digits);
 }
 
-/** Render the report object as Markdown. */
-function reportToMarkdown(report) {
+/** Render the report object as Markdown. */function reportToMarkdown(report) {
   const r = report.results;
   const lines = [];
   lines.push('# Driving Performance Report');
@@ -926,8 +894,7 @@ function detailString(id, res) {
   }
 }
 
-/** Raw telemetry as CSV (one row per logged frame). */
-function logsToCsv(collector) {
+/** Raw telemetry as CSV (one row per logged frame). */function logsToCsv(collector) {
   const cols = collector.columns();
   const keys = Object.keys(cols);
   const n = cols.t ? cols.t.length : 0;
@@ -944,8 +911,7 @@ function csvNum(v) {
   return String(v);
 }
 
-/** Trigger a browser download of a text blob. */
-function downloadText(filename, text, mime = 'text/plain') {
+/** Trigger a browser download of a text blob. */function downloadText(filename, text, mime = 'text/plain') {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -961,15 +927,13 @@ function stamp() {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
-/** Download report (.md + .json). */
-function downloadReport(report) {
+/** Download report (.md + .json). */function downloadReport(report) {
   const base = `driving-report-${stamp()}`;
   downloadText(`${base}.md`, reportToMarkdown(report), 'text/markdown');
   downloadText(`${base}.json`, JSON.stringify(report, null, 2), 'application/json');
 }
 
-/** Download raw telemetry logs (.csv) + events (.json). */
-function downloadLogs(collector) {
+/** Download raw telemetry logs (.csv) + events (.json). */function downloadLogs(collector) {
   const base = `driving-logs-${stamp()}`;
   downloadText(`${base}.csv`, logsToCsv(collector), 'text/csv');
   downloadText(
@@ -1010,8 +974,7 @@ class Channel {
   toArray() {
     return Array.prototype.slice.call(this.buf.subarray(0, this.length));
   }
-}
-class MetricsCollector {
+}class MetricsCollector {
   constructor() {
     this.channels = {
       t: new Channel(), // monotonic time (s)
@@ -1183,8 +1146,7 @@ const PANEL_CSS = `
 #${CONTENT_ID} .pd-status{font-size:11px;color:#8aa0a0;margin-top:10px}
 #${CONTENT_ID} .pd-status b{color:#cfe9e6}
 #${CONTENT_ID} .pd-rec{color:#ff6b6b}
-`;
-class MetricsPanel {
+`;class MetricsPanel {
   constructor(app) {
     this.app = app;
     this.expanded = false;
@@ -1386,8 +1348,7 @@ const OVERLAY_CSS = `
 `;
 
 // metrics meaningful as a live trailing-window readout
-const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions'];
-class MetricsOverlay {
+const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions'];class MetricsOverlay {
   constructor(app, { windowSec = 30, refreshHz = 3 } = {}) {
     this.app = app;
     this.windowSec = windowSec;
@@ -1529,8 +1490,7 @@ function formatVal(res) {
 
 
 
-const AUTOSTART_SPEED = 0.5; // m/s — begin a run once the car actually moves
-class DrivingMetrics {
+const AUTOSTART_SPEED = 0.5; // m/s — begin a run once the car actually movesclass DrivingMetrics {
   constructor(THREE) {
     this.THREE = THREE; // kept for parity / future in-scene viz
     this.collector = new MetricsCollector();
@@ -1587,6 +1547,22 @@ class DrivingMetrics {
 
   isComputable(id) {
     return isComputable(id, this.trafficAvailable);
+  }
+
+  /** Metric registry (families + metrics) so external tools/the API can list
+   *  and toggle metric selection without duplicating the config. */
+  getRegistry() {
+    return {
+      families: METRIC_FAMILIES.map((f) => Object.assign({}, f)),
+      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic })),
+    };
+  }
+
+  /** Toggle every metric in a family at once (used by the API/static config). */
+  setFamilySelected(family, on) {
+    for (const m of METRICS) {
+      if (m.family === family) this.setSelected(m.id, on);
+    }
   }
 
   /** Future hook: flip on when a traffic config is added to the sim. */

@@ -19,10 +19,11 @@ Any static file server works (`npx serve .`, Python `http.server`, etc.).
 The instrument cluster and game patches are built from source:
 
 ```bash
-npm run build          # cluster + metrics + lanes + main bundle
+npm run build          # cluster + metrics + lanes + api + main bundle
 npm run build:cluster  # src/cluster/ → static/js/cluster.js
 npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:lanes    # src/lanes/   → static/js/lanes.js
+npm run build:api      # src/api/     → static/js/api.js
 npm run build:main     # src-extracted/deobfuscated.js → static/js/main.ca6b3355.chunk.js
 ```
 
@@ -44,6 +45,8 @@ npm run build
 | `src/cluster/`                              | Instrument cluster source (canvas UI)       |
 | `src/metrics/`                              | Driving-performance metrics (panel/overlay/report) |
 | `src/lanes/`                                | Dynamic multi-lane road config + settings UI |
+| `src/api/`                                  | Integration API (`window.PromptDrive`) — see [`API.md`](API.md) |
+| `api-test.html`                             | Local API test console                      |
 | `src-extracted/deobfuscated.js`             | Deobfuscated game bundle; input for patches |
 | `scripts/build-*.js`                        | Build pipeline                              |
 | `static/js/main.ca6b3355.chunk.original.js` | Minified upstream bundle for re-extraction  |
@@ -129,6 +132,37 @@ divider** at the forward/oncoming split, **dashed white lines** between same-dir
 as it nears the carriageway edge**, so a lane that grows in (or merges out) as the road
 widens / narrows appears / disappears smoothly rather than popping. Markings are on the paved
 (summer/spring) scene.
+
+## Integration API
+
+An external service (an AI-agent harness, an orchestrator, a test rig, or a
+parent web app) can read the full simulation configuration and steer it — both
+**static** setup applied at world generation and **dynamic** changes applied to
+a running sim — plus subscribe to a telemetry + event stream. It follows the
+same extension pattern as the subsystems above: an IIFE bundle (`src/api/` →
+`static/js/api.js`) exposed as `window.PromptDrive` and wired to the engine by
+`scripts/build-main.js`.
+
+- **Facade** — `window.PromptDrive`: `schema()`, `get(path?)`, `config.*`
+  (static: `set`/`pending`/`apply`/`autostart`), `dynamic.*` (live: weather,
+  skin, lanes, drive mode, grip/speed, autodrive, headlights, camera, cruise,
+  FOV, units, general settings, and programmatic drive `input`), `telemetry.*`,
+  `metrics.*` (which driving metrics to collect), `run.*` (run lifecycle +
+  report/log download), `end()` (finalize the run, auto-export the
+  driver-performance report + logs, and halt), and `on`/`off`/`subscribe`.
+- **Transports** — call the facade directly (in-page / headless browser), over
+  `postMessage` when embedded in an iframe, or over a same-origin
+  `BroadcastChannel` from a separate tab (origin allow-listed for postMessage). A
+  `?autostart=1` launch option bypasses the *begin* splash for headless use.
+- **Test console** — [`api-test.html`](api-test.html): a **standalone** page
+  (configuration + telemetry only, no game rendering) that drives a simulation
+  running normally at `localhost:3000` over the `BroadcastChannel` transport.
+  Separate **static** and **dynamic** areas, a metrics/logs panel, and a live
+  telemetry + event feed; dynamic controls activate only while a live feed is
+  running. Run the sim, then open the console — it connects automatically.
+
+**Full reference: [`API.md`](API.md).** Design rationale and the phased roadmap
+are in [`prompt-drive-api-plan.md`](prompt-drive-api-plan.md).
 
 ## Deploy
 
