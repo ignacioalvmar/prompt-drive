@@ -129,15 +129,24 @@ function drawEgoVehicle(ctx, cx, cy, w, h, colors) {
   ctx.restore();
 }
 
+// Matches a JS number, including scientific notation with a signed exponent
+// (e.g. "-6.019904491344139e-14"). The exponent sign matters: on a straight
+// road the ego's world-X is ~0, so the game emits a "translate(...e-14 ...)"
+// offset — a bare [\d.eE+] class would drop the exponent's minus and fail to
+// match, leaving tx/ty at 0 and pushing the whole worm out of the clip box.
+const NUM = String.raw`-?\d*\.?\d+(?:[eE][-+]?\d+)?`;
+
 // Parses the worm polyline's `transform` attribute: "rotate(deg) translate(tx ty)".
 function parseWormTransform(str) {
   let rot = 0;
   let tx = 0;
   let ty = 0;
   if (str) {
-    const r = /rotate\(\s*(-?[\d.eE+]+)/.exec(str);
+    const r = new RegExp(String.raw`rotate\(\s*(` + NUM + `)`).exec(str);
     if (r) rot = parseFloat(r[1]);
-    const t = /translate\(\s*(-?[\d.eE+]+)[\s,]+(-?[\d.eE+]+)/.exec(str);
+    const t = new RegExp(
+      String.raw`translate\(\s*(` + NUM + String.raw`)[\s,]+(` + NUM + `)`,
+    ).exec(str);
     if (t) {
       tx = parseFloat(t[1]);
       ty = parseFloat(t[2]);
