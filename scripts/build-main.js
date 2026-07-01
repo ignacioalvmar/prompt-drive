@@ -337,5 +337,95 @@ src = replaceOnce(
   'driving metrics sample',
 );
 
+// --- Patch: forward the analytics event seam (el.sendUpdate) to the API event
+// bus. el's socket is null (no-op today), so this just re-exposes the existing
+// event taxonomy (weatherChange, skinChange, cameraChange, driveModeChange,
+// paused, resetCount, wrongWay, …) to window.PromptDrive subscribers. ---
+src = replaceOnce(
+  src,
+  `    sendUpdate(e, t) {
+      var i;
+      if ((i = this.socket) !== null && i !== undefined) {`,
+  `    sendUpdate(e, t) {
+      var i;
+      try {
+        if (typeof window !== "undefined" && window.PromptDriveBridge) {
+          window.PromptDriveBridge.emit(e, t);
+        }
+      } catch (_pdEmitErr) {}
+      if ((i = this.socket) !== null && i !== undefined) {`,
+  'PromptDrive event seam',
+);
+
+// --- Patch: register live engine handles on the API bridge at controller init.
+// All referenced singletons (Ae, Fe, jh, ce, ie, zl, Ks, Vl, Y) and the THREE
+// import `r` are module-scoped, so they are in scope here. This is the API
+// equivalent of how the cluster/metrics instances are attached above. ---
+src = replaceOnce(
+  src,
+  `      this.headlights = Ae.headlights;
+      this.hasInit = true;`,
+  `      this.headlights = Ae.headlights;
+      this.hasInit = true;
+      try {
+        if (typeof window !== "undefined" && window.PromptDriveBridge) {
+          window.PromptDriveBridge.attach({
+            controller: this,
+            ego: Ae,
+            vehicleConfig: Fe,
+            sceneConfig: jh,
+            autodrive: ce,
+            units: ie,
+            world: zl,
+            dayNight: Ks,
+            speedControl: Vl,
+            input: Y,
+            ticker: oe,
+            cameraDefs: Ol,
+            THREE: r,
+            drivingMetrics: this.drivingMetrics
+          });
+        }
+      } catch (_pdAttachErr) {
+        console.error("PromptDrive bridge attach failed", _pdAttachErr);
+      }`,
+  'PromptDrive bridge attach',
+);
+
+// --- Patch: virtual drive-input source (plan §5.4). OR programmatic inputs from
+// window.PromptDrive.dynamic.input({...}) into the per-frame signals so a service
+// can *drive* the car, not just configure it. Mirrors how controllerSignal is
+// blended into steering elsewhere. ---
+src = replaceOnce(
+  src,
+  `    handleInput(e) {
+      this.hasBoost = this.hasBoost && (this.hasAccel || this.hasCruiseTarget);
+      this.inputs.accel = 0;
+      this.inputs.drive = 0;`,
+  `    handleInput(e) {
+      try {
+        if (typeof window !== "undefined" && window.PromptDriveBridge && window.PromptDriveBridge.inputOverride) {
+          const _pdo = window.PromptDriveBridge.inputOverride;
+          const _orSig = (k, v) => { if (v != null) Y.signal[k] = Math.max(Y.signal[k] || 0, +v || 0); };
+          _orSig("Forward", _pdo.forward);
+          _orSig("Backward", _pdo.backward);
+          _orSig("Left", _pdo.left);
+          _orSig("Right", _pdo.right);
+          _orSig("Boost", _pdo.boost);
+          _orSig("Handbrake", _pdo.handbrake);
+          // One-shot camera cycle: fire CameraMode for exactly this frame, then
+          // clear so it advances a single mode per requested pulse.
+          if (_pdo.cameraPulse) {
+            Y.signal.CameraMode = 1;
+            window.PromptDriveBridge.inputOverride.cameraPulse = false;
+          }
+        }
+      } catch (_pdInputErr) {}
+      this.hasBoost = this.hasBoost && (this.hasAccel || this.hasCruiseTarget);
+      this.inputs.accel = 0;
+      this.inputs.drive = 0;`,
+  'PromptDrive virtual input',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);
