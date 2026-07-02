@@ -27,10 +27,20 @@ class TrafficAssets {
     this.cache = {}; // def.name -> { body, wheel, waiters, failed }
   }
 
-  /** cb(bodyTemplate, wheelTemplate) once both OBJs are parsed (async). */
-  load(def, cb) {
-    const entry = this.cache[def.name] || (this.cache[def.name] = { body: null, wheel: null, waiters: [], failed: false });
-    if (entry.failed) return;
+  /** True once a def's assets are known to be missing (e.g. 404 OBJ). */
+  isFailed(name) {
+    const entry = this.cache[name];
+    return !!(entry && entry.failed);
+  }
+
+  /** cb(bodyTemplate, wheelTemplate) once both OBJs are parsed; onFail() if they never will. */
+  load(def, cb, onFail) {
+    const entry = this.cache[def.name] || (this.cache[def.name] = { body: null, wheel: null, waiters: [], failWaiters: [], failed: false });
+    if (entry.failed) {
+      if (onFail) onFail();
+      return;
+    }
+    if (onFail) entry.failWaiters.push(onFail);
     if (entry.body && entry.wheel) {
       cb(entry.body, entry.wheel);
       return;
@@ -48,6 +58,7 @@ class TrafficAssets {
     const loader = new Loader();
     const done = () => {
       if (entry.body && entry.wheel) {
+        entry.failWaiters.length = 0;
         const waiters = entry.waiters.splice(0);
         for (const w of waiters) {
           try {
@@ -59,8 +70,19 @@ class TrafficAssets {
       }
     };
     const fail = () => {
+      // Assets missing (the checked-in static/media set is incomplete — e.g.
+      // the Coach OBJs). Tell every pending vehicle so the manager recycles
+      // it instead of leaving an invisible actor in the registry.
       entry.failed = true;
       entry.waiters.length = 0;
+      const fws = entry.failWaiters.splice(0);
+      for (const f of fws) {
+        try {
+          f();
+        } catch (_e) {
+          /* ignore */
+        }
+      }
     };
     try {
       loader.load(
@@ -135,9 +157,10 @@ class TrafficVehicle {
     this.color = opts.color;
     // Collision box (road-aligned): origin is the rear axle, so the box
     // centre sits half a wheelbase ahead. Overhangs approximated from the
-    // wheelbase — good enough for gap/contact tests (plan §7).
-    this.length = opts.def.wheels.length + 1.5;
-    this.width = opts.def.wheels.width + 0.35;
+    // wheelbase; width is the real track incl. tyres — kept tight so a
+    // correct-lane pass against oncoming traffic never registers contact.
+    this.length = opts.def.wheels.length + 1.2;
+    this.width = opts.def.wheels.width + 2 * opts.def.wheels.tyreWidth;
     this.centerOffset = opts.def.wheels.length / 2;
     this.wheelRadius = opts.def.wheels.radius;
     this.wheelRoll = 0;
@@ -152,49 +175,57 @@ class TrafficVehicle {
 
   /** Build the THREE objects from cached templates and add them to `parent`. */
   build(assets, parent) {
-    assets.load(this.def, (bodyTpl, wheelTpl) => {
-      if (this.disposed) return;
-      const g = new this.T.Group();
-      g.rotation.order = 'YXZ';
-      const body = bodyTpl.clone(true);
-      // Per-vehicle body color: one cloned material shared by this clone's
-      // tagged meshes.
-      let bodyMat = null;
-      body.traverse((m) => {
-        if (m.isMesh && m.userData.pdTrafficBody) {
-          if (!bodyMat) {
-            bodyMat = m.material.clone();
-            bodyMat.color.setHex(this.color);
+    assets.load(
+      this.def,
+      (bodyTpl, wheelTpl) => {
+        if (this.disposed) return;
+        const g = new this.T.Group();
+        g.rotation.order = 'YXZ';
+        const body = bodyTpl.clone(true);
+        // Per-vehicle body color: one cloned material shared by this clone's
+        // tagged meshes.
+        let bodyMat = null;
+        body.traverse((m) => {
+          if (m.isMesh && m.userData.pdTrafficBody) {
+            if (!bodyMat) {
+              bodyMat = m.material.clone();
+              bodyMat.color.setHex(this.color);
+            }
+            m.material = bodyMat;
           }
-          m.material = bodyMat;
-        }
-      });
-      this.bodyMaterial = bodyMat;
-      g.add(body);
-      const w = this.def.wheels;
-      const wheelSlots = [
-        { x: w.width / 2, z: w.length, y: Math.PI / 2 }, // fl
-        { x: -w.width / 2, z: w.length, y: -Math.PI / 2 }, // fr
-        { x: w.width / 2, z: 0, y: Math.PI / 2 }, // rl
-        { x: -w.width / 2, z: 0, y: -Math.PI / 2 }, // rr
-      ];
-      for (const slot of wheelSlots) {
-        const wm = wheelTpl.clone(true);
-        wm.traverse((c) => {
-          if (c.isMesh) c.position.z -= w.tyreWidth;
         });
-        wm.rotation.order = 'YXZ';
-        wm.rotation.y = slot.y;
-        wm.position.set(slot.x, w.radius, slot.z);
-        wm.userData.side = slot.y > 0 ? 1 : -1;
-        this.wheelMeshes.push(wm);
-        g.add(wm);
+        this.bodyMaterial = bodyMat;
+        g.add(body);
+        const w = this.def.wheels;
+        const wheelSlots = [
+          { x: w.width / 2, z: w.length, y: Math.PI / 2 }, // fl
+          { x: -w.width / 2, z: w.length, y: -Math.PI / 2 }, // fr
+          { x: w.width / 2, z: 0, y: Math.PI / 2 }, // rl
+          { x: -w.width / 2, z: 0, y: -Math.PI / 2 }, // rr
+        ];
+        for (const slot of wheelSlots) {
+          const wm = wheelTpl.clone(true);
+          wm.traverse((c) => {
+            if (c.isMesh) c.position.z -= w.tyreWidth;
+          });
+          wm.rotation.order = 'YXZ';
+          wm.rotation.y = slot.y;
+          wm.position.set(slot.x, w.radius, slot.z);
+          wm.userData.side = slot.y > 0 ? 1 : -1;
+          this.wheelMeshes.push(wm);
+          g.add(wm);
+        }
+        g.frustumCulled = false;
+        this.group = g;
+        parent.add(g);
+        this.ready = true;
+      },
+      () => {
+        // Assets will never arrive — flag for the manager to recycle so no
+        // invisible actor lingers in the sensor registry.
+        this.loadFailed = true;
       }
-      g.frustumCulled = false;
-      this.group = g;
-      parent.add(g);
-      this.ready = true;
-    });
+    );
   }
 
   /** Apply a world pose. yaw follows the engine convention (0 = +z). */
@@ -209,7 +240,10 @@ class TrafficVehicle {
     if (!this.ready || !ds) return;
     this.wheelRoll += ds / this.wheelRadius;
     for (const wm of this.wheelMeshes) {
-      wm.rotation.x = this.wheelRoll * wm.userData.side;
+      // The engine rolls its wheels on the Z euler component (after the ±90°
+      // yaw that faces the mesh outward; left +, right −) — see the ego's
+      // wheelEulers updates. X here would flip the disc into the road plane.
+      wm.rotation.z = this.wheelRoll * wm.userData.side;
     }
   }
 

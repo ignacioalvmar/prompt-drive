@@ -54,8 +54,8 @@ class TrafficManager {
     const V = trafficResolveThree(h.THREE).Vector3;
     this._scratch = V ? new V() : null;
     if (h.ego && h.ego.wheels) {
-      this.ego.length = h.ego.wheels.length + 1.5;
-      this.ego.width = h.ego.wheels.width + 0.35;
+      this.ego.length = h.ego.wheels.length + 1.2;
+      this.ego.width = h.ego.wheels.width + 2 * (h.ego.wheels.tyreWidth || 0.1);
       this.ego.centerOffset = h.ego.wheels.length / 2;
     }
   }
@@ -339,8 +339,11 @@ class TrafficManager {
 
   _spawn(opts) {
     const defs = this.h.vehicleDefs;
-    // Mostly cars, the occasional coach for variety.
-    const def = this._rand() < 0.85 || !defs.Coach ? defs.Roadster : defs.Coach;
+    // Mostly cars, the occasional coach for variety — but never a def whose
+    // assets are known missing (the checked-in media set is incomplete; the
+    // first failed load marks the def and it is skipped from then on).
+    const coachOk = defs.Coach && !(this.assets && this.assets.isFailed('Coach'));
+    const def = this._rand() < 0.85 || !coachOk ? defs.Roadster : defs.Coach;
     const color = TRAFFIC_COLORS[Math.floor(this._rand() * TRAFFIC_COLORS.length)];
     const v = new TrafficVehicle(
       {
@@ -641,6 +644,7 @@ class TrafficManager {
       // engine retains far more road behind than corridorBehind.
       const metres = (v.arcFloat - this.ego.arcFloat) * this._edgeLen(v.node);
       const out =
+        v.loadFailed || // assets missing — never became visible
         metres < -TRAFFIC_TUNING.corridorBehind ||
         metres > TRAFFIC_TUNING.corridorAhead ||
         !v.node ||
