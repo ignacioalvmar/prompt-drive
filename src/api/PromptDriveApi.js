@@ -83,6 +83,7 @@ function snapshot() {
   const s = h.sceneConfig.value;
   const cruise = h.speedControl.value;
   const lanes = (typeof window !== 'undefined' && window.LaneRoads) ? window.LaneRoads.get() : null;
+  const traffic = (typeof window !== 'undefined' && window.RoadTraffic) ? window.RoadTraffic.get() : null;
   return {
     scene: {
       seed: s.seed,
@@ -95,6 +96,7 @@ function snapshot() {
       antialias: s.antialias,
     },
     lanes,
+    traffic,
     vehicle: {
       type: v.type,
       mode: v.mode,
@@ -285,10 +287,17 @@ function stageStatic(partial) {
 // each key back on load (VehicleConfig reads `type` raw, SceneConfig reads
 // seed/sceneName raw, all JSON.parse the rest).
 function commitStagedField(path, value) {
-  // lanes and metric selection own their storage; delegate.
+  // lanes, traffic and metric selection own their storage; delegate.
   if (path === 'lanes') {
     if (typeof window !== 'undefined' && window.LaneRoads) window.LaneRoads.set(value);
     return true;
+  }
+  if (path === 'traffic') {
+    if (typeof window !== 'undefined' && window.RoadTraffic) {
+      window.RoadTraffic.set(value);
+      return true;
+    }
+    return false;
   }
   if (path.indexOf('metrics.') === 0) return true; // handled by the metrics namespace directly
 
@@ -365,6 +374,17 @@ function telemetryState() {
   try {
     if (typeof window !== 'undefined' && window.LaneRoads && window.LaneRoads._resolved) {
       out.lane = window.LaneRoads.applied ? window.LaneRoads.applied() : null;
+    }
+  } catch (_e) {}
+  // Traffic summary: actor count + the ego's lead vehicle (gap in metres,
+  // speed m/s), when traffic is active — the basis for THW/TTC-style measures.
+  try {
+    if (typeof window !== 'undefined' && window.RoadTraffic && window.RoadTraffic._engineAttached) {
+      const mgr = window.RoadTraffic._manager;
+      out.traffic = {
+        count: mgr.vehicles.length,
+        lead: mgr.egoLead ? mgr.egoLead() : null,
+      };
     }
   } catch (_e) {}
   return out;
@@ -562,6 +582,22 @@ const PromptDrive = {
     state: () => telemetryState(),
     metrics: () => metricsSnapshot(),
     report: () => metricsSnapshot(),
+  },
+
+  // Traffic road actors (window.RoadTraffic). Static config is staged via
+  // config.set({ traffic: {…} }) / applied on reload; traffic.set persists the
+  // config immediately (also effective on the next reload). The stopped-vehicle
+  // event is live.
+  traffic: {
+    get: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.get()) : err('unavailable')),
+    set: (cfg) => {
+      if (typeof window === 'undefined' || !window.RoadTraffic) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'traffic' });
+      return ok(window.RoadTraffic.set(cfg), { appliesOn: 'reload' });
+    },
+    state: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.state()) : err('unavailable')),
+    spawnStopped: (opts) => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.spawnStopped(opts) : err('unavailable')),
+    clear: () => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.clear() : err('unavailable')),
   },
 
   // Driving-metrics selection (which families/metrics are computed). Works live

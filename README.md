@@ -19,10 +19,11 @@ Any static file server works (`npx serve .`, Python `http.server`, etc.).
 The instrument cluster and game patches are built from source:
 
 ```bash
-npm run build          # cluster + metrics + lanes + api + main bundle
+npm run build          # cluster + metrics + lanes + traffic + api + main bundle
 npm run build:cluster  # src/cluster/ → static/js/cluster.js
 npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:lanes    # src/lanes/   → static/js/lanes.js
+npm run build:traffic  # src/traffic/ → static/js/traffic.js
 npm run build:api      # src/api/     → static/js/api.js
 npm run build:main     # src-extracted/deobfuscated.js → static/js/main.ca6b3355.chunk.js
 ```
@@ -45,6 +46,7 @@ npm run build
 | `src/cluster/`                              | Instrument cluster source (canvas UI)       |
 | `src/metrics/`                              | Driving-performance metrics (panel/overlay/report) |
 | `src/lanes/`                                | Dynamic multi-lane road config + settings UI |
+| `src/traffic/`                              | AI traffic road actors (`window.RoadTraffic`) |
 | `src/api/`                                  | Integration API (`window.PromptDrive`) — see [`API.md`](API.md) |
 | `api-test.html`                             | Local API test console                      |
 | `src-extracted/deobfuscated.js`             | Deobfuscated game bundle; input for patches |
@@ -73,8 +75,9 @@ time-to-line-crossing (plus throttle/brake/jerk and collisions).
 
 Lane metrics use the engine's own road projection (`ii()`), are measured
 relative to the **lane center** (the engine's nominal driving line), and are
-gated to on-road samples. Interaction metrics (time headway, TTC) require traffic objects;
-this build has none, so they stay disabled until a traffic configuration exists.
+gated to on-road samples. With [traffic](#traffic-road-actors) enabled,
+`telemetry.state().traffic` publishes the ego's lead vehicle (gap + speed) as
+the basis for interaction measures (time headway, TTC).
 
 ## Dynamic multi-lane roads
 
@@ -132,6 +135,50 @@ divider** at the forward/oncoming split, **dashed white lines** between same-dir
 as it nears the carriageway edge**, so a lane that grows in (or merges out) as the road
 widens / narrows appears / disappears smoothly rather than popping. Markings are on the paved
 (summer/spring) scene.
+
+## Traffic road actors
+
+AI traffic vehicles (`src/traffic/`, exposed as `window.RoadTraffic`) share the
+road with the ego vehicle. Design + engine integration map:
+[`traffic-vehicles-plan.md`](traffic-vehicles-plan.md).
+
+- **Behaviour** — each vehicle holds its lane at a constant configured speed
+  (kinematic follower on the engine's road midline, ground-snapped, using the
+  per-node lane geometry from the lanes subsystem). A **front sensor** (~60 m,
+  time-headway follower) slows a vehicle behind anything in its lane — another
+  traffic vehicle or the ego — down to a **full stop**, and resumes when the
+  lane clears. Oncoming lanes are populated too (optional).
+- **Configuration** — settings panel → **traffic** section (below *road
+  lanes*): enable, number of vehicles (density), speed, oncoming on/off; applies
+  on reload (*Apply & restart*). Persists in `localStorage`
+  (`pd-traffic-config`); also settable pre-launch via
+  `PromptDrive.config.set({ traffic: {…} })`.
+- **Appearance** — engine vehicle models (Roadster, occasional Coach) with a
+  **random body color** per vehicle, drawn from a seeded RNG — the same scene
+  seed reproduces the same traffic pattern and colors.
+- **Spawning** — out of view: ahead beyond the fog's hiding distance, or
+  behind/off-camera. (The engine retains road data only from the ego's node
+  forward, so *driving* spawns are placed ahead; traffic ends up behind the ego
+  naturally as it is overtaken.) Vehicles are recycled outside a
+  [−400 m, +1200 m] corridor around the ego.
+- **Physics & collisions** — road-aligned box contacts. The ego colliding with
+  a traffic vehicle bleeds speed through the engine's own collision seam (the
+  scrape audio plays and the **driving-metrics collision counter records it**),
+  pushes the vehicle, and marks it as a stopped hazard other traffic queues
+  behind. Traffic vehicles clamp to the roadside barriers when shoved.
+- **Stopped-vehicle event** — spawn a stationary vehicle at a given distance
+  ahead in a chosen lane, live: settings panel row, `RoadTraffic.spawnStopped(
+  { distance, lane })`, or `PromptDrive.traffic.spawnStopped(...)` over any API
+  transport. Lane `1` is the ego's lane (counting toward the outside); negative
+  lanes are oncoming.
+- **Ego lane note** — with traffic enabled, the default 1+1 road is treated as
+  lane-centred: identical width, but the ego autopilot tracks the centre of its
+  **own lane** (markings appear) instead of the road middle, so oncoming
+  traffic has a clear lane. On multi-lane roads the autopilot now follows the
+  ego-lane centre exactly (matching the lane markings and the metrics'
+  reference line). The ego autopilot is deliberately **obstacle-blind** — it
+  will drive into a stopped vehicle unless the participant intervenes (that is
+  the point of the stopped-vehicle scenario).
 
 ## Integration API
 
