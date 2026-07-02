@@ -1490,7 +1490,8 @@ function formatVal(res) {
 
 
 
-const AUTOSTART_SPEED = 0.5; // m/s — begin a run once the car actually movesclass DrivingMetrics {
+const AUTOSTART_SPEED = 0.5; // m/s — begin a run once the car actually moves
+class DrivingMetrics {
   constructor(THREE) {
     this.THREE = THREE; // kept for parity / future in-scene viz
     this.collector = new MetricsCollector();

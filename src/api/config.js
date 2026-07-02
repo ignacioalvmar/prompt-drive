@@ -53,6 +53,9 @@ const FIELDS = [
   // --- lanes (3.1) — delegated to window.LaneRoads, live changes clamped ±1 ---
   { path: 'lanes', type: FieldType.Object, cls: 'both', desc: 'Lane layout { forward 1-5, backward 0-5, width 2.4-3.75|null }. Live changes clamp to ±1/direction.' },
 
+  // --- traffic road actors — delegated to window.RoadTraffic (validates + persists) ---
+  { path: 'traffic', type: FieldType.Object, cls: 'static', desc: 'Traffic vehicles { enabled, density 0-16, speed 2-45 m/s, oncoming, seed }. Applies on reload; the stopped-vehicle event is live via traffic.spawnStopped.' },
+
   // --- vehicle (3.2) ---
   { path: 'vehicle.type', type: FieldType.Enum, cls: 'static', values: VEHICLES, desc: 'Vehicle model; live swap is a heavy in-place rebuild.' },
   { path: 'vehicle.mode', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: DRIVE_MODES, desc: 'Drive mode (power distribution).' },
@@ -86,6 +89,9 @@ const FIELDS = [
   // --- general game settings (engine GameConfig) ---
   { path: 'general.showWorm', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: ['Always', 'Manual drive only', 'Never'], desc: 'Show the upcoming-road worm guide.' },
   { path: 'general.barriers', type: FieldType.Boolean, cls: 'both', desc: 'Walls and collidable roadside barriers (regenerated on reload).' },
+
+  // --- UI lockdown (participant mode) — DOM overlay, no engine backing ---
+  { path: 'ui.hideMenu', type: FieldType.Boolean, cls: 'both', desc: 'Hide the bottom-bar menu icons and the autodrive toggle so participants (users without config privileges) cannot change simulation conditions. Static/persisted via config.apply; live via dynamic.hideMenu.' },
 ];
 
 // Driving-metrics families and their metric ids — mirrors src/metrics/config.js

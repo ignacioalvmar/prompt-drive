@@ -56,6 +56,9 @@ const FIELDS = [
   // --- lanes (3.1) — delegated to window.LaneRoads, live changes clamped ±1 ---
   { path: 'lanes', type: FieldType.Object, cls: 'both', desc: 'Lane layout { forward 1-5, backward 0-5, width 2.4-3.75|null }. Live changes clamp to ±1/direction.' },
 
+  // --- traffic road actors — delegated to window.RoadTraffic (validates + persists) ---
+  { path: 'traffic', type: FieldType.Object, cls: 'static', desc: 'Traffic vehicles { enabled, density 0-16, speed 2-45 m/s, oncoming, seed }. Applies on reload; the stopped-vehicle event is live via traffic.spawnStopped.' },
+
   // --- vehicle (3.2) ---
   { path: 'vehicle.type', type: FieldType.Enum, cls: 'static', values: VEHICLES, desc: 'Vehicle model; live swap is a heavy in-place rebuild.' },
   { path: 'vehicle.mode', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: DRIVE_MODES, desc: 'Drive mode (power distribution).' },
@@ -89,6 +92,9 @@ const FIELDS = [
   // --- general game settings (engine GameConfig) ---
   { path: 'general.showWorm', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: ['Always', 'Manual drive only', 'Never'], desc: 'Show the upcoming-road worm guide.' },
   { path: 'general.barriers', type: FieldType.Boolean, cls: 'both', desc: 'Walls and collidable roadside barriers (regenerated on reload).' },
+
+  // --- UI lockdown (participant mode) — DOM overlay, no engine backing ---
+  { path: 'ui.hideMenu', type: FieldType.Boolean, cls: 'both', desc: 'Hide the bottom-bar menu icons and the autodrive toggle so participants (users without config privileges) cannot change simulation conditions. Static/persisted via config.apply; live via dynamic.hideMenu.' },
 ];
 
 // Driving-metrics families and their metric ids — mirrors src/metrics/config.js
@@ -356,6 +362,7 @@ function snapshot() {
   const s = h.sceneConfig.value;
   const cruise = h.speedControl.value;
   const lanes = (typeof window !== 'undefined' && window.LaneRoads) ? window.LaneRoads.get() : null;
+  const traffic = (typeof window !== 'undefined' && window.RoadTraffic) ? window.RoadTraffic.get() : null;
   return {
     scene: {
       seed: s.seed,
@@ -368,6 +375,7 @@ function snapshot() {
       antialias: s.antialias,
     },
     lanes,
+    traffic,
     vehicle: {
       type: v.type,
       mode: v.mode,
@@ -398,6 +406,10 @@ function snapshot() {
     general: {
       showWorm: h.units.ShowWorm,
       barriers: h.units.Barriers,
+    },
+    ui: {
+      hideMenu: (typeof window !== 'undefined' && window.PromptDriveHideMenu)
+        ? window.PromptDriveHideMenu.state() : false,
     },
   };
 }
@@ -493,6 +505,13 @@ function applyDynamic(path, value, opts) {
     case 'general.showWorm': h.units.set('ShowWorm', value); return ok(value);
     case 'general.barriers': h.units.set('Barriers', value ? 1 : 0); return ok(!!value);
 
+    // UI-only lockdown (no engine handle needed). The live toggle does not
+    // persist — bake it across reloads via static config (config.set/apply).
+    case 'ui.hideMenu': {
+      if (typeof window === 'undefined' || !window.PromptDriveHideMenu) return err('unavailable', { path });
+      return ok(window.PromptDriveHideMenu.set(!!value, { persist: false }));
+    }
+
     default:
       return err('unknown_key', { path });
   }
@@ -547,12 +566,32 @@ function stageStatic(partial) {
 // each key back on load (VehicleConfig reads `type` raw, SceneConfig reads
 // seed/sceneName raw, all JSON.parse the rest).
 function commitStagedField(path, value) {
-  // lanes and metric selection own their storage; delegate.
+  // lanes, traffic and metric selection own their storage; delegate.
   if (path === 'lanes') {
     if (typeof window !== 'undefined' && window.LaneRoads) window.LaneRoads.set(value);
     return true;
   }
+  if (path === 'traffic') {
+    if (typeof window !== 'undefined' && window.RoadTraffic) {
+      window.RoadTraffic.set(value);
+      return true;
+    }
+    return false;
+  }
   if (path.indexOf('metrics.') === 0) return true; // handled by the metrics namespace directly
+
+  // ui.hideMenu is a DOM-overlay flag owned by hidemenu.js (its own storage
+  // key/format); persist through it so a reload re-applies the lockdown.
+  if (path === 'ui.hideMenu') {
+    if (typeof window !== 'undefined' && window.PromptDriveHideMenu) {
+      window.PromptDriveHideMenu.set(!!value, { persist: true });
+      return true;
+    }
+    try {
+      if (value) localStorage.setItem('pd-hide-menu', '1'); else localStorage.removeItem('pd-hide-menu');
+      return true;
+    } catch (_e) { return false; }
+  }
 
   const key = STAGE_STORAGE[path];
   if (!key) return false; // e.g. scene.dayNightCycle has no persistent store
@@ -614,6 +653,17 @@ function telemetryState() {
   try {
     if (typeof window !== 'undefined' && window.LaneRoads && window.LaneRoads._resolved) {
       out.lane = window.LaneRoads.applied ? window.LaneRoads.applied() : null;
+    }
+  } catch (_e) {}
+  // Traffic summary: actor count + the ego's lead vehicle (gap in metres,
+  // speed m/s), when traffic is active — the basis for THW/TTC-style measures.
+  try {
+    if (typeof window !== 'undefined' && window.RoadTraffic && window.RoadTraffic._engineAttached) {
+      const mgr = window.RoadTraffic._manager;
+      out.traffic = {
+        count: mgr.vehicles.length,
+        lead: mgr.egoLead ? mgr.egoLead() : null,
+      };
     }
   } catch (_e) {}
   return out;
@@ -794,6 +844,8 @@ const PromptDrive = {
     speed: (f) => setDynamic({ 'vehicle.speedFactor': f }),
     fov: (f) => setDynamic({ 'graphics.verticalFov': f }),
     units: (u) => setDynamic({ units: u }),
+    // Participant lockdown: hide the bottom-bar menu icons + autodrive toggle.
+    hideMenu: (on) => setDynamic({ 'ui.hideMenu': on }),
     // §5.4 live drive-input hook (requires the build-main virtual input patch).
     input: (signals) => {
       if (typeof window !== 'undefined' && window.PromptDriveBridge) {
@@ -809,6 +861,22 @@ const PromptDrive = {
     state: () => telemetryState(),
     metrics: () => metricsSnapshot(),
     report: () => metricsSnapshot(),
+  },
+
+  // Traffic road actors (window.RoadTraffic). Static config is staged via
+  // config.set({ traffic: {…} }) / applied on reload; traffic.set persists the
+  // config immediately (also effective on the next reload). The stopped-vehicle
+  // event is live.
+  traffic: {
+    get: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.get()) : err('unavailable')),
+    set: (cfg) => {
+      if (typeof window === 'undefined' || !window.RoadTraffic) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'traffic' });
+      return ok(window.RoadTraffic.set(cfg), { appliesOn: 'reload' });
+    },
+    state: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.state()) : err('unavailable')),
+    spawnStopped: (opts) => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.spawnStopped(opts) : err('unavailable')),
+    clear: () => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.clear() : err('unavailable')),
   },
 
   // Driving-metrics selection (which families/metrics are computed). Works live
@@ -1092,6 +1160,90 @@ startPostMessageBridge();
 
   // Expose for the bridge/test console to invoke or inspect.
   window.PromptDriveAutostart = { tryClick, enabled };
+})();
+
+
+/* --- hidemenu.js --- */
+/**
+ * Optional "participant lockdown": hide the bottom-bar menu icons (`#menu-bar` —
+ * the settings / scene / config icon groups) and the centre autodrive toggle
+ * (`#autodrive`) so a participant without config-change privileges cannot open
+ * the settings panels or flip drive conditions mid-study.
+ *
+ * Exposed two ways, mirroring autostart.js:
+ *   - a static launch option — persisted to localStorage 'pd-hide-menu' (or the
+ *     query param ?hideMenu=1), read on load and applied before the bar mounts;
+ *   - a live dynamic toggle — PromptDrive.dynamic.hideMenu(bool) / the
+ *     `ui.hideMenu` field — which shows/hides it on a running sim.
+ *
+ * Purely a DOM-overlay concern (it touches no engine state), so it lives in the
+ * API bundle rather than a build-main engine patch. It injects a <style> rule
+ * rather than toggling the nodes directly, so the rule takes effect the instant
+ * the React-rendered bar appears — regardless of when that is relative to load.
+ * The in-cabin instrument cluster (a 3D canvas) and passive HUD read-outs are
+ * left untouched, so drivers still see their speed and autodrive status.
+ */
+(function () {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  var STORAGE_KEY = 'pd-hide-menu';
+  var STYLE_ID = 'pd-hide-menu-style';
+  // The interactive bottom-bar chrome: the menu icon groups (#menu-bar) and the
+  // centre autodrive on/off toggle (#autodrive).
+  var CSS = '#menu-bar,#autodrive{display:none!important;}';
+
+  function readFlag() {
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      var q = qs.get('hideMenu') || qs.get('hidemenu');
+      if (q === '1' || q === 'true') return true;
+      if (q === '0' || q === 'false') return false;
+    } catch (_e) { /* no URLSearchParams */ }
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw != null) return raw === '1' || raw === 'true';
+    } catch (_e) { /* storage unavailable */ }
+    return false;
+  }
+
+  // Inject or remove the hide rule. Idempotent.
+  function apply(on) {
+    var existing = document.getElementById(STYLE_ID);
+    if (on) {
+      if (!existing) {
+        var el = document.createElement('style');
+        el.id = STYLE_ID;
+        el.textContent = CSS;
+        (document.head || document.documentElement).appendChild(el);
+      }
+    } else if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+    return on;
+  }
+
+  // Apply live and (by default) remember the choice so it survives a reload.
+  // Static config passes { persist: true }; a purely live dynamic toggle passes
+  // { persist: false } to match the other live-only dynamic fields.
+  function set(on, opts) {
+    on = !!on;
+    if (!opts || opts.persist !== false) {
+      try {
+        if (on) window.localStorage.setItem(STORAGE_KEY, '1');
+        else window.localStorage.removeItem(STORAGE_KEY);
+      } catch (_e) { /* storage unavailable */ }
+    }
+    return apply(on);
+  }
+
+  function state() { return !!document.getElementById(STYLE_ID); }
+
+  // Honour the persisted / query flag on load.
+  if (readFlag()) apply(true);
+
+  window.PromptDriveHideMenu = {
+    set: set, apply: apply, state: state, readFlag: readFlag, STORAGE_KEY: STORAGE_KEY,
+  };
 })();
 
 })();

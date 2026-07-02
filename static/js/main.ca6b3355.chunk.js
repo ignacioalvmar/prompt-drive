@@ -3045,7 +3045,12 @@
     const halfWidth = total * laneWidth / 2;
     const dividerOffset = (bwd - fwd) * laneWidth / 2;
     const dividerRatio = (bwd - fwd) / total; // = dividerOffset / halfWidth
-    const isDefault = fwd === 1 && bwd === 1 && (!cfg || cfg.width == null);
+    // Traffic road actors need the ego on a real lane, not the road centre:
+    // with traffic enabled the default 1+1 layout is treated as lane-centred
+    // (identical width, ego line moves to lane 1, markings drawn) — plan §3
+    // of traffic-vehicles-plan.md. Static per session (traffic enable/disable
+    // applies on reload), so the ego line never jumps mid-drive.
+    const isDefault = fwd === 1 && bwd === 1 && (!cfg || cfg.width == null) && !trafficLaneCentred();
     // Ego drives the innermost forward lane; default 1+1 keeps the original
     // midline-centred line (egoRatio 0) so driving feel is unchanged.
     const egoCenterSigned = isDefault ? 0 : (dividerOffset + laneWidth / 2);
@@ -3397,6 +3402,62 @@
     };
   };
   var si = $t;
+  // --- Traffic road actors (window.RoadTraffic) engine seam. -----------------
+  // The traffic subsystem (src/traffic/ -> static/js/traffic.js) owns all NPC
+  // vehicle logic; the engine only (1) hands it live handles once the world
+  // exists and (2) ticks it each rendered frame from the view update. Both are
+  // guarded so the game runs unchanged when the bundle is absent or traffic is
+  // disabled. See traffic-vehicles-plan.md.
+  // Latched on first use (scene init) so a mid-session config change can never
+  // move the ego driving line — traffic enablement applies on reload.
+  let trafficLaneCentredLatch = null;
+  const trafficLaneCentred = () => {
+    if (trafficLaneCentredLatch === null) {
+      try {
+        trafficLaneCentredLatch = !!(typeof window !== "undefined" && window.RoadTraffic && window.RoadTraffic.get().enabled);
+      } catch (trafficCfgErr) {
+        trafficLaneCentredLatch = false;
+      }
+    }
+    return trafficLaneCentredLatch;
+  };
+  let trafficAttached = false;
+  const trafficTick = (dt, controller) => {
+    try {
+      if (typeof window === "undefined" || !window.RoadTraffic) return;
+      if (!trafficAttached) {
+        if (!si.vehicleNode || !controller) return; // world not live yet
+        trafficAttached = true;
+        window.RoadTraffic._engineAttach({
+          roadState: si,
+          project: ii,
+          closestNode: ti,
+          vehicleDefs: je,
+          materials: _d,
+          world: zl,
+          ego: Ae,
+          camera: Xs,
+          THREE: r,
+          objLoader: ln,
+          controller: controller,
+          laneGeometry: () => laneResolved,
+          sceneFog: () => {
+            try {
+              return tl.fog;
+            } catch (trafficFogErr) {
+              return null;
+            }
+          },
+          sceneSeed: typeof Ze !== "undefined" ? Ze : "",
+          barrierMargin: Ut
+        });
+      }
+      window.RoadTraffic._engineUpdate(dt);
+    } catch (trafficTickErr) {
+      // Traffic must never break the game loop; repeated failures disable the
+      // manager inside the bundle itself.
+    }
+  };
   const ni = new r.W(0, 1, 0);
   const ai = {};
   class oi {
@@ -18356,6 +18417,25 @@
         this.bendinessVal *= this.bendinessVal;
         this.bendinessVal *= this.bendinessVal;
       }
+      // The driving-line offset from the midline. Originally Yt/2 (half the
+      // road half-width) — correct for the default single carriageway, but on
+      // multi-lane roads that is the boundary between the two forward lanes,
+      // not a lane centre, while the markings and the metrics both use the
+      // per-node ego-lane centre (laneEgoRatio · w). Use the target node's own
+      // lane stamp so the autopilot tracks the EGO LANE and transitions ramp
+      // exactly where the road does (traffic-vehicles-plan.md; the taper is
+      // baked into laneEgoRatio per node by laneRestampAhead).
+      const adNode = this.targetNode.next;
+      // Offsets are applied along the node normal n; the forward/ego side is
+      // the −n side (autodriveSide −1, the default "Left"). With traffic
+      // enabled the side setting is overridden to the forward lane — "None"
+      // (road centre) and "Right" (oncoming lane) would drive the autopilot
+      // head-on into traffic.
+      const adSide = trafficLaneCentred() ? -1 : Fe.value.autodriveSide;
+      const adOffset =
+        (adNode.laneIsDefault === false && adNode.laneEgoRatio != null
+          ? adNode.laneEgoRatio * adNode.w
+          : Yt / 2) * adSide;
       if (this.lerpIndex < 10) {
         this.targetPos.copy(this.targetNode.ps[this.lerpIndex]);
         let e = this.targetNode.a - this.targetNode.next.a;
@@ -18363,13 +18443,13 @@
         let t = 1 - this.lerpIndex / 10;
         this.targetRoadHeading = this.targetNode.a * t + e * (1 - t);
         let i = this.targetNode.next.n;
-        this.targetPos.x += i.x * Yt * Fe.value.autodriveSide / 2;
-        this.targetPos.z += i.z * Yt * Fe.value.autodriveSide / 2;
+        this.targetPos.x += i.x * adOffset;
+        this.targetPos.z += i.z * adOffset;
       } else {
         this.targetPos.copy(this.targetNode.next.p);
         let e = this.targetNode.next.n;
-        this.targetPos.x += e.x * Yt * Fe.value.autodriveSide / 2;
-        this.targetPos.z += e.z * Yt * Fe.value.autodriveSide / 2;
+        this.targetPos.x += e.x * adOffset;
+        this.targetPos.z += e.z * adOffset;
         this.targetRoadHeading = this.targetNode.next.a;
       }
       this.targetRoadHeading = (Zd - this.targetRoadHeading) % Ed;
@@ -20151,8 +20231,15 @@
     checkAutodriveProgress() {}
     resetToNode(e) {
       let t = e.a - e.next.da / 2;
+      // Same ego-lane offset as the autodrive target (see updateTarget): on
+      // multi-lane roads reset into the ego lane centre, not Yt/2 (which is a
+      // lane boundary there), and with traffic enabled always the forward
+      // side.
+      const rnOffset =
+        (e.laneIsDefault === false && e.laneEgoRatio != null ? e.laneEgoRatio * e.w : Yt / 2) *
+        (trafficLaneCentred() ? -1 : Fe.value.autodriveSide);
       if (this.autodrive) {
-        this.setPose(e.p.x + e.n.x * Yt / 2 * Fe.value.autodriveSide, e.p.y, e.p.z + e.n.z * Yt / 2 * Fe.value.autodriveSide, Math.PI / 2 - t, true);
+        this.setPose(e.p.x + e.n.x * rnOffset, e.p.y, e.p.z + e.n.z * rnOffset, Math.PI / 2 - t, true);
       } else {
         this.setPose(e.p.x, e.p.y, e.p.z, Math.PI / 2 - t, true);
       }
@@ -21029,6 +21116,7 @@
         }
         this.camController.update(e);
         zl.update(e, t);
+        trafficTick(e, this.vehicleController);
       } catch (Cu) {
         console.error(Cu);
         this.onError(Cu.stack.toString());

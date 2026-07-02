@@ -8,7 +8,8 @@ configuration and **submit** two kinds of change:
   reloads the sim so the engine regenerates the world.
 - **Dynamic config** — live changes a running sim applies without a restart
   (weather, skin, day-night, lanes ±1, drive mode, grip/speed, autodrive,
-  headlights, camera, cruise, FOV, units) plus programmatic **drive inputs**.
+  headlights, camera, cruise, FOV, units, menu lockdown) plus programmatic
+  **drive inputs**.
 
 It also exposes a **telemetry + event stream** so the caller can observe the
 result of its changes and the ego vehicle's state.
@@ -32,6 +33,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Dynamic config — `dynamic.*`](#dynamic-config--dynamic)
   - [Static config — `config.*`](#static-config--config)
   - [Telemetry — `telemetry.*`](#telemetry--telemetry)
+  - [Traffic — `traffic.*`](#traffic--traffic)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -115,11 +117,18 @@ dynamic.weather(idxOrName)    dynamic.skin(name)     dynamic.cycle(idx)
 dynamic.headlights(bool)      dynamic.autodrive(bool) dynamic.driveMode(m)
 dynamic.camera(mode)          dynamic.lanes(cfg)     dynamic.cruise(cfg)
 dynamic.grip(f)   dynamic.speed(f)   dynamic.fov(f)   dynamic.units(u)
+dynamic.hideMenu(bool)        // participant lockdown: hide the bottom-bar menu icons
 dynamic.input(signals)        // live drive: forward/backward/left/right/boost/handbrake
 
 telemetry.state()             // instantaneous ego snapshot
 telemetry.metrics()           // computed driving-performance report
 telemetry.report()            // alias of metrics()
+
+traffic.get()                 // traffic config { enabled, density, speed, oncoming, seed }
+traffic.set(cfg)              // persist config (applies on reload)
+traffic.state()               // live actor list (id, lane, mode, speed)
+traffic.spawnStopped(o)       // stopped-vehicle event: { distance, lane }
+traffic.clear()               // remove all traffic vehicles
 
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
@@ -223,6 +232,7 @@ Convenience wrappers each call `dynamic.set` for one field:
 | `cruise(cfg)` | `controls.cruise` | `{ enabled, speed, unit }`. `speed` is m/s by default; pass `unit:'display'` to give it in the current display units (MPH/KPH) — the autopilot's target speed. Returns `{ enabled, speedMs, speedDisplay, unit }`. |
 | `fov(f)` | `graphics.verticalFov` | `40`–`80`. |
 | `units(u)` | `units` | `0` MPH/MI, `1` KPH/KM. |
+| `hideMenu(bool)` | `ui.hideMenu` | Participant lockdown — hides the bottom-bar menu icons + autodrive toggle so a participant can't change conditions. Live toggle does **not** persist; use `config.set`/`apply` (or `?hideMenu=1`) to bake it across reloads. |
 
 **Live drive inputs** — `dynamic.input(signals)` feeds a virtual input source
 that is OR'd into the per-frame controls, letting a service *drive* the car:
@@ -287,7 +297,9 @@ they are applied live before the reload so they also persist.
   autodrive,    // bool
   driveMode,    // "AWD" | "FWD" | "RWD"
   units,        // 0 | 1
-  lane          // { forward, backward } under the car, when multi-lane roads are active
+  lane,         // { forward, backward } under the car, when multi-lane roads are active
+  traffic       // { count, lead: { gap, speed, lane, id } | null } when traffic is active —
+                // the ego's lead vehicle (bumper gap in m, speed m/s), for THW/TTC measures
 }
 ```
 
@@ -295,6 +307,44 @@ they are applied live before the reload so they also persist.
 driving-performance report from the metrics subsystem (SDLP, lateral position,
 lane departures, speed/SDS, steering reversals/entropy, TTLC, throttle/brake/jerk,
 collisions), or `null` if metrics are unavailable.
+
+### Traffic — `traffic.*`
+
+AI traffic road actors (`window.RoadTraffic`, `src/traffic/`). The **config**
+is static — persist it and reload (it also stages through
+`config.set({ traffic: {…} })` / `config.apply`); the **stopped-vehicle event**
+is live.
+
+```js
+PromptDrive.traffic.get();   // { ok:true, value:{ enabled, density, speed, oncoming, seed } }
+PromptDrive.traffic.set({ enabled: true, density: 8, speed: 18 });
+// → { ok:true, value:{ …persisted config }, appliesOn:'reload' }
+
+PromptDrive.traffic.state();
+// → { ok:true, value:{ enabled, attached, count,
+//      vehicles:[ { id, lane, mode:'driving'|'stopped'|'crashed', speed, nodeIndex, event } ] } }
+
+PromptDrive.traffic.spawnStopped({ distance: 120, lane: 1 });
+// → { ok:true, value:{ id, distance, lane, nodeIndex } }
+//   | { ok:false, error:'engine_rejected' }   (sim not live)
+//   | { ok:false, error:'bad_value', message } (no such lane / road not built)
+
+PromptDrive.traffic.clear();  // remove all traffic vehicles
+```
+
+- `enabled` (bool, default off), `density` 0–16 vehicles, `speed` 2–45 m/s
+  (constant cruise speed for all traffic), `oncoming` (bool), `seed`
+  (string | null — null derives from the scene seed; the same seed reproduces
+  the same colors and spawn pattern).
+- **Lane addressing**: `1..forward` are ego-direction lanes (`1` = the ego's
+  lane, adjacent to the divider); `-1..-backward` are oncoming.
+- Traffic vehicles hold their lane at the configured speed and brake — down to
+  a full stop — behind anything in their lane (other traffic, a stopped
+  vehicle, or the ego). Ego↔traffic collisions play the engine's collision
+  audio and count in the driving-metrics `collisions` events.
+- With traffic enabled, a default 1+1 road is treated as **lane-centred**: same
+  width, but the ego autopilot follows its own lane's centre (markings drawn)
+  so the oncoming lane is clear.
 
 ### Metrics run & export — `run.*`
 
@@ -375,6 +425,9 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `paused` | bool | Engine |
 | `wrongWay` | — | Engine |
 | `resetCount` | count | Engine |
+| `trafficSpawned` | `{ id, lane, mode, color, vehicle }` | Traffic — a vehicle entered the world. |
+| `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
+| `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |
 | `vehicleController` | `{ distance, speed, … }` | Engine (periodic) |
 | `stats` | `{ fps, drawCalls, playTime }` | Engine (periodic) |
 | `loadTimes` | timings | Engine |
@@ -402,6 +455,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.dayNightCycle` | enum | **S+D** | `0` off, `1`=180 s, `2`=480 s, `3`=900 s |
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
+| `traffic` | object | **S** | `{ enabled, density 0–16, speed 2–45 m/s, oncoming, seed }`; the stopped-vehicle event is live via [`traffic.spawnStopped`](#traffic--traffic) |
 
 ### Vehicle
 
@@ -441,6 +495,12 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `units` | enum | **S+D** | `0` MPH/MI, `1` KPH/KM |
 | `general.showWorm` | enum | **S+D** | `0` Always, `1` Manual drive only, `2` Never |
 | `general.barriers` | boolean | **S+D** | walls & roadside barriers (regenerated on reload) |
+
+### UI / participant lockdown
+
+| Path | Type | Class | Values / range |
+| --- | --- | --- | --- |
+| `ui.hideMenu` | boolean | **S+D** | Hide the bottom-bar menu icons (`#menu-bar`) and the autodrive toggle (`#autodrive`) so participants can't change simulation conditions. A DOM-overlay flag (no engine backing): live via `dynamic.hideMenu`, persisted via static `config.apply` or the `?hideMenu=1` query param. In-cabin cluster and HUD read-outs stay visible. |
 
 Out-of-range numeric values are clamped (result carries `clamped: true`);
 enum values outside the declared set are rejected as `bad_value`.
@@ -603,7 +663,8 @@ It is organised into three tabs plus a persistent live-feed footer:
 
 - **① Static config** — grouped to mirror the in-game settings: *World & launch*
   (seed, node, scene, topography, vehicle, antialias, and the **Auto-start /
-  bypass “begin”** toggle), *General settings* (units, road worm, barriers),
+  bypass “begin”** toggle), *General settings* (units, road worm, barriers, and
+  the **Hide menu icons** participant-lockdown switch),
   *Graphics* (view distance, detail, render scale), *Weather*, *Vehicle* (drive
   mode, autodrive lane, grip/speed, interior side/seat/wheel/rotation/adjustment/
   height), *Road lanes* (forward/oncoming/width), and *Driving metrics to
@@ -611,8 +672,8 @@ It is organised into three tabs plus a persistent live-feed footer:
   and *Apply & (re)launch*.
 - **② Dynamic config** — weather/skin/cycle, drive mode, grip/speed (inline
   **Set** buttons), cruise (On/Off), autodrive and headlights (**toggle
-  switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, and
-  press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
+  switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, the
+  **Hide menu icons** lockdown switch, and press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
   fields apply on their Set button.
 - **③ Metrics & logs** — run *Start/Stop/Reset/Status*, *Get report (JSON)*,
   *Download report / logs*, and **End simulation & export** (finalize + auto
@@ -641,6 +702,7 @@ straight into a live sim.
 | `src/api/postmessage.js` | Iframe `postMessage` transport + origin allow-list. |
 | `src/api/broadcast.js` | Cross-tab `BroadcastChannel` transport. |
 | `src/api/autostart.js` | Optional “begin”-splash bypass. |
+| `src/api/hidemenu.js` | Participant lockdown — hides the bottom-bar menu icons (`ui.hideMenu` / `?hideMenu=1`). |
 | `scripts/build-api.js` | Bundles `src/api/` → `static/js/api.js`. |
 | `api-test.html` | Local test console. |
 
