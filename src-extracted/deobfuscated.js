@@ -18421,10 +18421,16 @@
       // exactly where the road does (traffic-vehicles-plan.md; the taper is
       // baked into laneEgoRatio per node by laneRestampAhead).
       const adNode = this.targetNode.next;
+      // Offsets are applied along the node normal n; the forward/ego side is
+      // the −n side (autodriveSide −1, the default "Left"). With traffic
+      // enabled the side setting is overridden to the forward lane — "None"
+      // (road centre) and "Right" (oncoming lane) would drive the autopilot
+      // head-on into traffic.
+      const adSide = trafficLaneCentred() ? -1 : Fe.value.autodriveSide;
       const adOffset =
         (adNode.laneIsDefault === false && adNode.laneEgoRatio != null
           ? adNode.laneEgoRatio * adNode.w
-          : Yt / 2) * Fe.value.autodriveSide;
+          : Yt / 2) * adSide;
       if (this.lerpIndex < 10) {
         this.targetPos.copy(this.targetNode.ps[this.lerpIndex]);
         let e = this.targetNode.a - this.targetNode.next.a;
@@ -20056,10 +20062,11 @@
       let t = e.a - e.next.da / 2;
       // Same ego-lane offset as the autodrive target (see updateTarget): on
       // multi-lane roads reset into the ego lane centre, not Yt/2 (which is a
-      // lane boundary there).
+      // lane boundary there), and with traffic enabled always the forward
+      // side.
       const rnOffset =
         (e.laneIsDefault === false && e.laneEgoRatio != null ? e.laneEgoRatio * e.w : Yt / 2) *
-        Fe.value.autodriveSide;
+        (trafficLaneCentred() ? -1 : Fe.value.autodriveSide);
       if (this.autodrive) {
         this.setPose(e.p.x + e.n.x * rnOffset, e.p.y, e.p.z + e.n.z * rnOffset, Math.PI / 2 - t, true);
       } else {

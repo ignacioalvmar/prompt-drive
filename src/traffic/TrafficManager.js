@@ -130,9 +130,15 @@ class TrafficManager {
     const nl = Math.sqrt(nxx * nxx + nxz * nxz) || 1;
     nxx /= nl;
     nxz /= nl;
-    out.x = px + nxx * lat;
-    out.z = pz + nxz * lat;
-    // Tangent is the normal rotated -90°: n = (-tz, tx) => t = (nz, -nx).
+    // Signed-lat frame: everything lane-related in this file (laneCenter,
+    // egoCenterSigned, ii()'s d·s, the markings) uses positive = the ego /
+    // forward side (visually LEFT of travel). The node normal `n` points the
+    // OPPOSITE way (d·s = −(n-offset)), so a signed lat is applied along −n.
+    // Verified against ii(): a vehicle placed at n·(−1.5) projects to
+    // d·s = +1.5.
+    out.x = px - nxx * lat;
+    out.z = pz - nxz * lat;
+    // Tangent is the normal rotated: t = (nz, -nx), pointing toward node.next.
     out.tx = nxz;
     out.tz = -nxx;
     return out;
@@ -480,9 +486,12 @@ class TrafficManager {
     if (!v.ready) return;
     let lat = this._laneCenter(v.node, v.lane) + v.pushLat;
     // Never through a barrier: clamp inside the walls when they exist.
+    // Wall distances are stored along +n (lWall on the −n side), so in the
+    // signed-lat frame (−n) lWallDist bounds POSITIVE lat and rWallDist
+    // bounds negative lat.
     const margin = v.width / 2 + 0.2;
-    if (v.node.rWallDist != null && lat > v.node.rWallDist - margin) lat = v.node.rWallDist - margin;
-    if (v.node.lWallDist != null && lat < -(v.node.lWallDist - margin)) lat = -(v.node.lWallDist - margin);
+    if (v.node.lWallDist != null && lat > v.node.lWallDist - margin) lat = v.node.lWallDist - margin;
+    if (v.node.rWallDist != null && lat < -(v.node.rWallDist - margin)) lat = -(v.node.rWallDist - margin);
     v.lat = lat;
     const p = this._roadPoint(v.node, v.t, lat, TrafficManager._pt);
     const y = this._groundY(p.x, v.node.p.y, p.z);

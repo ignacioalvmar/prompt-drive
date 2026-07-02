@@ -30,6 +30,19 @@
 > 4. **Default 1+1 + traffic (§3)** — implemented as proposed via a latched
 >    `trafficLaneCentred()` check in `laneSync` (isDefault forced off while traffic is
 >    enabled; latched at scene init so the ego line can never jump mid-drive).
+> 5. **Signed-lateral frame (post-release fix)** — the engine has TWO opposite lateral
+>    conventions: the node normal `n` points one way, while `ii()`'s `d·s` (the frame
+>    `egoCenterSigned`, the metrics and the markings use, and the frame this plan's lane
+>    convention lives in) is its NEGATIVE — verified empirically: a vehicle placed at
+>    `n·(−1.5)` projects to `d·s = +1.5`. Traffic v1 placed vehicles along `+n`, which put
+>    every actor in the MIRROR lane: oncoming traffic drove head-on down the ego's lane
+>    (the ego autopilot lands on the `d·s`-positive side because the default
+>    `autodriveSide` is −1). World offsets are now applied along `−n`
+>    (`TrafficManager._roadPoint`), the barrier clamps swapped sides accordingly, and —
+>    since "None"(0)/"Right"(+1) side settings would steer the autopilot onto the divider
+>    or into the oncoming lane — the autopilot's side is overridden to the forward lane
+>    (−1) whenever traffic is enabled. Verified: 8 consecutive head-on passes at 15 m/s
+>    with 3.75 m closest approach and zero collision events.
 >
 > Engine glue lives directly in `src-extracted/deobfuscated.js` (lanes precedent):
 > the `trafficTick()` seam after `var si = $t;`, one call in the view update after
