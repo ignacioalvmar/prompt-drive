@@ -1162,6 +1162,11 @@
     }
     updateGamepad() {
       H = T.value;
+      try {
+        if (typeof window !== "undefined" && window.WheelControls && window.WheelControls.enabled() && window.WheelControls._engineApply(this)) {
+          return;
+        }
+      } catch (_wcErr) {}
       Q = this.getGP();
       if (Q) {
         if (this.remappingGamepad) {
@@ -18734,6 +18739,9 @@
             dayNight: Ks,
             speedControl: Vl,
             input: Y,
+            inputMode: D,
+            gamepadSettings: P,
+            gamepadMap: T,
             ticker: oe,
             cameraDefs: Ol,
             THREE: r,

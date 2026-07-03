@@ -21,6 +21,31 @@ const Bridge = {
   // Live engine handles, filled by build-main.js. Null until attach().
   handles: null,
   attached: false,
+  paused: false,
+
+  /** Freeze the simulation loop — vehicle stops, telemetry pauses. */
+  pause() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(true);
+      }
+    } catch (e) { console.error('PromptDrive pause failed', e); }
+    this.paused = true;
+    this.emit('paused', { source: 'bridge' });
+  },
+
+  /** Resume the simulation loop after a pause. */
+  resume() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(false);
+      }
+    } catch (e) { console.error('PromptDrive resume failed', e); }
+    this.paused = false;
+    this.emit('resumed', { source: 'bridge' });
+  },
 
   _onAttach: [],
   _listeners: { any: [] }, // event name -> [fn]; 'any' -> [fn(event,payload)]

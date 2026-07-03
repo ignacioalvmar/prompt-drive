@@ -59,6 +59,9 @@ const FIELDS = [
   // --- traffic road actors — delegated to window.RoadTraffic (validates + persists) ---
   { path: 'traffic', type: FieldType.Object, cls: 'static', desc: 'Traffic vehicles { enabled, density 0-16, speed 2-45 m/s, oncoming, seed }. Applies on reload; the stopped-vehicle event is live via traffic.spawnStopped.' },
 
+  // --- steering wheel & pedals — delegated to window.WheelControls (validates + persists) ---
+  { path: 'wheel', type: FieldType.Object, cls: 'dynamic', desc: 'Steering-wheel rig (G923-class) { enabled, deviceId, axes, steering { rangeDeg, deadzone }, pedals, bindings }. Applies live; see PromptDrive.wheel.* for calibration and button bindings.' },
+
   // --- vehicle (3.2) ---
   { path: 'vehicle.type', type: FieldType.Enum, cls: 'static', values: VEHICLES, desc: 'Vehicle model; live swap is a heavy in-place rebuild.' },
   { path: 'vehicle.mode', type: FieldType.Enum, cls: 'both', values: [0, 1, 2], labels: DRIVE_MODES, desc: 'Drive mode (power distribution).' },
@@ -222,6 +225,31 @@ const Bridge = {
   // Live engine handles, filled by build-main.js. Null until attach().
   handles: null,
   attached: false,
+  paused: false,
+
+  /** Freeze the simulation loop — vehicle stops, telemetry pauses. */
+  pause() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(true);
+      }
+    } catch (e) { console.error('PromptDrive pause failed', e); }
+    this.paused = true;
+    this.emit('paused', { source: 'bridge' });
+  },
+
+  /** Resume the simulation loop after a pause. */
+  resume() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(false);
+      }
+    } catch (e) { console.error('PromptDrive resume failed', e); }
+    this.paused = false;
+    this.emit('resumed', { source: 'bridge' });
+  },
 
   _onAttach: [],
   _listeners: { any: [] }, // event name -> [fn]; 'any' -> [fn(event,payload)]
@@ -363,6 +391,7 @@ function snapshot() {
   const cruise = h.speedControl.value;
   const lanes = (typeof window !== 'undefined' && window.LaneRoads) ? window.LaneRoads.get() : null;
   const traffic = (typeof window !== 'undefined' && window.RoadTraffic) ? window.RoadTraffic.get() : null;
+  const wheel = (typeof window !== 'undefined' && window.WheelControls) ? window.WheelControls.get() : null;
   return {
     scene: {
       seed: s.seed,
@@ -376,6 +405,7 @@ function snapshot() {
     },
     lanes,
     traffic,
+    wheel,
     vehicle: {
       type: v.type,
       mode: v.mode,
@@ -432,6 +462,11 @@ function applyDynamic(path, value, opts) {
       if (typeof window === 'undefined' || !window.LaneRoads) return err('unavailable', { path });
       const res = window.LaneRoads.set(value); // clamps ±1 live internally
       return ok(res);
+    }
+
+    case 'wheel': {
+      if (typeof window === 'undefined' || !window.WheelControls) return err('unavailable', { path });
+      return ok(window.WheelControls.set(value)); // sanitises + persists + applies live
     }
 
     case 'vehicle.type': {
@@ -574,6 +609,13 @@ function commitStagedField(path, value) {
   if (path === 'traffic') {
     if (typeof window !== 'undefined' && window.RoadTraffic) {
       window.RoadTraffic.set(value);
+      return true;
+    }
+    return false;
+  }
+  if (path === 'wheel') {
+    if (typeof window !== 'undefined' && window.WheelControls) {
+      window.WheelControls.set(value);
       return true;
     }
     return false;
@@ -879,6 +921,30 @@ const PromptDrive = {
     clear: () => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.clear() : err('unavailable')),
   },
 
+  // Steering-wheel & pedal rig (window.WheelControls, src/wheel/). All calls
+  // work live AND pre-launch — the subsystem owns its own persistence, and the
+  // engine polls it per frame once the sim runs (input mode 2 / gamepad).
+  // Calibration/capture completion is announced on the event stream
+  // ('wheelCalibrated' / 'wheelBinding'), so remote callers subscribe rather
+  // than long-poll.
+  wheel: {
+    get: () => (typeof window !== 'undefined' && window.WheelControls ? ok(window.WheelControls.get()) : err('unavailable')),
+    set: (cfg) => {
+      if (typeof window === 'undefined' || !window.WheelControls) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'wheel' });
+      return ok(window.WheelControls.set(cfg));
+    },
+    state: () => (typeof window !== 'undefined' && window.WheelControls ? ok(window.WheelControls.state()) : err('unavailable')),
+    devices: () => (typeof window !== 'undefined' && window.WheelControls ? ok(window.WheelControls.devices()) : err('unavailable')),
+    actions: () => (typeof window !== 'undefined' && window.WheelControls ? ok(window.WheelControls.actions()) : err('unavailable')),
+    bind: (button, action) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.bind(button, action) : err('unavailable')),
+    unbind: (button) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.unbind(button) : err('unavailable')),
+    calibrate: (target, opts) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.calibrate(target, opts) : err('unavailable')),
+    captureButton: (action, opts) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.captureButton(action, opts) : err('unavailable')),
+    cancelCapture: () => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.cancelCapture() : err('unavailable')),
+    resetCalibration: (target) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.resetCalibration(target) : err('unavailable')),
+  },
+
   // Driving-metrics selection (which families/metrics are computed). Works live
   // and pre-launch (staged to localStorage the metrics subsystem reads on load).
   metrics: {
@@ -907,6 +973,20 @@ const PromptDrive = {
 
   // End the simulation: finalize the run, auto-download report + logs, halt.
   end: (opts) => endSimulation(opts),
+
+  pause: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.pause();
+    return { ok: true };
+  },
+
+  resume: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.resume();
+    return { ok: true };
+  },
 
   run: {
     start: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.startRun({}); return ok(true); },

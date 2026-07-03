@@ -8,9 +8,10 @@
     "build:metrics": "node scripts/build-metrics.js",
     "build:lanes": "node scripts/build-lanes.js",
     "build:traffic": "node scripts/build-traffic.js",
+    "build:wheel": "node scripts/build-wheel.js",
     "build:api": "node scripts/build-api.js",
     "build:main": "node scripts/build-main.js",
-    "build": "npm run build:cluster && npm run build:metrics && npm run build:lanes && npm run build:traffic && npm run build:api && npm run build:main",
+    "build": "npm run build:cluster && npm run build:metrics && npm run build:lanes && npm run build:traffic && npm run build:wheel && npm run build:api && npm run build:main",
     "dev": "npx serve . -p 3000"
   },
   "devDependencies": {
