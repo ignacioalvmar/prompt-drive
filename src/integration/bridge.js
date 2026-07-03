@@ -91,22 +91,22 @@ window.addEventListener('message', (event) => {
             const current = window.PromptDrive.get();
             const pendingStatic = {};
 
-            if (event.data.sim_topo !== undefined && current.scene.topography !== event.data.sim_topo) {
+            if (event.data.sim_topo !== undefined && String(current.scene.topography) !== String(event.data.sim_topo)) {
                 needsReload = true;
                 pendingStatic['scene.topography'] = event.data.sim_topo;
             }
-            if (event.data.sim_seed !== undefined && current.scene.seed !== event.data.sim_seed) {
+            if (event.data.sim_seed !== undefined && String(current.scene.seed) !== String(event.data.sim_seed)) {
                 needsReload = true;
                 pendingStatic['scene.seed'] = event.data.sim_seed;
             }
-            if (event.data.sim_node !== undefined && current.scene.startNode !== event.data.sim_node) {
+            if (event.data.sim_node !== undefined && String(current.scene.startNode) !== String(event.data.sim_node)) {
                 needsReload = true;
-                pendingStatic['scene.startNode'] = event.data.sim_node;
+                pendingStatic['scene.startNode'] = Number(event.data.sim_node);
             }
             
-            if (event.data.sim_traffic_density !== undefined && current.traffic && current.traffic.density !== parseInt(event.data.sim_traffic_density)) {
+            if (event.data.sim_traffic_density !== undefined && current.traffic && String(current.traffic.density) !== String(event.data.sim_traffic_density)) {
                 needsReload = true;
-                pendingStatic['traffic'] = { density: parseInt(event.data.sim_traffic_density) };
+                pendingStatic['traffic'] = { density: parseInt(event.data.sim_traffic_density, 10) };
             }
 
             // If we need a reload, we must persist sim_lanes so it survives
@@ -120,7 +120,7 @@ window.addEventListener('message', (event) => {
             }
 
             if (needsReload) {
-                if (event.data.sim_autodrive !== undefined) {
+                if (event.data.sim_autodrive !== undefined && event.data.sim_autodrive !== null) {
                     sessionStorage.setItem('bridge_pending_autodrive', event.data.sim_autodrive.toString());
                 }
                 
@@ -140,9 +140,9 @@ window.addEventListener('message', (event) => {
                     : event.data.sim_lanes;
                 const current = window.LaneRoads.get();
                 if (
-                    current.forward !== requested.forward ||
-                    current.backward !== requested.backward ||
-                    current.width !== requested.width
+                    Number(current.forward) !== Number(requested.forward) ||
+                    Number(current.backward) !== Number(requested.backward) ||
+                    Number(current.width) !== Number(requested.width)
                 ) {
                     window.LaneRoads.set(requested);
                 }
@@ -151,7 +151,11 @@ window.addEventListener('message', (event) => {
             }
         }
         if (event.data.sim_autodrive !== undefined && typeof window !== 'undefined' && window.PromptDrive) {
-            window.PromptDrive.dynamic.autodrive(event.data.sim_autodrive);
+            const currentAutodrive = String(window.PromptDrive.get().autodrive);
+            const requestedAutodrive = String(event.data.sim_autodrive);
+            if (currentAutodrive !== requestedAutodrive) {
+                window.PromptDrive.dynamic.autodrive(event.data.sim_autodrive === true || event.data.sim_autodrive === 'true');
+            }
         }
     } else if (event.data && event.data.type === 'TOGGLE_CONSOLE') {
         if (activeMetricsInstance && activeMetricsInstance.overlay) {
