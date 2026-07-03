@@ -24,6 +24,7 @@ npm run build:cluster  # src/cluster/ → static/js/cluster.js
 npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:lanes    # src/lanes/   → static/js/lanes.js
 npm run build:traffic  # src/traffic/ → static/js/traffic.js
+npm run build:wheel    # src/wheel/   → static/js/wheel.js
 npm run build:api      # src/api/     → static/js/api.js
 npm run build:main     # src-extracted/deobfuscated.js → static/js/main.ca6b3355.chunk.js
 ```
@@ -47,6 +48,7 @@ npm run build
 | `src/metrics/`                              | Driving-performance metrics (panel/overlay/report) |
 | `src/lanes/`                                | Dynamic multi-lane road config + settings UI |
 | `src/traffic/`                              | AI traffic road actors (`window.RoadTraffic`) |
+| `src/wheel/`                                | Steering-wheel & pedal input (`window.WheelControls`) |
 | `src/api/`                                  | Integration API (`window.PromptDrive`) — see [`API.md`](API.md) |
 | `api-test.html`                             | Local API test console                      |
 | `src-extracted/deobfuscated.js`             | Deobfuscated game bundle; input for patches |
@@ -179,6 +181,39 @@ road with the ego vehicle. Design + engine integration map:
   reference line). The ego autopilot is deliberately **obstacle-blind** — it
   will drive into a stopped vehicle unless the participant intervenes (that is
   the point of the stopped-vehicle scenario).
+
+## Steering wheel & pedals (Logitech G923-class)
+
+Drive with a physical wheel + pedal rig through the browser Gamepad API
+(`src/wheel/`, exposed as `window.WheelControls`). Design + engine integration
+map: [`wheel-controls-plan.md`](wheel-controls-plan.md).
+
+- **Enable** — settings panel (gear icon) → **steering wheel** section (below
+  *traffic*): switching *Wheel on* also flips the input mode to **gamepad**.
+  Config persists in `localStorage` (`pd-wheel-config`); default is off.
+- **Steering** — the wheel axis is calibrated (min/max/centre) and mapped so
+  full in-game lock is reached at a configurable physical rotation (default
+  540° of a 900° wheel). The engine's thumbstick linearity curve is inverted
+  so wheel angle → steer stays linear; smoothing can be tuned in the engine's
+  gamepad settings (sidebar → gamepad icon → settings).
+- **Pedals** — throttle/brake/clutch are calibrated *rest→full* ranges, so
+  pedals that rest at an axis extreme (G923: +1 released → −1 pressed) work
+  correctly. Pedals **self-calibrate** after one full press; the *Calibrate*
+  buttons run a guided capture (press the pedal / sweep the wheel) if an axis
+  is mis-assigned on your browser/OS.
+- **Button → action bindings** — bind any wheel button to: pause, next camera
+  view, next/previous weather, next/previous season, headlights, autodrive,
+  cruise on/off / faster / slower, handbrake (hold or toggle), boost, reverse,
+  reset vehicle, mute, toggle HUD. Defaults cover the common G923 face
+  buttons; rebind from the settings section (*press a button* capture), the
+  API test console, or `PromptDrive.wheel.bind()`.
+- **Programmatic API** — `PromptDrive.wheel.*`: `get`/`set`, `state()` (device,
+  raw axes/buttons, computed signals), `devices()`, `actions()`,
+  `bind`/`unbind`, `calibrate(target)`, `captureButton(action)` — see
+  [`API.md`](API.md). Works over every transport; the test console has a
+  **Steering wheel** card.
+- **Force feedback** is not possible from the browser Gamepad API (rumble
+  only), so the G923's TRUEFORCE motor stays passive.
 
 ## Integration API
 

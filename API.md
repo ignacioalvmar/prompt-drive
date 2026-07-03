@@ -130,6 +130,15 @@ traffic.state()               // live actor list (id, lane, mode, speed)
 traffic.spawnStopped(o)       // stopped-vehicle event: { distance, lane }
 traffic.clear()               // remove all traffic vehicles
 
+wheel.get()  wheel.set(cfg)   // steering-wheel rig config (applies live)
+wheel.state()                 // device, raw axes/buttons, computed signals
+wheel.devices()               // connected gamepads
+wheel.actions()               // bindable actions [{ id, label, kind }]
+wheel.bind(btn, action)  wheel.unbind(btn)
+wheel.calibrate(target)       // guided capture: 'steer'|'throttle'|'brake'|'clutch'
+wheel.captureButton(action)   // bind the next pressed wheel button
+wheel.cancelCapture()  wheel.resetCalibration(target?)
+
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
 metrics.select(id, on)        // toggle one metric
@@ -346,6 +355,49 @@ PromptDrive.traffic.clear();  // remove all traffic vehicles
   width, but the ego autopilot follows its own lane's centre (markings drawn)
   so the oncoming lane is clear.
 
+### Steering wheel — `wheel.*`
+
+Physical steering-wheel + pedal rigs (Logitech G923-class) via the browser
+Gamepad API (`window.WheelControls`, `src/wheel/`). All calls work **live and
+pre-launch** — the subsystem owns its own persistence
+(`localStorage['pd-wheel-config']`) and the engine polls it per frame once the
+sim runs. Enabling wheel input switches `controls.input` to gamepad (`2`),
+also persisted for the next load.
+
+```js
+PromptDrive.wheel.get();
+// → { ok:true, value:{ enabled, deviceId,
+//      axes:{ steer:{index,min,max,center},
+//             throttle:{index,rest,full}, brake:{…}, clutch:{…} },
+//      steering:{ rangeDeg, wheelDeg, deadzone, compensateLinearity },
+//      pedals:{ deadzone }, bindings:{ "0":"cameraNext", … } } }
+
+PromptDrive.wheel.set({ enabled: true, steering: { rangeDeg: 360 } });
+PromptDrive.wheel.state();
+// → { ok:true, value:{ supported, connected, device:{index,id,axes,buttons},
+//      axes:[…raw], buttons:[{pressed,value}…],
+//      signals:{ steer, throttle, brake, clutch }, active, capturing } }
+
+PromptDrive.wheel.actions();    // bindable actions: pause, cameraNext,
+                                // weatherNext/Prev, skinNext/Prev, headlights,
+                                // autodrive, cruiseToggle/Up/Down, handbrake,
+                                // handbrakeToggle, boost, reverse, reset, mute, toggleUI
+PromptDrive.wheel.bind(9, 'pause');
+PromptDrive.wheel.calibrate('brake');        // guided capture — press the pedal
+PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
+```
+
+- **Axis model**: pedals are calibrated *rest→full* ranges (a G923 pedal rests
+  at +1 and reads −1 fully pressed), auto-ranged from live input and refined
+  by `calibrate()`. Steering maps a configurable physical rotation
+  (`steering.rangeDeg`, default 540°) onto full in-game lock.
+- **Calibration/capture is asynchronous**: `calibrate`/`captureButton` return
+  `{ ok:true, value:{ capturing, durationMs } }` immediately; completion is
+  announced on the event stream (`wheelCalibrated`, `wheelBinding`). The
+  capture reads the gamepad in the **sim's window**.
+- Config is also settable via `dynamic.set({ wheel: {…} })` and stageable via
+  `config.set` (it commits through the same owner).
+
 ### Metrics run & export — `run.*`
 
 Controls the driving-metrics run lifecycle and downloads. Recording auto-starts
@@ -426,6 +478,10 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `wrongWay` | — | Engine |
 | `resetCount` | count | Engine |
 | `trafficSpawned` | `{ id, lane, mode, color, vehicle }` | Traffic — a vehicle entered the world. |
+| `wheelConnected` / `wheelDisconnected` | `{ id }` / `{}` | Wheel — device (dis)connected. |
+| `wheelCalibrated` | `{ kind, axis?, config?, button?, action?, error? }` | Wheel — a calibration / button capture finished. |
+| `wheelBinding` | `{ button, action }` | Wheel — a button binding changed (`action:null` = unbound). |
+| `wheelAction` | `{ action }` | Wheel — a bound button fired its action. |
 | `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
 | `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |
 | `vehicleController` | `{ distance, speed, … }` | Engine (periodic) |
@@ -456,6 +512,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
 | `traffic` | object | **S** | `{ enabled, density 0–16, speed 2–45 m/s, oncoming, seed }`; the stopped-vehicle event is live via [`traffic.spawnStopped`](#traffic--traffic) |
+| `wheel` | object | **D** | Steering-wheel rig `{ enabled, deviceId, axes, steering, pedals, bindings }` — applies live; see [`wheel.*`](#steering-wheel--wheel) |
 
 ### Vehicle
 
@@ -673,7 +730,9 @@ It is organised into three tabs plus a persistent live-feed footer:
 - **② Dynamic config** — weather/skin/cycle, drive mode, grip/speed (inline
   **Set** buttons), cruise (On/Off), autodrive and headlights (**toggle
   switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, the
-  **Hide menu icons** lockdown switch, and press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
+  **Hide menu icons** lockdown switch, the **Steering wheel** card (enable,
+  device state, rotation range, calibration, button→action bindings), and
+  press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
   fields apply on their Set button.
 - **③ Metrics & logs** — run *Start/Stop/Reset/Status*, *Get report (JSON)*,
   *Download report / logs*, and **End simulation & export** (finalize + auto
@@ -703,6 +762,7 @@ straight into a live sim.
 | `src/api/broadcast.js` | Cross-tab `BroadcastChannel` transport. |
 | `src/api/autostart.js` | Optional “begin”-splash bypass. |
 | `src/api/hidemenu.js` | Participant lockdown — hides the bottom-bar menu icons (`ui.hideMenu` / `?hideMenu=1`). |
+| `src/wheel/` | Steering-wheel & pedal subsystem (`window.WheelControls`) behind `wheel.*`. |
 | `scripts/build-api.js` | Bundles `src/api/` → `static/js/api.js`. |
 | `api-test.html` | Local test console. |
 
