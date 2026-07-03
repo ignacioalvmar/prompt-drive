@@ -305,6 +305,36 @@
       </div>
 
       <div class="group">
+        <h3>Steering wheel (G923)</h3>
+        <div class="body">
+          <div class="row"><label>Wheel input</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="w-enabled" data-live /><span class="track"></span></label><span class="state" id="w-enabled-s">off</span></div></div>
+          <div class="row"><label>Device</label><span id="w-device" style="font:11px var(--mono);color:var(--dim)">—</span></div>
+          <div class="row"><label>Rotation for full lock</label>
+            <div class="setrow"><input type="number" id="w-range" min="90" max="1080" step="30" value="540" /><button data-call="wheelRange" data-live>Set</button></div></div>
+          <div class="row"><label>Calibrate</label>
+            <div class="pillrow">
+              <button data-call="wheelCalSteer" data-live>steering</button>
+              <button data-call="wheelCalThrottle" data-live>throttle</button>
+              <button data-call="wheelCalBrake" data-live>brake</button>
+              <button data-call="wheelCalClutch" data-live>clutch</button>
+            </div></div>
+          <div class="row"><label>Bind action to button</label>
+            <div class="setrow"><select id="w-action"></select><input type="number" id="w-btn" min="0" max="63" placeholder="btn #" style="flex:0 0 70px" /><button data-call="wheelBind" data-live>Bind</button></div></div>
+          <div class="btnrow">
+            <button data-call="wheelCapture" class="sec" data-live>Bind by pressing a button…</button>
+            <button data-call="wheelState" class="sec" data-live>State</button>
+            <button data-call="wheelUnbindAll" class="sec" data-live>Clear bindings</button>
+          </div>
+          <div id="w-bindings" class="hint"></div>
+          <p class="hint">Calibration runs in the <b>sim tab</b> (its window reads the wheel): start it here, then
+            actuate the control on the rig; completion arrives as a <code>wheelCalibrated</code> event. Enabling wheel
+            input switches the sim to gamepad input mode.</p>
+          <pre class="out" id="wheel-out" style="display:none"></pre>
+        </div>
+      </div>
+
+      <div class="group">
         <h3>Drive inputs (§5.4 — press &amp; hold)</h3>
         <div class="body">
           <div class="pillrow">
@@ -404,6 +434,7 @@
   function handleEvent(event, payload) {
     if (event === 'tick') { lastTickAt = Date.now(); renderTelem(payload); setLive(true); return; }
     if (event === 'ready' && !connected) waitForReady();
+    if (event === 'wheelCalibrated' || event === 'wheelBinding' || event === 'wheelConnected' || event === 'wheelDisconnected') renderWheel();
     const cls = event === 'applied' || event === 'ended' ? 'applied' : (payload && payload.ok === false ? 'err' : '');
     log(event, payload, cls);
   }
@@ -506,6 +537,14 @@
     log(kind, r, r && r.ok === false ? 'err' : 'applied');
   }));
 
+  // Wheel enable switch (applies live through wheel.set).
+  document.getElementById('w-enabled').addEventListener('change', async (e) => {
+    document.getElementById('w-enabled-s').textContent = e.target.checked ? 'on' : 'off';
+    const r = await op('wheel.set', { enabled: e.target.checked });
+    log('wheel.enabled', r, r && r.ok === false ? 'err' : 'applied');
+    renderWheel();
+  });
+
   // Static hide-menu switch just reflects its own label; it is committed on Stage/Apply.
   document.getElementById('s-hidemenu').addEventListener('change', (e) => {
     document.getElementById('s-hidemenu-s').textContent = e.target.checked ? 'on' : 'off';
@@ -535,6 +574,36 @@
       fillSelect('d-skin', opts, g.scene.skin);
       fillSelect('s-skin', [{ v: '', t: '(keep)' }].concat(opts), g.scene.skin);
     }
+    await renderWheel();
+  }
+
+  // --- steering wheel card ----------------------------------------------------
+  let wheelActions = null;
+  async function renderWheel() {
+    const cfg = await op('wheel.get');
+    if (!cfg || cfg.ok === false) return;
+    if (!wheelActions) {
+      const a = await op('wheel.actions');
+      if (a && a.ok && Array.isArray(a.value)) {
+        wheelActions = a.value;
+        fillSelect('w-action', wheelActions.map((x) => ({ v: x.id, t: x.label })));
+      }
+    }
+    const c = cfg.value;
+    syncSwitch('w-enabled', c.enabled);
+    const rangeEl = document.getElementById('w-range');
+    if (document.activeElement !== rangeEl) rangeEl.value = c.steering.rangeDeg;
+    const st = await op('wheel.state');
+    const dev = document.getElementById('w-device');
+    if (st && st.ok && st.value && st.value.connected) {
+      dev.textContent = st.value.device.id + ' (' + st.value.device.axes + ' axes, ' + st.value.device.buttons + ' btns)' + (st.value.active ? ' · driving' : '');
+    } else {
+      dev.textContent = 'not detected — wake it from the sim tab (press a wheel button)';
+    }
+    const label = (id) => { const a = (wheelActions || []).find((x) => x.id === id); return a ? a.label : id; };
+    const rows = Object.keys(c.bindings).map((b) => `Btn ${b} → ${label(c.bindings[b])}`);
+    document.getElementById('w-bindings').innerHTML = rows.length
+      ? '<b>Bindings:</b> ' + rows.join(' · ') : 'no buttons bound';
   }
   function fillSelect(id, opts, selected) {
     const el = document.getElementById(id);
@@ -635,6 +704,27 @@
       op('config.apply', { mode: 'reload' }); // reloads the sim tab; response may not return
       log('config.apply', { mode: 'reload', note: 'reloading sim…' }, 'applied');
       setTimeout(waitForReady, 1500);
+    },
+    wheelRange: async () => { const r = await op('wheel.set', { steering: { rangeDeg: num('w-range') } }); renderWheel(); return r; },
+    wheelCalSteer: () => op('wheel.calibrate', 'steer'),
+    wheelCalThrottle: () => op('wheel.calibrate', 'throttle'),
+    wheelCalBrake: () => op('wheel.calibrate', 'brake'),
+    wheelCalClutch: () => op('wheel.calibrate', 'clutch'),
+    wheelBind: async () => {
+      if (val('w-btn') === '') return { ok: false, error: 'bad_value', message: 'enter a button #' };
+      const r = await op('wheel.bind', num('w-btn'), val('w-action'));
+      renderWheel();
+      return r;
+    },
+    wheelCapture: () => op('wheel.captureButton', val('w-action')),
+    wheelState: async () => { const r = await op('wheel.state'); showOut('wheel-out', r); return r; },
+    wheelUnbindAll: async () => {
+      const g = await op('wheel.get');
+      if (!g || g.ok === false) return g;
+      let r = { ok: true, value: { cleared: 0 } };
+      for (const b of Object.keys(g.value.bindings)) { await op('wheel.unbind', b); r.value.cleared++; }
+      renderWheel();
+      return r;
     },
     runStart: () => op('run.start'),
     runStop: () => op('run.stop'),

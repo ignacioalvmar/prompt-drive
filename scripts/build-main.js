@@ -380,6 +380,9 @@ src = replaceOnce(
             dayNight: Ks,
             speedControl: Vl,
             input: Y,
+            inputMode: D,
+            gamepadSettings: P,
+            gamepadMap: T,
             ticker: oe,
             cameraDefs: Ol,
             THREE: r,
@@ -425,6 +428,31 @@ src = replaceOnce(
       this.inputs.accel = 0;
       this.inputs.drive = 0;`,
   'PromptDrive virtual input',
+);
+
+// --- Patch: steering-wheel input takeover (wheel-controls-plan.md §3). When
+// window.WheelControls is enabled and a device is present, the wheel subsystem
+// computes the per-frame signals itself (calibrated rest→full pedal ranges,
+// rotation-scaled steering, button→action bindings) and the stock gamepad
+// mapping is skipped. With no device — or the subsystem disabled — behaviour
+// is exactly stock. Runs inside input mode 2 (gamepad), so steering still
+// flows through smoothControllerSteer and all downstream behaviour holds. ---
+src = replaceOnce(
+  src,
+  `    updateGamepad() {
+      H = T.value;
+      Q = this.getGP();
+      if (Q) {`,
+  `    updateGamepad() {
+      H = T.value;
+      try {
+        if (typeof window !== "undefined" && window.WheelControls && window.WheelControls.enabled() && window.WheelControls._engineApply(this)) {
+          return;
+        }
+      } catch (_wcErr) {}
+      Q = this.getGP();
+      if (Q) {`,
+  'WheelControls input takeover',
 );
 
 fs.writeFileSync(outPath, src);
