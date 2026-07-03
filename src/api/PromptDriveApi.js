@@ -667,6 +667,20 @@ const PromptDrive = {
   // End the simulation: finalize the run, auto-download report + logs, halt.
   end: (opts) => endSimulation(opts),
 
+  pause: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.pause();
+    return { ok: true };
+  },
+
+  resume: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.resume();
+    return { ok: true };
+  },
+
   run: {
     start: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.startRun({}); return ok(true); },
     stop: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.stopRun(); return ok(true); },
