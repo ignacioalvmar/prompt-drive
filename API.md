@@ -139,6 +139,12 @@ wheel.calibrate(target)       // guided capture: 'steer'|'throttle'|'brake'|'clu
 wheel.captureButton(action)   // bind the next pressed wheel button
 wheel.cancelCapture()  wheel.resetCalibration(target?)
 
+gaze.get()  gaze.set(cfg)     // gaze config { enabled, rateHz, showDot } (live + pre-launch)
+gaze.enable()  gaze.disable() // shorthand for set({enabled})
+gaze.calibrate()              // pre-game: opens 9-point calibration; in-game: stages it for next begin
+gaze.status()                 // { enabled, running, mode, rateHz, fps, calibrated, accuracyDeg }
+gaze.latest()                 // latest gaze sample { x, y, aoi, valid, ear, … }
+
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
 metrics.select(id, on)        // toggle one metric
@@ -397,6 +403,54 @@ PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
   capture reads the gamepad in the **sim's window**.
 - Config is also settable via `dynamic.set({ wheel: {…} })` and stageable via
   `config.set` (it commits through the same owner).
+
+### Gaze tracking — `gaze.*`
+
+Webcam-based gaze tracking and attention metrics (`window.GazeTracking`,
+`src/gaze/`). All processing runs **on-device** (vendored MediaPipe
+FaceLandmarker in `static/lib/mediapipe/`): no video is stored or transmitted —
+only derived gaze coordinates, AOI codes, EAR and head pose are logged.
+Inference runs in a **Web Worker** (`static/js/gaze-worker.js`), so the sim's
+render loop never blocks on it; `status().mode` reports `worker` (or
+`main-thread` on browsers without module-worker support).
+
+```js
+await PromptDrive.gaze.set({ enabled: true, rateHz: 15 }); // config, live + pre-launch
+PromptDrive.gaze.get();     // { ok:true, value:{ enabled, rateHz, showDot,
+                            //   calibrated, accuracyDeg, mode, fps } }
+await PromptDrive.gaze.calibrate(); // pre-game: opens the modal;
+                            // in-game: { staged:true } — runs at next begin
+PromptDrive.gaze.status();  // { ok:true, value:{ enabled, running, mode, rateHz,
+                            //   fps, gameBegun, calibrated, accuracyDeg, … } }
+PromptDrive.gaze.latest();  // latest sample { x, y, aoi, aoiLabel, valid, ear,
+                            //   headYaw, headPitch } (null when off)
+await PromptDrive.gaze.disable();  // stops the camera
+```
+
+- **Gaze is off by default.** The camera is only requested at
+  `set({enabled:true})` / calibration time, never on page load.
+- **Sampling rate** (`rateHz`, 5–30, default **15 Hz**): decoupled from the
+  30 fps camera. 15 Hz resolves the automotive 2–3 s glance standard within
+  ±3% (episode boundary error = ±half the sample interval) and keeps ISO 15007
+  200 ms minimum fixations detectable. Use 30 Hz for blink/PERCLOS
+  microdynamics (blink detection degrades below ~15 Hz); 5–10 Hz suffices for
+  coarse multi-second glance monitoring only.
+- **Calibration is strictly pre-game**: with gaze enabled, the Begin splash is
+  followed by the calibration modal before keyboard input unlocks — it never
+  interrupts a running drive. Always skippable (button / Esc / "Don't ask
+  again"). With `?autostart=1` it is auto-skipped unless `?gazecal=1` is also
+  set. Calling `calibrate()` after begin *stages* recalibration (clears the
+  stored calibration) and returns `{ staged: true }` — reload/relaunch and the
+  modal runs at the next Begin.
+- **Attention metrics** (percent road centre, AOI dwell, off-road glances
+  incl. >2 s NHTSA count, I-DT fixations, PERCLOS, blink rate, gaze dispersion,
+  tracking uptime) live in the regular metrics registry (family `attention`)
+  and ride the standard report/CSV exports; the raw per-frame gaze channels
+  (`gazeX/gazeY/gazeAoi/gazeValid/gazeEar/headYaw/headPitch`) appear in the
+  logs CSV. Distraction (eyes-off-road > 2 s) and drowsiness episodes land in
+  the events stream/export.
+- Calibration is persisted (`pd.gaze.calibration.v1`) and flagged stale after a
+  large window resize; `status().needsRecalibration` reports it.
 
 ### Metrics run & export — `run.*`
 

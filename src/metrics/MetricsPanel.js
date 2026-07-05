@@ -105,6 +105,7 @@ export class MetricsPanel {
       if (!metrics.length) continue;
       this.content.appendChild(el('div', 'pd-fam', fam.label));
       for (const m of metrics) this.content.appendChild(this._metricRow(m));
+      if (fam.id === 'attention') this._buildGazeControls();
     }
 
     // run controls — the live overlay is toggled from the lower menu band
@@ -153,6 +154,132 @@ export class MetricsPanel {
     return row;
   }
 
+  /**
+   * Gaze subsystem controls, rendered under the Attention family: enable
+   * toggle (this is where camera permission gets requested), calibrate button
+   * (works anytime — pre-game calibration reuses the same modal), and a live
+   * gaze-dot debug toggle. Skipped when the gaze bundle isn't loaded.
+   */
+  _buildGazeControls() {
+    const gz = () => (typeof window !== 'undefined' ? window.GazeTracking : null);
+    if (!gz()) return;
+
+    const row = el('div', 'pd-row');
+    this._gazeEnableCb = document.createElement('input');
+    this._gazeEnableCb.type = 'checkbox';
+    this._gazeEnableCb.id = 'pd-gaze-enable';
+    this._gazeEnableCb.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeEnableCb.addEventListener('change', async () => {
+      const g = gz();
+      if (g) await g.setEnabled(this._gazeEnableCb.checked);
+      this._renderChecks();
+      this._renderStatus();
+    });
+    const label = document.createElement('label');
+    label.htmlFor = this._gazeEnableCb.id;
+    label.addEventListener('click', (e) => e.stopPropagation());
+    label.innerHTML =
+      'Enable gaze tracking' +
+      '<span class="hint">Uses the webcam on-device — no video is stored or sent anywhere.</span>';
+    row.append(this._gazeEnableCb, label);
+    this.content.appendChild(row);
+
+    // Sampling-rate select: 15 Hz default resolves 2 s NHTSA glances within
+    // ±3%; 30 Hz only needed for blink/PERCLOS microdynamics.
+    const rateRow = el('div', 'pd-row');
+    this._gazeRateSel = document.createElement('select');
+    this._gazeRateSel.id = 'pd-gaze-rate';
+    for (const hz of [5, 10, 15, 20, 30]) {
+      const opt = document.createElement('option');
+      opt.value = String(hz);
+      opt.textContent = `${hz} Hz${hz === 15 ? ' (recommended)' : hz === 30 ? ' (blink studies)' : ''}`;
+      this._gazeRateSel.appendChild(opt);
+    }
+    this._gazeRateSel.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeRateSel.addEventListener('change', () => {
+      const g = gz();
+      if (g) g.setRate(Number(this._gazeRateSel.value));
+    });
+    const rateLabel = document.createElement('label');
+    rateLabel.addEventListener('click', (e) => e.stopPropagation());
+    rateLabel.innerHTML =
+      'Sampling rate' +
+      '<span class="hint">15 Hz resolves the 2–3 s automotive glance standard within ±3%; lower saves CPU, 30 Hz for blink studies.</span>';
+    rateRow.append(this._gazeRateSel, rateLabel);
+    this.content.appendChild(rateRow);
+
+    const dotRow = el('div', 'pd-row');
+    this._gazeDotCb = document.createElement('input');
+    this._gazeDotCb.type = 'checkbox';
+    this._gazeDotCb.id = 'pd-gaze-dot-toggle';
+    this._gazeDotCb.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeDotCb.addEventListener('change', () => {
+      const g = gz();
+      if (g) g.setShowDot(this._gazeDotCb.checked);
+    });
+    const dotLabel = document.createElement('label');
+    dotLabel.htmlFor = this._gazeDotCb.id;
+    dotLabel.addEventListener('click', (e) => e.stopPropagation());
+    dotLabel.textContent = 'Show live gaze dot';
+    dotRow.append(this._gazeDotCb, dotLabel);
+    this.content.appendChild(dotRow);
+
+    const controls = el('div', 'pd-controls');
+    this._gazeCalBtn = el('button', null, 'Calibrate gaze');
+    this._gazeCalBtn.addEventListener('click', async () => {
+      const g = gz();
+      if (!g) return;
+      this._gazeEnableCb.checked = true;
+      // Pre-game: opens the modal. After begin: stages recalibration for the
+      // next load (calibration is strictly pre-game).
+      const result = await g.calibrate();
+      this._gazeStagedNote = result && result.staged ? result.note : null;
+      this._renderChecks();
+      this._renderStatus();
+    });
+    controls.append(this._gazeCalBtn);
+    this.content.appendChild(controls);
+
+    this._gazeStatus = el('div', 'pd-status');
+    this.content.appendChild(this._gazeStatus);
+  }
+
+  _renderGazeStatus() {
+    if (!this._gazeStatus) return;
+    const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+    if (!gz) return;
+    const s = gz.status();
+    if (this._gazeEnableCb) this._gazeEnableCb.checked = s.enabled;
+    if (this._gazeDotCb) this._gazeDotCb.checked = !!gz.showDot;
+    if (this._gazeRateSel && document.activeElement !== this._gazeRateSel) {
+      this._gazeRateSel.value = String(s.rateHz);
+    }
+    if (this._gazeCalBtn) {
+      this._gazeCalBtn.textContent = s.gameBegun ? 'Recalibrate on next start' : 'Calibrate gaze';
+    }
+    if (this._gazeStagedNote) {
+      this._gazeStatus.innerHTML = `gaze: <b>recalibration staged</b> — ${this._gazeStagedNote}`;
+      return;
+    }
+    let txt;
+    if (!s.enabled) {
+      txt = 'gaze: <b>off</b>';
+    } else if (s.engineStatus === 'denied') {
+      txt = 'gaze: <b class="pd-rec">camera denied</b>';
+    } else if (s.engineStatus === 'no-camera') {
+      txt = 'gaze: <b class="pd-rec">no camera found</b>';
+    } else if (s.engineStatus === 'load-failed') {
+      txt = 'gaze: <b class="pd-rec">tracker failed to load</b>';
+    } else if (!s.running) {
+      txt = 'gaze: <b>starting…</b>';
+    } else if (!s.calibrated) {
+      txt = `gaze: <b>● ${s.fps}/${s.rateHz} Hz ${s.mode || ''}</b> · <b class="pd-rec">${s.needsRecalibration ? 'recalibration needed (window resized)' : 'not calibrated'}</b>`;
+    } else {
+      txt = `gaze: <b>● ${s.fps}/${s.rateHz} Hz ${s.mode || ''}</b> · calib <b>${Number.isFinite(s.accuracyDeg) ? s.accuracyDeg.toFixed(1) + '°' : '—'}</b>`;
+    }
+    this._gazeStatus.innerHTML = txt;
+  }
+
   /** Sync checkbox checked/disabled state from the app (after re-injection). */
   _renderChecks() {
     if (!this._rows) return;
@@ -163,7 +290,12 @@ export class MetricsPanel {
       cb.checked = !!sel[id] && computable;
       cb.disabled = !computable;
       row.classList.toggle('disabled', !computable);
-      cb.title = computable ? '' : 'Requires traffic objects (not enabled in this simulation)';
+      const m = METRICS.find((x) => x.id === id);
+      cb.title = computable
+        ? ''
+        : m && m.requiresGaze
+          ? 'Requires gaze tracking (enable & calibrate in this section)'
+          : 'Requires traffic objects (not enabled in this simulation)';
     }
   }
 
@@ -185,6 +317,7 @@ export class MetricsPanel {
     this.status.innerHTML =
       `Status: <b class="${rec ? 'pd-rec' : ''}">${rec ? '● recording' : 'idle'}</b> · ` +
       `<b>${this.app.durationSec().toFixed(1)}s</b> · <b>${this.app.sampleCount()}</b> samples`;
+    this._renderGazeStatus();
   }
 
   dispose() {

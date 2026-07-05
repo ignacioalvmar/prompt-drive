@@ -41,7 +41,7 @@ const OVERLAY_CSS = `
 `;
 
 // metrics meaningful as a live trailing-window readout
-const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions'];
+const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions', 'percentRoadCenter', 'offRoadGlances', 'perclos', 'trackingUptime'];
 
 export class MetricsOverlay {
   constructor(app, { windowSec = 30, refreshHz = 3 } = {}) {
@@ -134,6 +134,8 @@ export class MetricsOverlay {
     const results = computeMetrics(cols, selection, {
       paramOverrides: this.app.paramOverrides,
       trafficAvailable: this.app.trafficAvailable,
+      gazeAvailable: this.app._gazeAvailable ? this.app._gazeAvailable() : false,
+      gazeAnalysis: this.app._gazeAnalysis ? this.app._gazeAnalysis(this.windowSec) : null,
       baselineRange: this.app.baselineRange,
       events: this.app.collector.events,
     });

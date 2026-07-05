@@ -18745,6 +18745,7 @@
             ticker: oe,
             cameraDefs: Ol,
             THREE: r,
+            camera: Xs,
             drivingMetrics: this.drivingMetrics
           });
         }
@@ -20966,8 +20967,29 @@
       if (gd.value !== ld.None) {
         this.basicPromptInterval = setInterval(this.awaitVehicleMotion.bind(this), 3000);
       }
-      w.unlockKeys();
-      this.canvas.focus();
+      const _pdBeginFinish = () => {
+        w.unlockKeys();
+        this.canvas.focus();
+        // Mark the game as begun so the gaze subsystem refuses to open the
+        // calibration modal mid-drive (recalibration is staged for next load).
+        try {
+          if (typeof window !== "undefined" && window.GazeTracking) {
+            window.GazeTracking.gameBegun = true;
+          }
+        } catch (_gzFlagErr) {}
+      };
+      let _pdGaze = null;
+      try {
+        if (typeof window !== "undefined" && window.GazeTracking &&
+            window.GazeTracking.wantsPreGameCalibration && window.GazeTracking.wantsPreGameCalibration()) {
+          _pdGaze = window.GazeTracking.runPreGameCalibration();
+        }
+      } catch (_gzErr) {}
+      if (_pdGaze && typeof _pdGaze.then === "function") {
+        _pdGaze.then(_pdBeginFinish, _pdBeginFinish);
+      } else {
+        _pdBeginFinish();
+      }
       el.initialiseAnalytics();
     }
     resetVehicle() {

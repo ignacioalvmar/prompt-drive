@@ -81,6 +81,39 @@ gated to on-road samples. With [traffic](#traffic-road-actors) enabled,
 `telemetry.state().traffic` publishes the ego's lead vehicle (gap + speed) as
 the basis for interaction measures (time headway, TTC).
 
+## Gaze tracking & attention metrics
+
+A webcam gaze-tracking subsystem (`src/gaze/`) extends the driving metrics with
+an **Attention (gaze)** family: percent road centre, per-AOI dwell shares
+(road, speedometer, throttle gauge, road worm, odometer, menus), off-road
+glance count/durations (including glances over the 2 s NHTSA guideline),
+fixations (I-DT, ISO 15007 bounds), PERCLOS, blink rate, gaze dispersion and
+tracking uptime. Eyes-off-road episodes longer than 2 s are logged as
+`distraction` events alongside collisions.
+
+- **Enable** it in the settings panel under *driving metrics → Attention
+  (gaze)* or via `PromptDrive.gaze.set({enabled:true})`. Gaze is **off by
+  default**; the camera permission prompt only appears when you enable it.
+- **Performance** — MediaPipe inference runs in a **Web Worker**, off the
+  render loop, at a configurable **sampling rate** (default 15 Hz, 5–30 Hz).
+  15 Hz resolves the automotive 2–3 s glance standard within ±3% while using
+  half the compute of full camera rate; choose 30 Hz for blink/PERCLOS
+  studies (blink detection degrades below ~15 Hz).
+- **Calibration (strictly pre-game)** — a skippable full-screen 9-point
+  calibration (plus 4-point validation with an accuracy readout in degrees)
+  runs when you click *begin*, before driving input unlocks — never during a
+  drive. To recalibrate, stage it (panel button / `PromptDrive.gaze.calibrate()`
+  / api-test console) and relaunch; a large window resize flags the stored
+  calibration stale automatically.
+- **Privacy** — the webcam stream is processed entirely **on-device** by a
+  vendored MediaPipe FaceLandmarker model (`static/lib/mediapipe/`, fetched via
+  `npm run fetch:gaze`). No video is stored or transmitted; only derived gaze
+  coordinates, AOI codes, eye aspect ratio and head pose are logged.
+- **Export** — attention metrics appear in the standard report downloads, the
+  per-frame gaze channels (`gazeX`, `gazeY`, `gazeAoi`, `gazeValid`, `gazeEar`,
+  `headYaw`, `headPitch`) in the logs CSV, and distraction/drowsiness episodes
+  in the events export.
+
 ## Dynamic multi-lane roads
 
 The road is procedurally generated as a single centre-line spline whose surface is

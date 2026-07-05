@@ -211,6 +211,28 @@
       </div>
 
       <div class="group">
+        <h3>Gaze tracking (webcam)</h3>
+        <div class="body">
+          <div class="row"><label>Gaze tracking</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="g-enabled" /><span class="track"></span></label><span class="state" id="g-enabled-s">off</span></div></div>
+          <div class="row"><label>Sampling rate</label>
+            <select id="g-rate">
+              <option value="5">5 Hz — coarse glance monitoring</option>
+              <option value="10">10 Hz — 2–3 s glances only</option>
+              <option value="15" selected>15 Hz — recommended (±3% on 2 s glances)</option>
+              <option value="20">20 Hz</option>
+              <option value="30">30 Hz — blink / PERCLOS studies</option>
+            </select></div>
+          <div class="row"><label>Show gaze dot</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="g-dot" /><span class="track"></span></label><span class="state" id="g-dot-s">off</span></div></div>
+          <p class="hint">Processing is on-device (no video stored or sent). The camera permission prompt appears in the
+            <b>sim tab</b> when enabled. <b>Calibration runs before the drive</b>: with gaze enabled, the 9-point
+            calibration screen appears at <i>begin</i> — it never interrupts a running drive. To recalibrate, use
+            “Stage recalibration” (Metrics tab) and relaunch.</p>
+        </div>
+      </div>
+
+      <div class="group">
         <h3>Driving metrics to collect</h3>
         <div class="body checkcol">
           <label><input type="checkbox" id="m-lane" checked /> Lane keeping</label>
@@ -218,6 +240,7 @@
           <label><input type="checkbox" id="m-steering" checked /> Steering control</label>
           <label><input type="checkbox" id="m-safety" checked /> Safety margin</label>
           <label><input type="checkbox" id="m-events" checked /> Events</label>
+          <label><input type="checkbox" id="m-attention" checked /> Attention (gaze) — needs gaze tracking</label>
         </div>
       </div>
 
@@ -374,6 +397,21 @@
             <button data-call="dlLogs" class="sec" data-live>Download logs (.json/.csv)</button>
           </div>
           <pre class="out" id="metrics-out" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Gaze status</h3>
+        <div class="body">
+          <div class="btnrow">
+            <button data-call="gazeStatus" class="sec" data-live>Status</button>
+            <button data-call="gazeLatest" class="sec" data-live>Latest sample</button>
+            <button data-call="gazeRecal" class="sec" data-live>Stage recalibration</button>
+          </div>
+          <p class="hint">Status shows tracking mode (<code>worker</code> = inference off the main thread), the
+            achieved vs configured rate, and calibration accuracy. “Stage recalibration” clears the stored
+            calibration so the calibration screen runs at the next <i>begin</i> — relaunch via
+            <b>Apply &amp; (re)launch</b>.</p>
+          <pre class="out" id="gaze-out" style="display:none"></pre>
         </div>
       </div>
       <div class="group needslive">
@@ -550,6 +588,13 @@
     document.getElementById('s-hidemenu-s').textContent = e.target.checked ? 'on' : 'off';
   });
 
+  // Gaze switches: reflect labels; config is committed on Stage/Apply (gaze.set).
+  for (const id of ['g-enabled', 'g-dot']) {
+    document.getElementById(id).addEventListener('change', (e) => {
+      document.getElementById(id + '-s').textContent = e.target.checked ? 'on' : 'off';
+    });
+  }
+
   // Populate live-dependent dropdowns (cameras, weather, skin) + cruise unit.
   async function populateLive() {
     const g = await op('get');
@@ -647,9 +692,12 @@
       speed: num('s-tspeed'), oncoming: val('s-toncoming') === 'true' };
     return p;
   }
-  const METRIC_FAMILIES = ['lane', 'longitudinal', 'steering', 'safety', 'events'];
+  const METRIC_FAMILIES = ['lane', 'longitudinal', 'steering', 'safety', 'events', 'attention'];
   async function applyMetricFamilies() {
     for (const f of METRIC_FAMILIES) await op('metrics.selectFamily', f, checked('m-' + f));
+  }
+  function collectGaze() {
+    return { enabled: checked('g-enabled'), rateHz: num('g-rate'), showDot: checked('g-dot') };
   }
 
   async function loadCurrent() {
@@ -669,6 +717,12 @@
     if (g.lanes) { set('s-fwd', g.lanes.forward); set('s-bwd', g.lanes.backward); set('s-width', g.lanes.width == null ? '' : g.lanes.width); }
     if (g.traffic) { set('s-traffic', String(!!g.traffic.enabled)); set('s-tdensity', g.traffic.density);
       set('s-tspeed', g.traffic.speed); set('s-toncoming', String(!!g.traffic.oncoming)); }
+    const gz = await op('gaze.get');
+    if (gz && gz.ok && gz.value) {
+      syncSwitch('g-enabled', gz.value.enabled);
+      set('g-rate', gz.value.rateHz);
+      syncSwitch('g-dot', gz.value.showDot);
+    }
     await populateLive();
     const sel = await op('metrics.selection');
     if (sel && sel.ok !== false) {
@@ -678,6 +732,7 @@
       document.getElementById('m-steering').checked = on(['swrr', 'steeringEntropy']);
       document.getElementById('m-safety').checked = on(['tlc']);
       document.getElementById('m-events').checked = on(['collisions', 'throttleBrake']);
+      document.getElementById('m-attention').checked = on(['percentRoadCenter', 'aoiDwell', 'offRoadGlances', 'fixations', 'perclos']);
     }
     log('loadCurrent', { ok: true }, 'applied');
   }
@@ -694,11 +749,12 @@
     trafficClear: () => op('traffic.clear'),
     fov: () => op('dynamic.fov', num('d-fov')),
     loadCurrent: loadCurrent,
-    stage: async () => { await applyMetricFamilies(); return op('config.set', collectStatic()); },
+    stage: async () => { await applyMetricFamilies(); await op('gaze.set', collectGaze()); return op('config.set', collectStatic()); },
     pending: () => op('config.pending'),
     apply: async () => {
       if (!connected) { log('apply', { error: 'no sim connected — click Open simulation' }, 'err'); window.open('/', 'promptdrive-sim'); return; }
       await applyMetricFamilies();
+      await op('gaze.set', collectGaze());
       const set = await op('config.set', collectStatic());
       showOut('static-out', set);
       op('config.apply', { mode: 'reload' }); // reloads the sim tab; response may not return
@@ -726,6 +782,9 @@
       renderWheel();
       return r;
     },
+    gazeStatus: async () => { const r = await op('gaze.status'); showOut('gaze-out', r); return r; },
+    gazeLatest: async () => { const r = await op('gaze.latest'); showOut('gaze-out', r); return r; },
+    gazeRecal: async () => { const r = await op('gaze.calibrate'); showOut('gaze-out', r); return r; },
     runStart: () => op('run.start'),
     runStop: () => op('run.stop'),
     runReset: () => op('run.reset'),

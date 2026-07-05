@@ -16,6 +16,7 @@
   { id: 'safety', label: 'Safety margin' },
   { id: 'events', label: 'Events' },
   { id: 'interaction', label: 'Interaction (traffic)' },
+  { id: 'attention', label: 'Attention (gaze)' },
 ];
 
 /**
@@ -148,6 +149,91 @@
     unit: 's',
     params: { thresholdSec: 3 },
     hint: 'Closing-conflict severity, plus TET/TIT exposure (needs traffic).',
+  },
+
+  // --- Attention (gaze tracking — requires webcam gaze subsystem) ---
+  {
+    id: 'percentRoadCenter',
+    label: 'Percent road centre',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: '%',
+    hint: 'Share of valid gaze time on the road ahead — the classic PRC attention measure.',
+  },
+  {
+    id: 'aoiDwell',
+    label: 'AOI dwell shares',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: '%',
+    hint: 'Per-region dwell share (road, gauges, worm, menus) of valid gaze time.',
+  },
+  {
+    id: 'offRoadGlances',
+    label: 'Off-road glances',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: 'count',
+    params: { minGlanceSec: 0.3, longGlanceSec: 2.0 },
+    hint: 'Eyes-off-road episodes; glances over 2 s breach the NHTSA guideline.',
+  },
+  {
+    id: 'fixations',
+    label: 'Fixations (I-DT)',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: 'count',
+    params: { dispersionDeg: 1.5, minMs: 200, maxMs: 2000 },
+    hint: 'Fixation count and mean duration (ISO 15007 bounds) — load-sensitive.',
+  },
+  {
+    id: 'perclos',
+    label: 'PERCLOS',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: '%',
+    params: { windowSec: 60 },
+    hint: 'Percentage of eye closure over a rolling window — the standard drowsiness index.',
+  },
+  {
+    id: 'blinkRate',
+    label: 'Blink rate',
+    family: 'attention',
+    defaultOn: false,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: '/min',
+    hint: 'Blinks per minute (EAR-based with hysteresis).',
+  },
+  {
+    id: 'gazeDispersion',
+    label: 'Gaze dispersion',
+    family: 'attention',
+    defaultOn: false,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: 'deg',
+    hint: 'RMS angular spread of gaze — narrows under high cognitive load.',
+  },
+  {
+    id: 'trackingUptime',
+    label: 'Tracking uptime',
+    family: 'attention',
+    defaultOn: true,
+    requiresGaze: true,
+    dataDeps: ['gaze'],
+    unit: '%',
+    hint: 'Share of samples with a valid gaze estimate (face found, eyes open, calibrated).',
   },
 ];const STORAGE_KEY = 'promptdrive.metrics.selected';
 
@@ -581,13 +667,17 @@ const RAD2DEG = 180 / Math.PI;
  * @param {object} opts
  *   @param {object} opts.paramOverrides per-metric param overrides
  *   @param {boolean} opts.trafficAvailable gate interaction metrics
+ *   @param {boolean} opts.gazeAvailable gate attention metrics
+ *   @param {object} opts.gazeAnalysis native-rate analyzer summary (fixations,
+ *          blinks, PERCLOS, glances) from window.GazeTracking.analyzer
  *   @param {[number,number]} opts.baselineRange [tStart,tEnd] for steering entropy
  * @returns {object} {metricId: {value|values, unit, ...}}
  */function computeMetrics(cols, selection, opts = {}) {
   const out = {};
   const trafficAvailable = !!opts.trafficAvailable;
+  const gazeAvailable = !!opts.gazeAvailable;
   const overrides = opts.paramOverrides || {};
-  const has = (id) => selection[id] && isComputable(id, trafficAvailable);
+  const has = (id) => selection[id] && isComputable(id, trafficAvailable, gazeAvailable);
 
   const rawOffsets = cols.lateralOffset || [];
   const onRoad = cols.onRoad || [];
@@ -701,12 +791,138 @@ const RAD2DEG = 180 / Math.PI;
   if (has('timeHeadway')) out.timeHeadway = { value: NaN, unit: 's', note: 'awaiting traffic stream' };
   if (has('ttc')) out.ttc = { value: NaN, unit: 's', note: 'awaiting traffic stream' };
 
+  // ---- Attention (gaze) ----
+  // Channel-based measures come from the physics-rate sample-and-hold columns;
+  // precision measures (fixations, blinks, PERCLOS, glances) come from the
+  // native-rate analyzer summary passed in via opts.gazeAnalysis.
+  computeGazeMetrics(out, cols, has, opts.gazeAnalysis || null);
+
   return out;
-}function isComputable(id, trafficAvailable) {
+}function isComputable(id, trafficAvailable, gazeAvailable) {
   const m = getMetric(id);
   if (!m) return false;
   if (m.requiresTraffic && !trafficAvailable) return false;
+  if (m.requiresGaze && !gazeAvailable) return false;
   return true;
+}
+
+// AOI code -> short label (mirrors src/gaze/config.js — the metrics bundle
+// stays loadable without the gaze bundle, so the map is duplicated here).
+const GAZE_AOI_LABELS = {
+  0: 'road', 1: 'speedo', 2: 'throttle', 3: 'worm', 4: 'odometer',
+  5: 'cluster', 6: 'menu', 7: 'overlay', 8: 'other', 9: 'off-screen',
+};
+const AOI_ROAD = 0;
+
+function computeGazeMetrics(out, cols, has, analysis) {
+  const anyGaze =
+    has('percentRoadCenter') || has('aoiDwell') || has('trackingUptime') ||
+    has('gazeDispersion') || has('offRoadGlances') || has('fixations') ||
+    has('perclos') || has('blinkRate');
+  if (!anyGaze) return;
+
+  const aoi = cols.gazeAoi || [];
+  const valid = cols.gazeValid || [];
+  const dt = cols.dt || [];
+  const gx = cols.gazeX || [];
+  const gy = cols.gazeY || [];
+
+  if (has('percentRoadCenter') || has('aoiDwell') || has('trackingUptime')) {
+    let validT = 0;
+    let roadT = 0;
+    let totalT = 0;
+    const dwell = {};
+    for (let i = 0; i < aoi.length; i++) {
+      const d = Number.isFinite(dt[i]) ? dt[i] : 0;
+      totalT += d;
+      if (!valid[i]) continue;
+      validT += d;
+      if (aoi[i] === AOI_ROAD) roadT += d;
+      const key = String(aoi[i]);
+      dwell[key] = (dwell[key] || 0) + d;
+    }
+    if (has('percentRoadCenter')) {
+      out.percentRoadCenter = { value: validT > 0 ? (roadT / validT) * 100 : NaN, unit: '%' };
+    }
+    if (has('aoiDwell')) {
+      const shares = {};
+      for (const k in dwell) {
+        shares[GAZE_AOI_LABELS[k] || k] = validT > 0 ? (dwell[k] / validT) * 100 : NaN;
+      }
+      out.aoiDwell = { value: validT > 0 ? 100 : NaN, shares, unit: '%' };
+    }
+    if (has('trackingUptime')) {
+      out.trackingUptime = { value: totalT > 0 ? (validT / totalT) * 100 : NaN, unit: '%' };
+    }
+  }
+
+  if (has('gazeDispersion')) {
+    let sx = 0;
+    let sy = 0;
+    let n = 0;
+    for (let i = 0; i < gx.length; i++) {
+      if (!valid[i] || !Number.isFinite(gx[i]) || !Number.isFinite(gy[i])) continue;
+      sx += gx[i];
+      sy += gy[i];
+      n++;
+    }
+    if (n > 1) {
+      const cx = sx / n;
+      const cy = sy / n;
+      let ss = 0;
+      for (let i = 0; i < gx.length; i++) {
+        if (!valid[i] || !Number.isFinite(gx[i])) continue;
+        const dxp = gx[i] - cx;
+        const dyp = gy[i] - cy;
+        ss += dxp * dxp + dyp * dyp;
+      }
+      const rmsPx = Math.sqrt(ss / n);
+      out.gazeDispersion = { value: rmsPx / gazePxPerDeg(), rmsPx, unit: 'deg' };
+    } else {
+      out.gazeDispersion = { value: NaN, unit: 'deg' };
+    }
+  }
+
+  // analyzer-backed metrics
+  if (has('offRoadGlances')) {
+    out.offRoadGlances = analysis
+      ? {
+          value: analysis.glanceCount,
+          meanDurationSec: analysis.glanceMeanDurSec,
+          maxDurationSec: analysis.glanceMaxDurSec,
+          perMin: analysis.glanceRatePerMin,
+          longGlances: analysis.longGlanceCount,
+          unit: 'count',
+        }
+      : { value: NaN, unit: 'count', note: 'gaze analyzer unavailable' };
+  }
+  if (has('fixations')) {
+    out.fixations = analysis
+      ? { value: analysis.fixationCount, meanDurationMs: analysis.fixationMeanDurMs, unit: 'count' }
+      : { value: NaN, unit: 'count', note: 'gaze analyzer unavailable' };
+  }
+  if (has('perclos')) {
+    out.perclos = analysis
+      ? { value: analysis.perclos, windowSec: analysis.windowSec, unit: '%' }
+      : { value: NaN, unit: '%', note: 'gaze analyzer unavailable' };
+  }
+  if (has('blinkRate')) {
+    out.blinkRate = analysis
+      ? { value: analysis.blinkRatePerMin, blinks: analysis.blinkCount, unit: '/min' }
+      : { value: NaN, unit: '/min', note: 'gaze analyzer unavailable' };
+  }
+}
+
+/** px per degree of visual angle from the render camera FOV (defensive). */
+function gazePxPerDeg() {
+  try {
+    const h = typeof window !== 'undefined' && window.PromptDriveBridge
+      ? window.PromptDriveBridge.handles : null;
+    const fov = (h && h.camera && h.camera.fov) || 60;
+    return window.innerHeight / fov;
+  } catch (_) {
+    return 12; // ~720px / 60°
+  }
 }
 
 // --- helpers ---
@@ -799,6 +1015,8 @@ function longitudinalJerk(cols) {
   const results = computeMetrics(cols, selection, {
     paramOverrides: opts.paramOverrides,
     trafficAvailable: opts.trafficAvailable,
+    gazeAvailable: opts.gazeAvailable,
+    gazeAnalysis: opts.gazeAnalysis,
     baselineRange: opts.baselineRange,
     events: collector.events,
   });
@@ -839,6 +1057,15 @@ function fmt(v, digits = 3) {
   lines.push(`| Samples | ${report.run.samples} |`);
   if (report.meta.vehicle) lines.push(`| Vehicle | ${report.meta.vehicle} |`);
   if (report.meta.units != null) lines.push(`| Units mode | ${report.meta.units} |`);
+  if (report.meta.gaze) {
+    const g = report.meta.gaze;
+    lines.push(`| Gaze tracking | ${g.enabled ? 'enabled' : 'disabled'} |`);
+    if (g.enabled) {
+      lines.push(
+        `| Gaze calibration | ${g.calibrated ? `${fmt(g.accuracyDeg, 1)}° (9-pt, validated)` : 'not calibrated'} |`
+      );
+    }
+  }
   lines.push('');
 
   lines.push('## Metrics');
@@ -860,7 +1087,12 @@ function fmt(v, digits = 3) {
     lines.push('| # | Type | t (s) | Detail |');
     lines.push('|---|---|---|---|');
     report.run.events.forEach((e, i) => {
-      lines.push(`| ${i + 1} | ${e.type} | ${fmt(e.t, 2)} | ${e.speed != null ? fmt(e.speed, 1) + ' m/s' : ''} |`);
+      const detail = e.speed != null
+        ? fmt(e.speed, 1) + ' m/s'
+        : e.durationSec != null
+          ? `${fmt(e.durationSec, 2)} s${e.aoi ? ' @ ' + e.aoi : ''}`
+          : '';
+      lines.push(`| ${i + 1} | ${e.type} | ${fmt(e.t, 2)} | ${detail} |`);
     });
     lines.push('');
   }
@@ -889,6 +1121,25 @@ function detailString(id, res) {
       return `${fmt(res.perKm, 2)}/km, ${fmt(res.perHour, 2)}/h`;
     case 'throttleBrake':
       return `thr ${fmt(res.throttleShare, 2)}, brk ${fmt(res.brakeShare, 2)}, jerk ${fmt(res.peakJerk, 1)}`;
+    case 'aoiDwell': {
+      if (!res.shares) return res.note || '';
+      const top = Object.entries(res.shares)
+        .filter(([, v]) => Number.isFinite(v) && v >= 0.5)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([k, v]) => `${k} ${fmt(v, 0)}%`);
+      return top.join(', ');
+    }
+    case 'offRoadGlances':
+      return `mean ${fmt(res.meanDurationSec, 2)} s, max ${fmt(res.maxDurationSec, 2)} s, ${res.longGlances ?? '—'} >2 s (NHTSA)`;
+    case 'fixations':
+      return `mean dur ${fmt(res.meanDurationMs, 0)} ms`;
+    case 'perclos':
+      return `${fmt(res.windowSec, 0)} s window`;
+    case 'blinkRate':
+      return `${res.blinks ?? '—'} blinks`;
+    case 'gazeDispersion':
+      return `RMS ${fmt(res.rmsPx, 0)} px`;
     default:
       return res.note || '';
   }
@@ -993,6 +1244,14 @@ class Channel {
       heading: new Channel(),
       nodeIndex: new Channel(),
       onRoad: new Channel(), // 1 = on road, 0 = off road
+      // gaze sample-and-hold (NaN whenever the gaze subsystem is off/invalid)
+      gazeX: new Channel(), // CSS px
+      gazeY: new Channel(),
+      gazeAoi: new Channel(), // AOI code (see src/gaze/config.js)
+      gazeValid: new Channel(), // 1 = usable gaze estimate this frame
+      gazeEar: new Channel(), // eye aspect ratio (mean of both eyes)
+      headYaw: new Channel(), // deg
+      headPitch: new Channel(), // deg
     };
     this.events = []; // {type, t, ...}
     this.recording = false;
@@ -1066,6 +1325,17 @@ class Channel {
     ch.heading.push(num(state.heading));
     ch.nodeIndex.push(num(state.nodeIndex));
     ch.onRoad.push(state.onRoad ? 1 : 0);
+
+    // Gaze sample-and-hold: DrivingMetrics enriches state with the latest
+    // gaze sample (or null); all channels stay rectangular via NaN.
+    const g = state.gaze;
+    ch.gazeX.push(g ? num(g.x) : NaN);
+    ch.gazeY.push(g ? num(g.y) : NaN);
+    ch.gazeAoi.push(g && Number.isFinite(g.aoi) ? g.aoi : NaN);
+    ch.gazeValid.push(g && g.valid ? 1 : 0);
+    ch.gazeEar.push(g ? num(g.ear) : NaN);
+    ch.headYaw.push(g ? num(g.headYaw) : NaN);
+    ch.headPitch.push(g ? num(g.headPitch) : NaN);
 
     // Rising-edge collision event.
     const collided = !!state.collided;
@@ -1206,6 +1476,7 @@ const PANEL_CSS = `
       if (!metrics.length) continue;
       this.content.appendChild(el('div', 'pd-fam', fam.label));
       for (const m of metrics) this.content.appendChild(this._metricRow(m));
+      if (fam.id === 'attention') this._buildGazeControls();
     }
 
     // run controls — the live overlay is toggled from the lower menu band
@@ -1254,6 +1525,132 @@ const PANEL_CSS = `
     return row;
   }
 
+  /**
+   * Gaze subsystem controls, rendered under the Attention family: enable
+   * toggle (this is where camera permission gets requested), calibrate button
+   * (works anytime — pre-game calibration reuses the same modal), and a live
+   * gaze-dot debug toggle. Skipped when the gaze bundle isn't loaded.
+   */
+  _buildGazeControls() {
+    const gz = () => (typeof window !== 'undefined' ? window.GazeTracking : null);
+    if (!gz()) return;
+
+    const row = el('div', 'pd-row');
+    this._gazeEnableCb = document.createElement('input');
+    this._gazeEnableCb.type = 'checkbox';
+    this._gazeEnableCb.id = 'pd-gaze-enable';
+    this._gazeEnableCb.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeEnableCb.addEventListener('change', async () => {
+      const g = gz();
+      if (g) await g.setEnabled(this._gazeEnableCb.checked);
+      this._renderChecks();
+      this._renderStatus();
+    });
+    const label = document.createElement('label');
+    label.htmlFor = this._gazeEnableCb.id;
+    label.addEventListener('click', (e) => e.stopPropagation());
+    label.innerHTML =
+      'Enable gaze tracking' +
+      '<span class="hint">Uses the webcam on-device — no video is stored or sent anywhere.</span>';
+    row.append(this._gazeEnableCb, label);
+    this.content.appendChild(row);
+
+    // Sampling-rate select: 15 Hz default resolves 2 s NHTSA glances within
+    // ±3%; 30 Hz only needed for blink/PERCLOS microdynamics.
+    const rateRow = el('div', 'pd-row');
+    this._gazeRateSel = document.createElement('select');
+    this._gazeRateSel.id = 'pd-gaze-rate';
+    for (const hz of [5, 10, 15, 20, 30]) {
+      const opt = document.createElement('option');
+      opt.value = String(hz);
+      opt.textContent = `${hz} Hz${hz === 15 ? ' (recommended)' : hz === 30 ? ' (blink studies)' : ''}`;
+      this._gazeRateSel.appendChild(opt);
+    }
+    this._gazeRateSel.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeRateSel.addEventListener('change', () => {
+      const g = gz();
+      if (g) g.setRate(Number(this._gazeRateSel.value));
+    });
+    const rateLabel = document.createElement('label');
+    rateLabel.addEventListener('click', (e) => e.stopPropagation());
+    rateLabel.innerHTML =
+      'Sampling rate' +
+      '<span class="hint">15 Hz resolves the 2–3 s automotive glance standard within ±3%; lower saves CPU, 30 Hz for blink studies.</span>';
+    rateRow.append(this._gazeRateSel, rateLabel);
+    this.content.appendChild(rateRow);
+
+    const dotRow = el('div', 'pd-row');
+    this._gazeDotCb = document.createElement('input');
+    this._gazeDotCb.type = 'checkbox';
+    this._gazeDotCb.id = 'pd-gaze-dot-toggle';
+    this._gazeDotCb.addEventListener('click', (e) => e.stopPropagation());
+    this._gazeDotCb.addEventListener('change', () => {
+      const g = gz();
+      if (g) g.setShowDot(this._gazeDotCb.checked);
+    });
+    const dotLabel = document.createElement('label');
+    dotLabel.htmlFor = this._gazeDotCb.id;
+    dotLabel.addEventListener('click', (e) => e.stopPropagation());
+    dotLabel.textContent = 'Show live gaze dot';
+    dotRow.append(this._gazeDotCb, dotLabel);
+    this.content.appendChild(dotRow);
+
+    const controls = el('div', 'pd-controls');
+    this._gazeCalBtn = el('button', null, 'Calibrate gaze');
+    this._gazeCalBtn.addEventListener('click', async () => {
+      const g = gz();
+      if (!g) return;
+      this._gazeEnableCb.checked = true;
+      // Pre-game: opens the modal. After begin: stages recalibration for the
+      // next load (calibration is strictly pre-game).
+      const result = await g.calibrate();
+      this._gazeStagedNote = result && result.staged ? result.note : null;
+      this._renderChecks();
+      this._renderStatus();
+    });
+    controls.append(this._gazeCalBtn);
+    this.content.appendChild(controls);
+
+    this._gazeStatus = el('div', 'pd-status');
+    this.content.appendChild(this._gazeStatus);
+  }
+
+  _renderGazeStatus() {
+    if (!this._gazeStatus) return;
+    const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+    if (!gz) return;
+    const s = gz.status();
+    if (this._gazeEnableCb) this._gazeEnableCb.checked = s.enabled;
+    if (this._gazeDotCb) this._gazeDotCb.checked = !!gz.showDot;
+    if (this._gazeRateSel && document.activeElement !== this._gazeRateSel) {
+      this._gazeRateSel.value = String(s.rateHz);
+    }
+    if (this._gazeCalBtn) {
+      this._gazeCalBtn.textContent = s.gameBegun ? 'Recalibrate on next start' : 'Calibrate gaze';
+    }
+    if (this._gazeStagedNote) {
+      this._gazeStatus.innerHTML = `gaze: <b>recalibration staged</b> — ${this._gazeStagedNote}`;
+      return;
+    }
+    let txt;
+    if (!s.enabled) {
+      txt = 'gaze: <b>off</b>';
+    } else if (s.engineStatus === 'denied') {
+      txt = 'gaze: <b class="pd-rec">camera denied</b>';
+    } else if (s.engineStatus === 'no-camera') {
+      txt = 'gaze: <b class="pd-rec">no camera found</b>';
+    } else if (s.engineStatus === 'load-failed') {
+      txt = 'gaze: <b class="pd-rec">tracker failed to load</b>';
+    } else if (!s.running) {
+      txt = 'gaze: <b>starting…</b>';
+    } else if (!s.calibrated) {
+      txt = `gaze: <b>● ${s.fps}/${s.rateHz} Hz ${s.mode || ''}</b> · <b class="pd-rec">${s.needsRecalibration ? 'recalibration needed (window resized)' : 'not calibrated'}</b>`;
+    } else {
+      txt = `gaze: <b>● ${s.fps}/${s.rateHz} Hz ${s.mode || ''}</b> · calib <b>${Number.isFinite(s.accuracyDeg) ? s.accuracyDeg.toFixed(1) + '°' : '—'}</b>`;
+    }
+    this._gazeStatus.innerHTML = txt;
+  }
+
   /** Sync checkbox checked/disabled state from the app (after re-injection). */
   _renderChecks() {
     if (!this._rows) return;
@@ -1264,7 +1661,12 @@ const PANEL_CSS = `
       cb.checked = !!sel[id] && computable;
       cb.disabled = !computable;
       row.classList.toggle('disabled', !computable);
-      cb.title = computable ? '' : 'Requires traffic objects (not enabled in this simulation)';
+      const m = METRICS.find((x) => x.id === id);
+      cb.title = computable
+        ? ''
+        : m && m.requiresGaze
+          ? 'Requires gaze tracking (enable & calibrate in this section)'
+          : 'Requires traffic objects (not enabled in this simulation)';
     }
   }
 
@@ -1286,6 +1688,7 @@ const PANEL_CSS = `
     this.status.innerHTML =
       `Status: <b class="${rec ? 'pd-rec' : ''}">${rec ? '● recording' : 'idle'}</b> · ` +
       `<b>${this.app.durationSec().toFixed(1)}s</b> · <b>${this.app.sampleCount()}</b> samples`;
+    this._renderGazeStatus();
   }
 
   dispose() {
@@ -1348,7 +1751,7 @@ const OVERLAY_CSS = `
 `;
 
 // metrics meaningful as a live trailing-window readout
-const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions'];class MetricsOverlay {
+const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy', 'tlc', 'laneDepartures', 'collisions', 'percentRoadCenter', 'offRoadGlances', 'perclos', 'trackingUptime'];class MetricsOverlay {
   constructor(app, { windowSec = 30, refreshHz = 3 } = {}) {
     this.app = app;
     this.windowSec = windowSec;
@@ -1439,6 +1842,8 @@ const LIVE_IDS = ['sdlp', 'meanLP', 'sds', 'meanSpeed', 'swrr', 'steeringEntropy
     const results = computeMetrics(cols, selection, {
       paramOverrides: this.app.paramOverrides,
       trafficAvailable: this.app.trafficAvailable,
+      gazeAvailable: this.app._gazeAvailable ? this.app._gazeAvailable() : false,
+      gazeAnalysis: this.app._gazeAnalysis ? this.app._gazeAnalysis(this.windowSec) : null,
       baselineRange: this.app.baselineRange,
       events: this.app.collector.events,
     });
@@ -1513,10 +1918,60 @@ class DrivingMetrics {
   // --- engine hook -------------------------------------------------------
   /** Called once per physics frame from the build-main patch. */
   sample(dt, state) {
+    // Enrich with the latest gaze sample-and-hold (null when gaze is off).
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (gz) {
+        state.gaze = gz.latestSample();
+        this._bindGaze(gz);
+      } else {
+        state.gaze = null;
+      }
+    } catch (_) {
+      state.gaze = null;
+    }
     if (!this.collector.recording && this.autoStart && state && state.speed > AUTOSTART_SPEED) {
       this.startRun({ vehicle: state.vehicle, units: state.units });
     }
     this.collector.sample(dt, state);
+  }
+
+  /** One-time wiring: give the gaze analyzer this facade as its event sink. */
+  _bindGaze(gz) {
+    if (this._gazeBound) return;
+    this._gazeBound = true;
+    try {
+      if (typeof gz.setMetrics === 'function') gz.setMetrics(this);
+    } catch (_) {
+      this._gazeBound = false;
+    }
+  }
+
+  /** Append a discrete event (used by the gaze analyzer for distraction /
+   *  drowsiness episodes; lands in the report Events table + events.json). */
+  addEvent(type, data) {
+    if (!this.collector.recording) return;
+    this.collector.events.push(Object.assign({ type, t: this.collector.elapsed }, data || {}));
+  }
+
+  _gazeAvailable() {
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      return !!(gz && gz.isAvailable());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** Native-rate analyzer summary for the trailing window (or whole buffer). */
+  _gazeAnalysis(lastSeconds) {
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (!gz || !gz.analyzer) return null;
+      return gz.analyzer.analyze(lastSeconds);
+    } catch (_) {
+      return null;
+    }
   }
 
   get isRecording() {
@@ -1525,7 +1980,16 @@ class DrivingMetrics {
 
   // --- run lifecycle -----------------------------------------------------
   startRun(meta) {
-    this.collector.start(meta);
+    const m = Object.assign({}, meta || {});
+    // Stamp gaze/calibration state into the run meta so the report records
+    // whether attention metrics are trustworthy for this run.
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (gz) m.gaze = gz.status();
+    } catch (_) {
+      /* gaze bundle absent */
+    }
+    this.collector.start(m);
   }
 
   stopRun() {
@@ -1547,7 +2011,7 @@ class DrivingMetrics {
   }
 
   isComputable(id) {
-    return isComputable(id, this.trafficAvailable);
+    return isComputable(id, this.trafficAvailable, this._gazeAvailable());
   }
 
   /** Metric registry (families + metrics) so external tools/the API can list
@@ -1555,7 +2019,7 @@ class DrivingMetrics {
   getRegistry() {
     return {
       families: METRIC_FAMILIES.map((f) => Object.assign({}, f)),
-      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic })),
+      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic, requiresGaze: !!m.requiresGaze })),
     };
   }
 
@@ -1608,6 +2072,8 @@ class DrivingMetrics {
     return buildReport(this.collector, this.selection, {
       paramOverrides: this.paramOverrides,
       trafficAvailable: this.trafficAvailable,
+      gazeAvailable: this._gazeAvailable(),
+      gazeAnalysis: this._gazeAnalysis(this.collector.durationSec() || Infinity),
       baselineRange: this.baselineRange,
     });
   }

@@ -48,6 +48,14 @@ export class MetricsCollector {
       heading: new Channel(),
       nodeIndex: new Channel(),
       onRoad: new Channel(), // 1 = on road, 0 = off road
+      // gaze sample-and-hold (NaN whenever the gaze subsystem is off/invalid)
+      gazeX: new Channel(), // CSS px
+      gazeY: new Channel(),
+      gazeAoi: new Channel(), // AOI code (see src/gaze/config.js)
+      gazeValid: new Channel(), // 1 = usable gaze estimate this frame
+      gazeEar: new Channel(), // eye aspect ratio (mean of both eyes)
+      headYaw: new Channel(), // deg
+      headPitch: new Channel(), // deg
     };
     this.events = []; // {type, t, ...}
     this.recording = false;
@@ -121,6 +129,17 @@ export class MetricsCollector {
     ch.heading.push(num(state.heading));
     ch.nodeIndex.push(num(state.nodeIndex));
     ch.onRoad.push(state.onRoad ? 1 : 0);
+
+    // Gaze sample-and-hold: DrivingMetrics enriches state with the latest
+    // gaze sample (or null); all channels stay rectangular via NaN.
+    const g = state.gaze;
+    ch.gazeX.push(g ? num(g.x) : NaN);
+    ch.gazeY.push(g ? num(g.y) : NaN);
+    ch.gazeAoi.push(g && Number.isFinite(g.aoi) ? g.aoi : NaN);
+    ch.gazeValid.push(g && g.valid ? 1 : 0);
+    ch.gazeEar.push(g ? num(g.ear) : NaN);
+    ch.headYaw.push(g ? num(g.headYaw) : NaN);
+    ch.headPitch.push(g ? num(g.headPitch) : NaN);
 
     // Rising-edge collision event.
     const collided = !!state.collided;

@@ -27,14 +27,18 @@ const RAD2DEG = 180 / Math.PI;
  * @param {object} opts
  *   @param {object} opts.paramOverrides per-metric param overrides
  *   @param {boolean} opts.trafficAvailable gate interaction metrics
+ *   @param {boolean} opts.gazeAvailable gate attention metrics
+ *   @param {object} opts.gazeAnalysis native-rate analyzer summary (fixations,
+ *          blinks, PERCLOS, glances) from window.GazeTracking.analyzer
  *   @param {[number,number]} opts.baselineRange [tStart,tEnd] for steering entropy
  * @returns {object} {metricId: {value|values, unit, ...}}
  */
 export function computeMetrics(cols, selection, opts = {}) {
   const out = {};
   const trafficAvailable = !!opts.trafficAvailable;
+  const gazeAvailable = !!opts.gazeAvailable;
   const overrides = opts.paramOverrides || {};
-  const has = (id) => selection[id] && isComputable(id, trafficAvailable);
+  const has = (id) => selection[id] && isComputable(id, trafficAvailable, gazeAvailable);
 
   const rawOffsets = cols.lateralOffset || [];
   const onRoad = cols.onRoad || [];
@@ -148,14 +152,140 @@ export function computeMetrics(cols, selection, opts = {}) {
   if (has('timeHeadway')) out.timeHeadway = { value: NaN, unit: 's', note: 'awaiting traffic stream' };
   if (has('ttc')) out.ttc = { value: NaN, unit: 's', note: 'awaiting traffic stream' };
 
+  // ---- Attention (gaze) ----
+  // Channel-based measures come from the physics-rate sample-and-hold columns;
+  // precision measures (fixations, blinks, PERCLOS, glances) come from the
+  // native-rate analyzer summary passed in via opts.gazeAnalysis.
+  computeGazeMetrics(out, cols, has, opts.gazeAnalysis || null);
+
   return out;
 }
 
-export function isComputable(id, trafficAvailable) {
+export function isComputable(id, trafficAvailable, gazeAvailable) {
   const m = getMetric(id);
   if (!m) return false;
   if (m.requiresTraffic && !trafficAvailable) return false;
+  if (m.requiresGaze && !gazeAvailable) return false;
   return true;
+}
+
+// AOI code -> short label (mirrors src/gaze/config.js — the metrics bundle
+// stays loadable without the gaze bundle, so the map is duplicated here).
+const GAZE_AOI_LABELS = {
+  0: 'road', 1: 'speedo', 2: 'throttle', 3: 'worm', 4: 'odometer',
+  5: 'cluster', 6: 'menu', 7: 'overlay', 8: 'other', 9: 'off-screen',
+};
+const AOI_ROAD = 0;
+
+function computeGazeMetrics(out, cols, has, analysis) {
+  const anyGaze =
+    has('percentRoadCenter') || has('aoiDwell') || has('trackingUptime') ||
+    has('gazeDispersion') || has('offRoadGlances') || has('fixations') ||
+    has('perclos') || has('blinkRate');
+  if (!anyGaze) return;
+
+  const aoi = cols.gazeAoi || [];
+  const valid = cols.gazeValid || [];
+  const dt = cols.dt || [];
+  const gx = cols.gazeX || [];
+  const gy = cols.gazeY || [];
+
+  if (has('percentRoadCenter') || has('aoiDwell') || has('trackingUptime')) {
+    let validT = 0;
+    let roadT = 0;
+    let totalT = 0;
+    const dwell = {};
+    for (let i = 0; i < aoi.length; i++) {
+      const d = Number.isFinite(dt[i]) ? dt[i] : 0;
+      totalT += d;
+      if (!valid[i]) continue;
+      validT += d;
+      if (aoi[i] === AOI_ROAD) roadT += d;
+      const key = String(aoi[i]);
+      dwell[key] = (dwell[key] || 0) + d;
+    }
+    if (has('percentRoadCenter')) {
+      out.percentRoadCenter = { value: validT > 0 ? (roadT / validT) * 100 : NaN, unit: '%' };
+    }
+    if (has('aoiDwell')) {
+      const shares = {};
+      for (const k in dwell) {
+        shares[GAZE_AOI_LABELS[k] || k] = validT > 0 ? (dwell[k] / validT) * 100 : NaN;
+      }
+      out.aoiDwell = { value: validT > 0 ? 100 : NaN, shares, unit: '%' };
+    }
+    if (has('trackingUptime')) {
+      out.trackingUptime = { value: totalT > 0 ? (validT / totalT) * 100 : NaN, unit: '%' };
+    }
+  }
+
+  if (has('gazeDispersion')) {
+    let sx = 0;
+    let sy = 0;
+    let n = 0;
+    for (let i = 0; i < gx.length; i++) {
+      if (!valid[i] || !Number.isFinite(gx[i]) || !Number.isFinite(gy[i])) continue;
+      sx += gx[i];
+      sy += gy[i];
+      n++;
+    }
+    if (n > 1) {
+      const cx = sx / n;
+      const cy = sy / n;
+      let ss = 0;
+      for (let i = 0; i < gx.length; i++) {
+        if (!valid[i] || !Number.isFinite(gx[i])) continue;
+        const dxp = gx[i] - cx;
+        const dyp = gy[i] - cy;
+        ss += dxp * dxp + dyp * dyp;
+      }
+      const rmsPx = Math.sqrt(ss / n);
+      out.gazeDispersion = { value: rmsPx / gazePxPerDeg(), rmsPx, unit: 'deg' };
+    } else {
+      out.gazeDispersion = { value: NaN, unit: 'deg' };
+    }
+  }
+
+  // analyzer-backed metrics
+  if (has('offRoadGlances')) {
+    out.offRoadGlances = analysis
+      ? {
+          value: analysis.glanceCount,
+          meanDurationSec: analysis.glanceMeanDurSec,
+          maxDurationSec: analysis.glanceMaxDurSec,
+          perMin: analysis.glanceRatePerMin,
+          longGlances: analysis.longGlanceCount,
+          unit: 'count',
+        }
+      : { value: NaN, unit: 'count', note: 'gaze analyzer unavailable' };
+  }
+  if (has('fixations')) {
+    out.fixations = analysis
+      ? { value: analysis.fixationCount, meanDurationMs: analysis.fixationMeanDurMs, unit: 'count' }
+      : { value: NaN, unit: 'count', note: 'gaze analyzer unavailable' };
+  }
+  if (has('perclos')) {
+    out.perclos = analysis
+      ? { value: analysis.perclos, windowSec: analysis.windowSec, unit: '%' }
+      : { value: NaN, unit: '%', note: 'gaze analyzer unavailable' };
+  }
+  if (has('blinkRate')) {
+    out.blinkRate = analysis
+      ? { value: analysis.blinkRatePerMin, blinks: analysis.blinkCount, unit: '/min' }
+      : { value: NaN, unit: '/min', note: 'gaze analyzer unavailable' };
+  }
+}
+
+/** px per degree of visual angle from the render camera FOV (defensive). */
+function gazePxPerDeg() {
+  try {
+    const h = typeof window !== 'undefined' && window.PromptDriveBridge
+      ? window.PromptDriveBridge.handles : null;
+    const fov = (h && h.camera && h.camera.fov) || 60;
+    return window.innerHeight / fov;
+  } catch (_) {
+    return 12; // ~720px / 60°
+  }
 }
 
 // --- helpers ---

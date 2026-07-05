@@ -386,6 +386,7 @@ src = replaceOnce(
             ticker: oe,
             cameraDefs: Ol,
             THREE: r,
+            camera: Xs,
             drivingMetrics: this.drivingMetrics
           });
         }
@@ -393,6 +394,65 @@ src = replaceOnce(
         console.error("PromptDrive bridge attach failed", _pdAttachErr);
       }`,
   'PromptDrive bridge attach',
+);
+
+// --- Patch: pre-game gaze calibration gate. beginGame() runs when the user
+// closes the Begin splash; deferring w.unlockKeys()/canvas.focus() behind the
+// calibration promise blocks keyboard driving until calibration finishes or is
+// skipped, while the world keeps loading behind the opaque modal. The gate is
+// zero-cost when gaze is disabled/calibrated (wantsPreGameCalibration() false)
+// and idempotent across repeated splash closes (runPreGameCalibration()
+// returns the in-flight promise; both promise branches unlock). ---
+src = replaceOnce(
+  src,
+  `    beginGame() {
+      var e;
+      var t;
+      e = Rh;
+      t = true;
+      localStorage.setItem(e, t);
+      if (gd.value !== ld.None) {
+        this.basicPromptInterval = setInterval(this.awaitVehicleMotion.bind(this), 3000);
+      }
+      w.unlockKeys();
+      this.canvas.focus();
+      el.initialiseAnalytics();
+    }`,
+  `    beginGame() {
+      var e;
+      var t;
+      e = Rh;
+      t = true;
+      localStorage.setItem(e, t);
+      if (gd.value !== ld.None) {
+        this.basicPromptInterval = setInterval(this.awaitVehicleMotion.bind(this), 3000);
+      }
+      const _pdBeginFinish = () => {
+        w.unlockKeys();
+        this.canvas.focus();
+        // Mark the game as begun so the gaze subsystem refuses to open the
+        // calibration modal mid-drive (recalibration is staged for next load).
+        try {
+          if (typeof window !== "undefined" && window.GazeTracking) {
+            window.GazeTracking.gameBegun = true;
+          }
+        } catch (_gzFlagErr) {}
+      };
+      let _pdGaze = null;
+      try {
+        if (typeof window !== "undefined" && window.GazeTracking &&
+            window.GazeTracking.wantsPreGameCalibration && window.GazeTracking.wantsPreGameCalibration()) {
+          _pdGaze = window.GazeTracking.runPreGameCalibration();
+        }
+      } catch (_gzErr) {}
+      if (_pdGaze && typeof _pdGaze.then === "function") {
+        _pdGaze.then(_pdBeginFinish, _pdBeginFinish);
+      } else {
+        _pdBeginFinish();
+      }
+      el.initialiseAnalytics();
+    }`,
+  'gaze pre-game calibration gate',
 );
 
 // --- Patch: virtual drive-input source (plan §5.4). OR programmatic inputs from

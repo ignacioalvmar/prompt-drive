@@ -36,10 +36,60 @@ export class DrivingMetrics {
   // --- engine hook -------------------------------------------------------
   /** Called once per physics frame from the build-main patch. */
   sample(dt, state) {
+    // Enrich with the latest gaze sample-and-hold (null when gaze is off).
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (gz) {
+        state.gaze = gz.latestSample();
+        this._bindGaze(gz);
+      } else {
+        state.gaze = null;
+      }
+    } catch (_) {
+      state.gaze = null;
+    }
     if (!this.collector.recording && this.autoStart && state && state.speed > AUTOSTART_SPEED) {
       this.startRun({ vehicle: state.vehicle, units: state.units });
     }
     this.collector.sample(dt, state);
+  }
+
+  /** One-time wiring: give the gaze analyzer this facade as its event sink. */
+  _bindGaze(gz) {
+    if (this._gazeBound) return;
+    this._gazeBound = true;
+    try {
+      if (typeof gz.setMetrics === 'function') gz.setMetrics(this);
+    } catch (_) {
+      this._gazeBound = false;
+    }
+  }
+
+  /** Append a discrete event (used by the gaze analyzer for distraction /
+   *  drowsiness episodes; lands in the report Events table + events.json). */
+  addEvent(type, data) {
+    if (!this.collector.recording) return;
+    this.collector.events.push(Object.assign({ type, t: this.collector.elapsed }, data || {}));
+  }
+
+  _gazeAvailable() {
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      return !!(gz && gz.isAvailable());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** Native-rate analyzer summary for the trailing window (or whole buffer). */
+  _gazeAnalysis(lastSeconds) {
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (!gz || !gz.analyzer) return null;
+      return gz.analyzer.analyze(lastSeconds);
+    } catch (_) {
+      return null;
+    }
   }
 
   get isRecording() {
@@ -48,7 +98,16 @@ export class DrivingMetrics {
 
   // --- run lifecycle -----------------------------------------------------
   startRun(meta) {
-    this.collector.start(meta);
+    const m = Object.assign({}, meta || {});
+    // Stamp gaze/calibration state into the run meta so the report records
+    // whether attention metrics are trustworthy for this run.
+    try {
+      const gz = typeof window !== 'undefined' ? window.GazeTracking : null;
+      if (gz) m.gaze = gz.status();
+    } catch (_) {
+      /* gaze bundle absent */
+    }
+    this.collector.start(m);
   }
 
   stopRun() {
@@ -70,7 +129,7 @@ export class DrivingMetrics {
   }
 
   isComputable(id) {
-    return isComputable(id, this.trafficAvailable);
+    return isComputable(id, this.trafficAvailable, this._gazeAvailable());
   }
 
   /** Metric registry (families + metrics) so external tools/the API can list
@@ -78,7 +137,7 @@ export class DrivingMetrics {
   getRegistry() {
     return {
       families: METRIC_FAMILIES.map((f) => Object.assign({}, f)),
-      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic })),
+      metrics: METRICS.map((m) => ({ id: m.id, label: m.label, family: m.family, unit: m.unit, requiresTraffic: !!m.requiresTraffic, requiresGaze: !!m.requiresGaze })),
     };
   }
 
@@ -131,6 +190,8 @@ export class DrivingMetrics {
     return buildReport(this.collector, this.selection, {
       paramOverrides: this.paramOverrides,
       trafficAvailable: this.trafficAvailable,
+      gazeAvailable: this._gazeAvailable(),
+      gazeAnalysis: this._gazeAnalysis(this.collector.durationSec() || Infinity),
       baselineRange: this.baselineRange,
     });
   }

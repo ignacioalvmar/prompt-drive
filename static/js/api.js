@@ -933,6 +933,40 @@ const PromptDrive = {
     selectFamily: (family, on) => setMetricFamily(family, on),
   },
 
+  // Webcam gaze tracking (window.GazeTracking, src/gaze/). Follows the wheel
+  // pattern: get()/set() work live AND pre-launch (the facade owns its own
+  // localStorage persistence). set({enabled:true}) requests camera permission
+  // in the sim tab. Calibration is strictly PRE-GAME: before Begin,
+  // calibrate() opens the modal; once the game has begun it stages
+  // recalibration for the next load and returns { staged: true }. Attention
+  // metrics live in the regular metrics registry (family 'attention') and ride
+  // the standard report/log exports.
+  gaze: {
+    get: () => (typeof window !== 'undefined' && window.GazeTracking ? ok(window.GazeTracking.get()) : err('unavailable')),
+    set: async (cfg) => {
+      if (typeof window === 'undefined' || !window.GazeTracking) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'gaze' });
+      return ok(await window.GazeTracking.set(cfg));
+    },
+    enable: async () => {
+      if (typeof window === 'undefined' || !window.GazeTracking) return err('unavailable');
+      const status = await window.GazeTracking.setEnabled(true);
+      return status === 'running' ? ok(window.GazeTracking.status()) : err(status);
+    },
+    disable: async () => {
+      if (typeof window === 'undefined' || !window.GazeTracking) return err('unavailable');
+      await window.GazeTracking.setEnabled(false);
+      return ok(window.GazeTracking.status());
+    },
+    calibrate: async () => {
+      if (typeof window === 'undefined' || !window.GazeTracking) return err('unavailable');
+      const result = await window.GazeTracking.calibrate();
+      return ok(Object.assign({}, result, { status: window.GazeTracking.status() }));
+    },
+    status: () => (typeof window !== 'undefined' && window.GazeTracking ? ok(window.GazeTracking.status()) : err('unavailable')),
+    latest: () => (typeof window !== 'undefined' && window.GazeTracking ? ok(window.GazeTracking.latestSample()) : err('unavailable')),
+  },
+
   // Camera modes available to dynamic.camera() — the current vehicle's own set.
   cameraModes: () => liveCameraModes(),
 

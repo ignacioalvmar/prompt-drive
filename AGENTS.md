@@ -17,6 +17,8 @@ Edit the **source**, then rebuild:
 | Driving metrics | `src/metrics/` | `npm run build:metrics` |
 | Dynamic lanes | `src/lanes/` | `npm run build:lanes` |
 | Traffic road actors | `src/traffic/` | `npm run build:traffic` |
+| Steering wheel input | `src/wheel/` | `npm run build:wheel` |
+| Gaze tracking / attention | `src/gaze/` | `npm run build:gaze` |
 | Integration API | `src/api/` | `npm run build:api` |
 | Game-engine behavior | `scripts/build-main.js` (patches `src-extracted/deobfuscated.js`) | `npm run build:main` |
 
@@ -49,13 +51,26 @@ subsystems are layered on top as separate IIFE bundles, each exposed as a
 | Driving metrics | `src/metrics/` | `static/js/metrics.js` | `DrivingMetrics` |
 | Dynamic lanes | `src/lanes/` | `static/js/lanes.js` | `LaneRoads` |
 | Traffic road actors | `src/traffic/` | `static/js/traffic.js` | `RoadTraffic` |
+| Steering wheel input | `src/wheel/` | `static/js/wheel.js` | `WheelControls` |
+| Gaze tracking / attention | `src/gaze/` | `static/js/gaze.js` | `GazeTracking` |
 | Integration API | `src/api/` | `static/js/api.js` | `PromptDrive` (+ `PromptDriveBridge`) |
 
 **Script load order matters** (see `index.html`): `cluster → metrics → lanes →
-traffic → api → main`. The API bundle must load after `lanes.js` and
-`traffic.js` (it delegates lane changes to `LaneRoads` and traffic calls to
-`RoadTraffic`) and before the main bundle (so `PromptDriveBridge` exists when
+traffic → wheel → gaze → api → main`. The API bundle must load after the
+subsystem bundles it delegates to (`LaneRoads`, `RoadTraffic`, `WheelControls`,
+`GazeTracking`) and before the main bundle (so `PromptDriveBridge` exists when
 the patched engine attaches handles). Preserve this order.
+
+The gaze subsystem builds **two** bundles: `static/js/gaze.js` (main-thread
+facade) and `static/js/gaze-worker.js` (MediaPipe inference worker, spawned
+with `{type:'module'}` so its dynamic `import()` is legal). It lazy-loads
+**vendored MediaPipe assets** from `static/lib/mediapipe/` (ESM bundle + wasm
++ `face_landmarker.task` model; fetched by `npm run fetch:gaze` and committed
+like other static assets) — only when the user enables gaze, so it costs
+nothing otherwise. Its localStorage keys are `pd.gaze.*` — clear them after
+testing. Import-alias warning for all subsystems: `import { X as Y }` breaks
+in bundles (the build strips import lines, losing the alias) — use a plain
+import plus `const Y = X;`.
 
 ### The extension pattern
 

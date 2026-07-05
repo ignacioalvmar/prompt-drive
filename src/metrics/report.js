@@ -13,6 +13,8 @@ export function buildReport(collector, selection, opts = {}) {
   const results = computeMetrics(cols, selection, {
     paramOverrides: opts.paramOverrides,
     trafficAvailable: opts.trafficAvailable,
+    gazeAvailable: opts.gazeAvailable,
+    gazeAnalysis: opts.gazeAnalysis,
     baselineRange: opts.baselineRange,
     events: collector.events,
   });
@@ -54,6 +56,15 @@ export function reportToMarkdown(report) {
   lines.push(`| Samples | ${report.run.samples} |`);
   if (report.meta.vehicle) lines.push(`| Vehicle | ${report.meta.vehicle} |`);
   if (report.meta.units != null) lines.push(`| Units mode | ${report.meta.units} |`);
+  if (report.meta.gaze) {
+    const g = report.meta.gaze;
+    lines.push(`| Gaze tracking | ${g.enabled ? 'enabled' : 'disabled'} |`);
+    if (g.enabled) {
+      lines.push(
+        `| Gaze calibration | ${g.calibrated ? `${fmt(g.accuracyDeg, 1)}° (9-pt, validated)` : 'not calibrated'} |`
+      );
+    }
+  }
   lines.push('');
 
   lines.push('## Metrics');
@@ -75,7 +86,12 @@ export function reportToMarkdown(report) {
     lines.push('| # | Type | t (s) | Detail |');
     lines.push('|---|---|---|---|');
     report.run.events.forEach((e, i) => {
-      lines.push(`| ${i + 1} | ${e.type} | ${fmt(e.t, 2)} | ${e.speed != null ? fmt(e.speed, 1) + ' m/s' : ''} |`);
+      const detail = e.speed != null
+        ? fmt(e.speed, 1) + ' m/s'
+        : e.durationSec != null
+          ? `${fmt(e.durationSec, 2)} s${e.aoi ? ' @ ' + e.aoi : ''}`
+          : '';
+      lines.push(`| ${i + 1} | ${e.type} | ${fmt(e.t, 2)} | ${detail} |`);
     });
     lines.push('');
   }
@@ -104,6 +120,25 @@ function detailString(id, res) {
       return `${fmt(res.perKm, 2)}/km, ${fmt(res.perHour, 2)}/h`;
     case 'throttleBrake':
       return `thr ${fmt(res.throttleShare, 2)}, brk ${fmt(res.brakeShare, 2)}, jerk ${fmt(res.peakJerk, 1)}`;
+    case 'aoiDwell': {
+      if (!res.shares) return res.note || '';
+      const top = Object.entries(res.shares)
+        .filter(([, v]) => Number.isFinite(v) && v >= 0.5)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([k, v]) => `${k} ${fmt(v, 0)}%`);
+      return top.join(', ');
+    }
+    case 'offRoadGlances':
+      return `mean ${fmt(res.meanDurationSec, 2)} s, max ${fmt(res.maxDurationSec, 2)} s, ${res.longGlances ?? '—'} >2 s (NHTSA)`;
+    case 'fixations':
+      return `mean dur ${fmt(res.meanDurationMs, 0)} ms`;
+    case 'perclos':
+      return `${fmt(res.windowSec, 0)} s window`;
+    case 'blinkRate':
+      return `${res.blinks ?? '—'} blinks`;
+    case 'gazeDispersion':
+      return `RMS ${fmt(res.rmsPx, 0)} px`;
     default:
       return res.note || '';
   }
