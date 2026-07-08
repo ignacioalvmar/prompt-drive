@@ -376,6 +376,21 @@ function applyStatic(opts) {
     if (commitStagedField(path, _pending[path])) applied[path] = _pending[path];
     else skipped[path] = 'no_persistent_store';
   }
+  // Autodrive is authoritative per launch. The engine reads its startup autopilot
+  // state from the *sticky* `has-autodrive` localStorage key, which an in-sim
+  // autodrive toggle on a PREVIOUS run (e.g. someone driving the public web sim)
+  // leaves behind. A configured (re)launch must be deterministic, so unless this
+  // config explicitly enables autodrive, clear the stale key — otherwise a prior
+  // autodrive run traps the next participant in autopilot with no way to drive
+  // manually (the participant-lockdown UI hides the autodrive toggle). This is
+  // the symmetric complement of commitStagedField, which writes the key for an
+  // explicit `true` and clears it for an explicit `false`; here we also cover the
+  // common case where the harness simply omits the field when autopilot is off.
+  // applyStatic is only ever the API path (a normal page refresh never calls it),
+  // so this never disturbs a plain web user's persisted toggle.
+  if (!_pending['controls.autodrive']) {
+    try { localStorage.removeItem('has-autodrive'); } catch (_e) {}
+  }
   if (typeof location !== 'undefined') location.reload();
   return ok({ mode: 'reload', applied, skipped });
 }
