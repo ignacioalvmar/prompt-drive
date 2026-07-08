@@ -430,6 +430,40 @@ src = replaceOnce(
   'PromptDrive virtual input',
 );
 
+// --- Patch: never hard-pause the sim on low FPS. The engine raises the `ne`
+// observable when it detects a stalled/slow first-load (checkNoGPU) or a sub-20
+// FPS reading, and a truthy `ne` renders the full-screen, click-to-dismiss
+// "Critically low FPS detected …" overlay (game-paused, g == 1) that blocks the
+// participant. We drop the `ne.set(true)` from both detectors so the sim never
+// gets blocked; the non-blocking "Low FPS?" hint (`hc`) is left untouched. ---
+src = replaceOnce(
+  src,
+  `          if (this.checkNoGPU > 10) {
+            ne.set(true);
+            ne.disable();
+          }`,
+  `          if (this.checkNoGPU > 10) {
+            ne.disable();
+          }`,
+  'low-FPS no-GPU no block',
+);
+
+src = replaceOnce(
+  src,
+  `      if (this.lowFPSWaiter > 3 && this.curFPS < 45 && this.curFPS > 15 && !hc.disabled) {
+        if (this.curFPS < 20) {
+          ne.set(true);
+        }
+        hc.set(true);
+        hc.disable();
+      }`,
+  `      if (this.lowFPSWaiter > 3 && this.curFPS < 45 && this.curFPS > 15 && !hc.disabled) {
+        hc.set(true);
+        hc.disable();
+      }`,
+  'low-FPS stats no block',
+);
+
 // --- Patch: steering-wheel input takeover (wheel-controls-plan.md §3). When
 // window.WheelControls is enabled and a device is present, the wheel subsystem
 // computes the per-frame signals itself (calibrated rest→full pedal ranges,

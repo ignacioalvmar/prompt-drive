@@ -315,6 +315,21 @@ function commitStagedField(path, value) {
   }
   if (path.indexOf('metrics.') === 0) return true; // handled by the metrics namespace directly
 
+  // Autodrive on/off has no index-style store: the engine records it as the
+  // *presence* of the `has-autodrive` localStorage key (see the engine's ce.set)
+  // and reads `getItem("has-autodrive") !== null` at load to decide the initial
+  // autopilot state. Persist it the same presence-based way so static config
+  // (config.set + apply/reload) starts the sim already autodriving — matching an
+  // in-game autodrive toggle, which is why it previously only worked when the
+  // state was carried over from a prior session.
+  if (path === 'controls.autodrive') {
+    try {
+      if (value) localStorage.setItem('has-autodrive', 'true');
+      else localStorage.removeItem('has-autodrive');
+      return true;
+    } catch (_e) { return false; }
+  }
+
   // ui.hideMenu is a DOM-overlay flag owned by hidemenu.js (its own storage
   // key/format); persist through it so a reload re-applies the lockdown.
   if (path === 'ui.hideMenu') {
