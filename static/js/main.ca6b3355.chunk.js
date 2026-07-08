@@ -21100,7 +21100,6 @@
         if (t < 20 && e > 0.07) {
           this.checkNoGPU += 1;
           if (this.checkNoGPU > 10) {
-            ne.set(true);
             ne.disable();
           }
         } else if (this.checkNoGPU > 0) {
@@ -21146,9 +21145,6 @@
       this.fpsTracker = 0;
       this.statsTimer = 0;
       if (this.lowFPSWaiter > 3 && this.curFPS < 45 && this.curFPS > 15 && !hc.disabled) {
-        if (this.curFPS < 20) {
-          ne.set(true);
-        }
         hc.set(true);
         hc.disable();
       }
