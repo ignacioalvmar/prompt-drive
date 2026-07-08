@@ -225,6 +225,31 @@ const Bridge = {
   // Live engine handles, filled by build-main.js. Null until attach().
   handles: null,
   attached: false,
+  paused: false,
+
+  /** Freeze the simulation loop — vehicle stops, telemetry pauses. */
+  pause() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(true);
+      }
+    } catch (e) { console.error('PromptDrive pause failed', e); }
+    this.paused = true;
+    this.emit('paused', { source: 'bridge' });
+  },
+
+  /** Resume the simulation loop after a pause. */
+  resume() {
+    if (!this.handles) return;
+    try {
+      if (this.handles.ticker && typeof this.handles.ticker.pause === 'function') {
+        this.handles.ticker.pause(false);
+      }
+    } catch (e) { console.error('PromptDrive resume failed', e); }
+    this.paused = false;
+    this.emit('resumed', { source: 'bridge' });
+  },
 
   _onAttach: [],
   _listeners: { any: [] }, // event name -> [fn]; 'any' -> [fn(event,payload)]
@@ -979,6 +1004,20 @@ const PromptDrive = {
   // End the simulation: finalize the run, auto-download report + logs, halt.
   end: (opts) => endSimulation(opts),
 
+  pause: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.pause();
+    return { ok: true };
+  },
+
+  resume: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.resume();
+    return { ok: true };
+  },
+
   run: {
     start: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.startRun({}); return ok(true); },
     stop: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.stopRun(); return ok(true); },
@@ -999,6 +1038,17 @@ const PromptDrive = {
   on: (event, fn) => window.PromptDriveBridge.on(event, fn),
   off: (event, fn) => window.PromptDriveBridge.off(event, fn),
   subscribe: (fn) => window.PromptDriveBridge.on('any', fn),
+
+  dispatchKey: (type, init) => {
+    if (typeof window === 'undefined' || !window.document) return { ok: false };
+    const doc = window.document;
+    const target = doc.activeElement || doc.getElementById('render-canvas') || doc.getElementById('game-main') || doc.body;
+    if (target) {
+      target.dispatchEvent(new KeyboardEvent(type, init));
+    }
+    window.dispatchEvent(new KeyboardEvent(type, init));
+    return { ok: true };
+  },
 };
 
 // Resolve `ready` and start a throttled telemetry tick once handles attach.
