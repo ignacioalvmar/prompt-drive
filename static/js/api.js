@@ -1038,6 +1038,17 @@ const PromptDrive = {
   on: (event, fn) => window.PromptDriveBridge.on(event, fn),
   off: (event, fn) => window.PromptDriveBridge.off(event, fn),
   subscribe: (fn) => window.PromptDriveBridge.on('any', fn),
+
+  dispatchKey: (type, init) => {
+    if (typeof window === 'undefined' || !window.document) return { ok: false };
+    const doc = window.document;
+    const target = doc.activeElement || doc.getElementById('render-canvas') || doc.getElementById('game-main') || doc.body;
+    if (target) {
+      target.dispatchEvent(new KeyboardEvent(type, init));
+    }
+    window.dispatchEvent(new KeyboardEvent(type, init));
+    return { ok: true };
+  },
 };
 
 // Resolve `ready` and start a throttled telemetry tick once handles attach.
