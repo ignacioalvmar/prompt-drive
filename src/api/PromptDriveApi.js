@@ -735,7 +735,10 @@ const PromptDrive = {
   dispatchKey: (type, init) => {
     if (typeof window === 'undefined' || !window.document) return { ok: false };
     const doc = window.document;
-    const target = doc.activeElement || doc.getElementById('render-canvas') || doc.getElementById('game-main') || doc.body;
+    let target = doc.activeElement;
+    if (!target || target === doc.body || target === doc.documentElement) {
+      target = doc.getElementById('render-canvas') || doc.getElementById('game-main') || doc.body;
+    }
     if (target) {
       target.dispatchEvent(new KeyboardEvent(type, init));
     }
