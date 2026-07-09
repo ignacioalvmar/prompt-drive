@@ -17,6 +17,20 @@
  * engine — the bridge is the seam, the facade is the public surface.
  */
 
+// Sanitize corrupted persisted telemetry before the engine reads it: a NaN in
+// these keys propagates into the engine's running totals and poisons every
+// subsequent session on the machine.
+if (typeof window !== 'undefined' && window.localStorage) {
+  ['analytics_totalTime', 'analytics_totalDist'].forEach((key) => {
+    try {
+      const val = window.localStorage.getItem(key);
+      if (val !== null && Number.isNaN(Number(val))) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (_e) { /* storage access denied — nothing to sanitize */ }
+  });
+}
+
 const Bridge = {
   // Live engine handles, filled by build-main.js. Null until attach().
   handles: null,
