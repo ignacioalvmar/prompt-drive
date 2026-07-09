@@ -761,7 +761,11 @@ if (typeof window !== 'undefined' && window.document) {
     if (!e.isTrusted) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (window.parent && window.parent !== window) {
-      const targetOrigin = document.referrer ? new URL(document.referrer).origin : '*';
+      // Prefer explicit parentOrigin query param (survives location.reload()),
+      // fall back to document.referrer (unreliable after internal reload).
+      const params = new URLSearchParams(window.location.search);
+      const explicitOrigin = params.get('parentOrigin');
+      const targetOrigin = explicitOrigin || (document.referrer ? new URL(document.referrer).origin : '*');
       console.log('[DEBUG-SIM-005A] Emitting postMessage to parent. targetOrigin:', targetOrigin);
       window.parent.postMessage(extractKeyData(e), targetOrigin);
     }
