@@ -376,6 +376,23 @@ function applyStatic(opts) {
     if (commitStagedField(path, _pending[path])) applied[path] = _pending[path];
     else skipped[path] = 'no_persistent_store';
   }
+
+  // Autodrive is authoritative per launch. The engine reads its startup autopilot
+  // state from the *sticky* `has-autodrive` localStorage key, which an in-sim
+  // autodrive toggle on a PREVIOUS run (e.g. someone driving the public web sim)
+  // leaves behind. A configured (re)launch must be deterministic, so unless this
+  // config explicitly enables autodrive, clear the stale key — otherwise a prior
+  // autodrive run traps the next participant in autopilot with no way to drive
+  // manually (the participant-lockdown UI hides the autodrive toggle). This is
+  // the symmetric complement of commitStagedField, which writes the key for an
+  // explicit `true` and clears it for an explicit `false`; here we also cover the
+  // common case where the harness simply omits the field when autopilot is off.
+  // applyStatic is only ever the API path (a normal page refresh never calls it),
+  // so this never disturbs a plain web user's persisted toggle.
+  if (!_pending['controls.autodrive']) {
+    try { localStorage.removeItem('has-autodrive'); } catch (_e) {}
+  }
+
   if (typeof location !== 'undefined') location.reload();
   return ok({ mode: 'reload', applied, skipped });
 }
@@ -682,6 +699,20 @@ const PromptDrive = {
   // End the simulation: finalize the run, auto-download report + logs, halt.
   end: (opts) => endSimulation(opts),
 
+  pause: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.pause();
+    return { ok: true };
+  },
+
+  resume: () => {
+    const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+    if (!b) return { ok: false, error: 'not_ready' };
+    b.resume();
+    return { ok: true };
+  },
+
   run: {
     start: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.startRun({}); return ok(true); },
     stop: () => { const h = H(); if (!h.drivingMetrics) return err('no_metrics'); h.drivingMetrics.stopRun(); return ok(true); },
@@ -702,7 +733,55 @@ const PromptDrive = {
   on: (event, fn) => window.PromptDriveBridge.on(event, fn),
   off: (event, fn) => window.PromptDriveBridge.off(event, fn),
   subscribe: (fn) => window.PromptDriveBridge.on('any', fn),
+
+  // Dispatch a synthetic keyboard event inside the sim's document. Used by an
+  // embedding parent to echo captured keys back onto the engine's input target
+  // (the engine's InputHandler listens on #render-canvas / #game-main, not on
+  // document, so keys that land on `body` never reach it natively).
+  dispatchKey: (type, init) => {
+    if (typeof window === 'undefined' || !window.document) return { ok: false };
+    const doc = window.document;
+    let target = doc.activeElement;
+    if (!target || target === doc.body || target === doc.documentElement) {
+      target = doc.getElementById('render-canvas') || doc.getElementById('game-main') || doc.body;
+    }
+    if (target) {
+      target.dispatchEvent(new KeyboardEvent(type, init));
+    }
+    window.dispatchEvent(new KeyboardEvent(type, init));
+    return { ok: true };
+  },
 };
+
+// Keyboard capture inversion: when embedded, physical keystrokes focus into the
+// sim's document but land on `body`, which the engine's InputHandler does not
+// listen on. Report every trusted key event to the parent (`pd:keyEvent`); the
+// parent echoes it back through the `dispatchKey` op, which targets the actual
+// input elements. Synthetic echoes are ignored here via `isTrusted`, so no loop.
+if (typeof window !== 'undefined' && window.document) {
+  const extractKeyData = (e) => ({
+    type: 'pd:keyEvent', eventType: e.type, key: e.key, code: e.code,
+    keyCode: e.keyCode, which: e.which, shiftKey: e.shiftKey,
+    ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey, repeat: e.repeat
+  });
+
+  const handleRawKey = (e) => {
+    if (!e.isTrusted) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (window.parent && window.parent !== window) {
+      // Prefer the explicit parentOrigin query param (survives the sim's own
+      // config.apply reload); document.referrer flips to the sim's origin after
+      // an internal reload, which would make postMessage silently misfire.
+      const params = new URLSearchParams(window.location.search);
+      const explicitOrigin = params.get('parentOrigin');
+      const targetOrigin = explicitOrigin || (document.referrer ? new URL(document.referrer).origin : '*');
+      window.parent.postMessage(extractKeyData(e), targetOrigin);
+    }
+  };
+
+  window.document.addEventListener('keydown', handleRawKey);
+  window.document.addEventListener('keyup', handleRawKey);
+}
 
 // Resolve `ready` and start a throttled telemetry tick once handles attach.
 if (typeof window !== 'undefined' && window.PromptDriveBridge) {
