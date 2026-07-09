@@ -747,6 +747,31 @@ const PromptDrive = {
   },
 };
 
+// NUEVO: Inversión de captura de teclado
+// Escucha eventos en el document del simulador y los reporta al padre
+if (typeof window !== 'undefined' && window.document) {
+  const extractKeyData = (e) => ({
+    type: 'pd:keyEvent', eventType: e.type, key: e.key, code: e.code,
+    keyCode: e.keyCode, which: e.which, shiftKey: e.shiftKey,
+    ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey, repeat: e.repeat
+  });
+
+  const handleRawKey = (e) => {
+    console.log('[DEBUG-SIM-005A] handleRawKey triggered:', e.type, e.code, 'isTrusted:', e.isTrusted);
+    if (!e.isTrusted) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (window.parent && window.parent !== window) {
+      const targetOrigin = document.referrer ? new URL(document.referrer).origin : '*';
+      console.log('[DEBUG-SIM-005A] Emitting postMessage to parent. targetOrigin:', targetOrigin);
+      window.parent.postMessage(extractKeyData(e), targetOrigin);
+    }
+  };
+
+
+  window.document.addEventListener('keydown', handleRawKey);
+  window.document.addEventListener('keyup', handleRawKey);
+}
+
 // Resolve `ready` and start a throttled telemetry tick once handles attach.
 if (typeof window !== 'undefined' && window.PromptDriveBridge) {
   window.PromptDriveBridge.whenAttached(() => {
