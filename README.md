@@ -19,12 +19,13 @@ Any static file server works (`npx serve .`, Python `http.server`, etc.).
 The instrument cluster and game patches are built from source:
 
 ```bash
-npm run build          # cluster + metrics + lanes + traffic + api + main bundle
+npm run build          # cluster + metrics + lanes + traffic + wheel + console + api + main bundle
 npm run build:cluster  # src/cluster/ → static/js/cluster.js
 npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:lanes    # src/lanes/   → static/js/lanes.js
 npm run build:traffic  # src/traffic/ → static/js/traffic.js
 npm run build:wheel    # src/wheel/   → static/js/wheel.js
+npm run build:console  # src/console/ → static/js/console.js
 npm run build:api      # src/api/     → static/js/api.js
 npm run build:main     # src-extracted/deobfuscated.js → static/js/main.ca6b3355.chunk.js
 ```
@@ -49,6 +50,7 @@ npm run build
 | `src/lanes/`                                | Dynamic multi-lane road config + settings UI |
 | `src/traffic/`                              | AI traffic road actors (`window.RoadTraffic`) |
 | `src/wheel/`                                | Steering-wheel & pedal input (`window.WheelControls`) |
+| `src/console/`                              | In-cabin center console / center stack (`window.CenterConsole`) |
 | `src/api/`                                  | Integration API (`window.PromptDrive`) — see [`API.md`](API.md) |
 | `api-test.html`                             | Local API test console                      |
 | `src-extracted/deobfuscated.js`             | Deobfuscated game bundle; input for patches |
@@ -215,6 +217,38 @@ map: [`wheel-controls-plan.md`](wheel-controls-plan.md).
 - **Force feedback** is not possible from the browser Gamepad API (rumble
   only), so the G923's TRUEFORCE motor stays passive.
 
+## Center console (center stack)
+
+The in-cabin view has a **16:9 touchscreen with a tight black rim** standing on
+the lateral center of the dashboard (`src/console/`, exposed as
+`window.CenterConsole`). It appears in the first-person camera, next to the
+instrument cluster, and hosts five apps selected from the icon dock on the
+lower side of the screen — shown fullscreen or in a **⅔ + ⅓ split**:
+
+- **Map** — bird's-eye view of the road ahead that follows the vehicle's
+  orientation (heading-up), with compass, speed chip, scale bar, and zoom.
+- **Nav** — close-follow bird view around the ego: the road's actual lane
+  geometry (boundaries, center divider, edges) rebuilt from the engine's road
+  nodes, other road actors as 3D boxes at their live poses, a curve-ahead
+  banner, and headway to the lead vehicle.
+- **Audio** — a music player with procedural cover art, seek/volume, and a
+  small library linking the repo's own ambience tracks. Follows the game's
+  master volume / mute and pauses with the sim.
+- **Phone** — a scrollable contacts agenda, incoming calls to accept/reject
+  (with ringtone and 30 s auto-miss), and an in-call screen showing the
+  caller's picture and a live timer.
+- **Comfort** — seat and climate controls (temperature, fan, seat heating)
+  for driver, passenger, and rear, with AUTO/SYNC modes.
+
+Everything on the screen is operable two ways: **mouse/touch taps on the 3D
+screen itself** (pointer rays are cast onto the display plane) and the
+**integration API** — `PromptDrive.console.*` can open/split apps, drive the
+audio player, trigger/accept/end phone calls, set comfort zones, read the full
+state, and synthesize taps (`console.tap(u, v)`). State changes stream as
+`console*` events; layout, audio track/volume, and comfort settings persist in
+`localStorage`. See [`API.md`](API.md#center-console--console) and the **④
+Center console** tab of the API test console.
+
 ## Integration API
 
 An external service (an AI-agent harness, an orchestrator, a test rig, or a
@@ -229,7 +263,8 @@ same extension pattern as the subsystems above: an IIFE bundle (`src/api/` →
   (static: `set`/`pending`/`apply`/`autostart`), `dynamic.*` (live: weather,
   skin, lanes, drive mode, grip/speed, autodrive, headlights, camera, cruise,
   FOV, units, general settings, and programmatic drive `input`), `telemetry.*`,
-  `metrics.*` (which driving metrics to collect), `run.*` (run lifecycle +
+  `console.*` (the in-cabin center stack: apps, layout, audio, phone, comfort,
+  synthetic taps), `metrics.*` (which driving metrics to collect), `run.*` (run lifecycle +
   report/log download), `end()` (finalize the run, auto-export the
   driver-performance report + logs, and halt), and `on`/`off`/`subscribe`.
 - **Transports** — call the facade directly (in-page / headless browser), over

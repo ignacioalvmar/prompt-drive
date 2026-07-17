@@ -34,6 +34,8 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Static config — `config.*`](#static-config--config)
   - [Telemetry — `telemetry.*`](#telemetry--telemetry)
   - [Traffic — `traffic.*`](#traffic--traffic)
+  - [Steering wheel — `wheel.*`](#steering-wheel--wheel)
+  - [Center console — `console.*`](#center-console--console)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -397,6 +399,74 @@ PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
   capture reads the gamepad in the **sim's window**.
 - Config is also settable via `dynamic.set({ wheel: {…} })` and stageable via
   `config.set` (it commits through the same owner).
+
+### Center console — `console.*`
+
+The in-cabin **center stack**: a 16:9 touchscreen with a tight black rim on
+the lateral center of the dashboard (`window.CenterConsole`, `src/console/`).
+It hosts five apps — **map**, **nav**, **audio**, **phone**, **comfort** —
+selectable via the icon dock on the lower side of the screen, shown either
+fullscreen or in a ⅔ + ⅓ split. The screen renders (and accepts mouse/touch
+taps) only in the **first-person camera**; the API below works from any camera
+mode once the sim is running. All calls are **live-only** and return
+`{ ok:false, error:'unavailable' }` before launch.
+
+```js
+PromptDrive.console.state();
+// → { ok:true, value:{ visible, layout:{mode:'full'|'split', primary, secondary},
+//      apps:['map','nav','audio','phone','comfort'],
+//      audio:{ index, track:{id,title,artist,album}, playing, positionSec,
+//              durationSec, volume },
+//      phone:{ phase:'idle'|'incoming'|'active', caller, callSec, ringSec,
+//              contactCount },
+//      comfort:{ driver:{tempC,fan,seatHeat}, passenger:{…}, rear:{…},
+//                auto, sync } } }
+
+PromptDrive.console.open('nav');           // app → fullscreen primary
+PromptDrive.console.split('map', 'audio'); // ⅔ map + ⅓ audio
+PromptDrive.console.layout('full');        // or 'split'; no arg → read layout
+PromptDrive.console.swap();                // swap primary ↔ secondary
+
+// Audio player (sample library from the repo's own media files).
+PromptDrive.console.audio.play('summer-haze'); // index, id, or none = current
+PromptDrive.console.audio.toggle();
+PromptDrive.console.audio.next();          // .prev(), .pause()
+PromptDrive.console.audio.seek(0.5);       // fraction 0..1
+PromptDrive.console.audio.volume(0.4);     // user volume 0..1
+PromptDrive.console.audio.status();
+
+// Phone: trigger an incoming call, then accept/reject; or place a call.
+PromptDrive.console.phone.contacts();      // the scrollable agenda
+PromptDrive.console.phone.ring('Dana');    // name / index / none = random
+PromptDrive.console.phone.accept();        // → active call (live timer)
+PromptDrive.console.phone.reject();        // or .end() — works in both phases
+PromptDrive.console.phone.call(2);         // outgoing, straight to active
+
+// Comfort: per-zone seat + climate (zones: driver, passenger, rear).
+PromptDrive.console.comfort.set({ zone: 'driver', tempC: 22.5, fan: 3, seatHeat: 1 });
+PromptDrive.console.comfort.set({ passenger: { tempC: 20 }, rear: { fan: 1 } });
+PromptDrive.console.comfort.set({ sync: true }); // then driver edits mirror to all
+PromptDrive.console.comfort.get();         // .reset() → defaults
+
+// Synthetic touch: normalized 0..1 screen coords, same routing as a real tap.
+PromptDrive.console.tap(0.39, 0.94);       // e.g. taps the Map dock icon
+```
+
+- **Touch model**: dock icon tap opens that app (in split mode the old primary
+  moves to the ⅓ pane); the dock's right-hand button toggles split; tapping
+  the small pane's header swaps panes. Apps handle their own taps/drags
+  (seek/volume scrub, contact-list scrolling, comfort controls).
+- **Audio** plays the repo's own mp3 ambiences as sample tracks with
+  procedural cover art; it follows the engine's master volume (`AudioLevel`,
+  KeyM mute) and mutes while paused. Before the first user gesture, browsers
+  may block playback — the player keeps the *intent* and starts on the next
+  tap (`playing:true` meanwhile).
+- **Persistence**: layout (`pd-console-ui`), audio track/volume
+  (`pd-console-audio`) and comfort state (`pd-console-comfort`) survive
+  reloads via `localStorage`.
+- **Events** (see [Events](#events)): `consoleApp`, `consoleLayout`,
+  `consoleAudio`, `consolePhone` (incl. a `phase:'missed'` payload on the 30 s
+  ring timeout), `consoleComfort`.
 
 ### Metrics run & export — `run.*`
 
