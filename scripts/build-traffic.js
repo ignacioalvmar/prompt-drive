@@ -24,7 +24,9 @@ function stripModuleSyntax(src) {
 
 const parts = files.map((f) => {
   const p = path.join(dir, f);
-  return `/* --- ${f} --- */\n${stripModuleSyntax(fs.readFileSync(p, 'utf8'))}`;
+  // Normalize to LF so a CRLF checkout can't leak CRs into the bundle.
+  const src = fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+  return `/* --- ${f} --- */\n${stripModuleSyntax(src)}`;
 });
 
 const bundle = `/* Traffic road actors — built from src/traffic/ */

@@ -6,9 +6,11 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const layout = fs.readFileSync(path.join(root, 'src/cluster/layout.js'), 'utf8');
-const icons = fs.readFileSync(path.join(root, 'src/cluster/icons.js'), 'utf8');
-const cluster = fs.readFileSync(path.join(root, 'src/cluster/InstrumentCluster.js'), 'utf8');
+// Normalize to LF so a CRLF checkout can't leak CRs into the bundle.
+const readLf = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+const layout = readLf(path.join(root, 'src/cluster/layout.js'));
+const icons = readLf(path.join(root, 'src/cluster/icons.js'));
+const cluster = readLf(path.join(root, 'src/cluster/InstrumentCluster.js'));
 
 function stripModuleSyntax(src) {
   return src
