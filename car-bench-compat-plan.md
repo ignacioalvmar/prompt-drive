@@ -3,10 +3,10 @@
 **Status:** design approved, not yet implemented.
 **Audience:** AI coding agents implementing and verifying the work packages in §7. This document is self-contained: every claim is anchored to a file (and line where load-bearing) in one of the two repos. Verify anchors before patching — line numbers drift.
 
-| Repo | Path | Role |
-| --- | --- | --- |
+| Repo         | Path                                           | Role                                                                                                       |
+| ------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | prompt-drive | `C:\Users\alvarez\Documents\code\prompt-drive` | Web driving simulator (this repo). Gains the vehicle-state store, benchmark mode, and WebSocket transport. |
-| car-bench | `C:\Users\alvarez\Documents\code\car-bench` | Python benchmark for in-car voice-assistant LLM agents (personal fork). Gains a thin `live_sim` adapter. |
+| car-bench    | `C:\Users\alvarez\Documents\code\car-bench`    | Python benchmark for in-car voice-assistant LLM agents (personal fork). Gains a thin `live_sim` adapter.   |
 
 Companion docs in this repo: [`API.md`](API.md) (implemented integration API), [`AGENTS.md`](AGENTS.md) (extension conventions, build pipeline, engine symbol map).
 
@@ -35,39 +35,39 @@ Source: `car_bench/envs/car_voice_assistant/context/dynamic_context_state.py` (f
 
 The full schema, verbatim. This is the shape `window.VehicleState` must replicate exactly:
 
-| # | Field | Type | Default | Constraint |
-| --- | --- | --- | --- | --- |
-| 1 | `sunroof_position` | int | `0` | 0–100 (% open) |
-| 2 | `sunshade_position` | int | `0` | 0–100 (% open) |
-| 3 | `trunk_door_position` | str | `"closed"` | **free string** — the set-tool writes `"OPEN"`/`"CLOSE"` (uppercase); never normalize |
-| 4 | `window_driver_position` | int | `0` | 0–100 |
-| 5 | `window_passenger_position` | int | `0` | 0–100 |
-| 6 | `window_driver_rear_position` | int | `0` | 0–100 |
-| 7 | `window_passenger_rear_position` | int | `0` | 0–100 |
-| 8 | `reading_light_driver` | bool | `False` | |
-| 9 | `reading_light_passenger` | bool | `False` | |
-| 10 | `reading_light_driver_rear` | bool | `False` | |
-| 11 | `reading_light_passenger_rear` | bool | `False` | |
-| 12 | `fog_lights` | bool | `False` | |
-| 13 | `head_lights_low_beams` | bool | `False` | |
-| 14 | `head_lights_high_beams` | bool | `False` | |
-| 15 | `ambient_light` | enum | `OFF` | `OFF, RED, GREEN, BLUE, YELLOW, WHITE, PINK, ORANGE, PURPLE, CYAN` |
-| 16 | `climate_temperature_driver` | float | `20` | 16–28, multiple of 0.5 (°C) |
-| 17 | `climate_temperature_passenger` | float | `20` | 16–28, multiple of 0.5 (°C) |
-| 18 | `steering_wheel_heating` | int | `0` | 0–3 |
-| 19 | `seat_heating_driver` | int | `0` | 0–3 |
-| 20 | `seat_heating_passenger` | int | `0` | 0–3 |
-| 21 | `fan_speed` | int | `0` | 0–5 |
-| 22 | `window_front_defrost` | bool | `False` | |
-| 23 | `window_rear_defrost` | bool | `False` | |
-| 24 | `fan_airflow_direction` | enum | `FEET` | `FEET, HEAD, HEAD_FEET, WINDSHIELD, WINDSHIELD_FEET, WINDSHIELD_HEAD, WINDSHIELD_HEAD_FEET` |
-| 25 | `air_conditioning` | bool | `False` | |
-| 26 | `air_circulation` | enum | `AUTO` | `AUTO, FRESH_AIR, RECIRCULATION` |
-| 27 | `navigation_active` | bool | `False` | |
-| 28 | `waypoints_id` | list[str] | `[]` | location/POI ids; `[0]` = start (must equal current location), last = destination |
-| 29 | `routes_to_final_destination_id` | list[str] | `[]` | route ids, one per segment |
-| 30 | `email_addresses_sent_mail_to` | list[str] | `[]` | append-only log |
-| 31 | `phone_numbers_called` | list[str] | `[]` | append-only log |
+| #   | Field                            | Type      | Default    | Constraint                                                                                  |
+| --- | -------------------------------- | --------- | ---------- | ------------------------------------------------------------------------------------------- |
+| 1   | `sunroof_position`               | int       | `0`        | 0–100 (% open)                                                                              |
+| 2   | `sunshade_position`              | int       | `0`        | 0–100 (% open)                                                                              |
+| 3   | `trunk_door_position`            | str       | `"closed"` | **free string** — the set-tool writes `"OPEN"`/`"CLOSE"` (uppercase); never normalize       |
+| 4   | `window_driver_position`         | int       | `0`        | 0–100                                                                                       |
+| 5   | `window_passenger_position`      | int       | `0`        | 0–100                                                                                       |
+| 6   | `window_driver_rear_position`    | int       | `0`        | 0–100                                                                                       |
+| 7   | `window_passenger_rear_position` | int       | `0`        | 0–100                                                                                       |
+| 8   | `reading_light_driver`           | bool      | `False`    |                                                                                             |
+| 9   | `reading_light_passenger`        | bool      | `False`    |                                                                                             |
+| 10  | `reading_light_driver_rear`      | bool      | `False`    |                                                                                             |
+| 11  | `reading_light_passenger_rear`   | bool      | `False`    |                                                                                             |
+| 12  | `fog_lights`                     | bool      | `False`    |                                                                                             |
+| 13  | `head_lights_low_beams`          | bool      | `False`    |                                                                                             |
+| 14  | `head_lights_high_beams`         | bool      | `False`    |                                                                                             |
+| 15  | `ambient_light`                  | enum      | `OFF`      | `OFF, RED, GREEN, BLUE, YELLOW, WHITE, PINK, ORANGE, PURPLE, CYAN`                          |
+| 16  | `climate_temperature_driver`     | float     | `20`       | 16–28, multiple of 0.5 (°C)                                                                 |
+| 17  | `climate_temperature_passenger`  | float     | `20`       | 16–28, multiple of 0.5 (°C)                                                                 |
+| 18  | `steering_wheel_heating`         | int       | `0`        | 0–3                                                                                         |
+| 19  | `seat_heating_driver`            | int       | `0`        | 0–3                                                                                         |
+| 20  | `seat_heating_passenger`         | int       | `0`        | 0–3                                                                                         |
+| 21  | `fan_speed`                      | int       | `0`        | 0–5                                                                                         |
+| 22  | `window_front_defrost`           | bool      | `False`    |                                                                                             |
+| 23  | `window_rear_defrost`            | bool      | `False`    |                                                                                             |
+| 24  | `fan_airflow_direction`          | enum      | `FEET`     | `FEET, HEAD, HEAD_FEET, WINDSHIELD, WINDSHIELD_FEET, WINDSHIELD_HEAD, WINDSHIELD_HEAD_FEET` |
+| 25  | `air_conditioning`               | bool      | `False`    |                                                                                             |
+| 26  | `air_circulation`                | enum      | `AUTO`     | `AUTO, FRESH_AIR, RECIRCULATION`                                                            |
+| 27  | `navigation_active`              | bool      | `False`    |                                                                                             |
+| 28  | `waypoints_id`                   | list[str] | `[]`       | location/POI ids; `[0]` = start (must equal current location), last = destination           |
+| 29  | `routes_to_final_destination_id` | list[str] | `[]`       | route ids, one per segment                                                                  |
+| 30  | `email_addresses_sent_mail_to`   | list[str] | `[]`       | append-only log                                                                             |
+| 31  | `phone_numbers_called`           | list[str] | `[]`       | append-only log                                                                             |
 
 Enums are `(str, Enum)` classes and serialize to plain strings in `model_dump()` (e.g. `"ambient_light": "OFF"`).
 
@@ -75,20 +75,20 @@ Enums are `(str, Enum)` classes and serialize to plain strings in `model_dump()`
 
 Source: `car_bench/envs/car_voice_assistant/context/fixed_context.py`. Same ContextVar pattern (`fixed_context`), same `update_state` (used only at task init). No set-tool writes it; several get-tools read it. The sim stores a copy for display/inspection only — it is never part of the reward hash.
 
-| Field | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `car_color` | str | `"blue"` | tasks use e.g. `"GREEN"` |
-| `battery_capacity_kwh` | float | `80` | 60–100, gross kWh |
-| `useable_battery_percentage` | float | `95` | 90–100 |
-| `max_charging_power_ac` | Literal | `11` | {11, 22} kW |
-| `max_charging_power_dc` | Literal | `250` | {150, 200, 250, 268, 300, 350, 1000} kW |
-| `energy_consumption` | float | `15` | 10–20 kWh/100km |
-| `charging_curve_parameters` | dict | soc_tresholds/power_percentages arrays | note upstream misspelling `soc_tresholds` |
-| `state_of_charge` | float | `10` | 10–100 % |
-| `seats_occupied` | dict[str,bool] | driver True, others False | keys: `driver, passenger, driver_rear, passenger_rear` |
-| `current_location` | object | Munich `loc_mun_9995` | `{id, name, position:{longitude, latitude}}` |
-| `current_datetime` | object | 2025-02-14 12:00 | `{year, month, day, hour, minute}` (class name upstream is `CurrenDateTime` — typo is theirs) |
-| `user_preferences` | nested object | all empty lists | see `UserPreferences` in the same file |
+| Field                        | Type           | Default                                | Notes                                                                                         |
+| ---------------------------- | -------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `car_color`                  | str            | `"white"`                              | tasks use e.g. `"GREEN"`                                                                      |
+| `battery_capacity_kwh`       | float          | `80`                                   | 60–100, gross kWh                                                                             |
+| `useable_battery_percentage` | float          | `95`                                   | 90–100                                                                                        |
+| `max_charging_power_ac`      | Literal        | `11`                                   | {11, 22} kW                                                                                   |
+| `max_charging_power_dc`      | Literal        | `250`                                  | {150, 200, 250, 268, 300, 350, 1000} kW                                                       |
+| `energy_consumption`         | float          | `15`                                   | 10–20 kWh/100km                                                                               |
+| `charging_curve_parameters`  | dict           | soc_tresholds/power_percentages arrays | note upstream misspelling `soc_tresholds`                                                     |
+| `state_of_charge`            | float          | `10`                                   | 10–100 %                                                                                      |
+| `seats_occupied`             | dict[str,bool] | driver True, others False              | keys: `driver, passenger, driver_rear, passenger_rear`                                        |
+| `current_location`           | object         | Munich `loc_mun_9995`                  | `{id, name, position:{longitude, latitude}}`                                                  |
+| `current_datetime`           | object         | 2025-02-14 12:00                       | `{year, month, day, hour, minute}` (class name upstream is `CurrenDateTime` — typo is theirs) |
+| `user_preferences`           | nested object  | all empty lists                        | see `UserPreferences` in the same file                                                        |
 
 ### 2.3 Task lifecycle
 
@@ -201,16 +201,16 @@ A store shaped **exactly** like CAR-bench state: all 31 dynamic fields (§2.1 na
 
 Registered in `src/api/PromptDriveApi.js` beside `traffic`/`console`, guarded with the same `unavailable` pattern. Because transports resolve dot-paths, all of this is immediately callable over postMessage/BroadcastChannel/WebSocket:
 
-| Op | Purpose |
-| --- | --- |
-| `vehicle.get(keys?)` | full dynamic snapshot, or subset by key list |
-| `vehicle.set(partial)` | validate + store + project linked fields (under `_applying`) + emit |
-| `vehicle.snapshot()` | `{dynamic, fixed, benchmark, linkedHealth}` |
-| `vehicle.reset(initConfig, opts?)` | per-task init, §4.6 |
-| `vehicle.benchmark(on, opts?)` | engage/release locks, §4.5 |
-| `vehicle.fixed.get()/set(partial)` | fixed-context store |
-| `vehicle.ambience(spec)` | optional visual sync, §4.7 |
-| `vehicle.navDisplay(meta?)` | display-only route metadata for WP-V6 (`{destinationName, waypointNames[], distanceKm, etaMin}` or `null` to clear) — pushed by the Python adapter because route/POI ids are opaque to the sim |
+| Op                                 | Purpose                                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vehicle.get(keys?)`               | full dynamic snapshot, or subset by key list                                                                                                                                                   |
+| `vehicle.set(partial)`             | validate + store + project linked fields (under `_applying`) + emit                                                                                                                            |
+| `vehicle.snapshot()`               | `{dynamic, fixed, benchmark, linkedHealth}`                                                                                                                                                    |
+| `vehicle.reset(initConfig, opts?)` | per-task init, §4.6                                                                                                                                                                            |
+| `vehicle.benchmark(on, opts?)`     | engage/release locks, §4.5                                                                                                                                                                     |
+| `vehicle.fixed.get()/set(partial)` | fixed-context store                                                                                                                                                                            |
+| `vehicle.ambience(spec)`           | optional visual sync, §4.7                                                                                                                                                                     |
+| `vehicle.navDisplay(meta?)`        | display-only route metadata for WP-V6 (`{destinationName, waypointNames[], distanceKm, etaMin}` or `null` to clear) — pushed by the Python adapter because route/POI ids are opaque to the sim |
 
 ### 4.4 Transport: WebSocket relay (`src/api/socket.js`) + Python client
 
@@ -247,13 +247,13 @@ Thread-safety is required: CAR-bench executes tools from worker threads (`base.p
 
 `vehicle.benchmark(true, opts?)` engages five locks; every blocked attempt emits `vehicleExternalAttempt` (forwarded to Python and logged as a divergence-class warning):
 
-| # | Lock | Mechanism | Blocks |
-| --- | --- | --- | --- |
-| 1 | **Headlight hard lock** | New `build-main.js` patch **inside** `setHeadlights(e, t = false) {` (anchor `deobfuscated.js:2029`): early-return unless `!VehicleState._lightsLocked || VehicleState._applying`, emitting the event on block. VehicleState performs its own writes wrapped in `_applying = true; ego.setHeadlights(on, true); _applying = false;` | auto-dusk (`:10873`), weather-forced (`:11205`, `:13083`), `KeyH` engine handler (`:19912`), any stray engine call. (Render warm-up `:20911` predates benchmark engagement — unaffected.) |
-| 2 | **Day/night freeze** | record `handles.dayNight.value`, set cycle `0` (off); restore on release | dusk transitions ever starting |
-| 3 | **Keyboard filter** | capture-phase `keydown`/`keyup` listener on `window` + `document`, `preventDefault` + `stopImmediatePropagation` for a configurable code list (default `['KeyH']`, extend via `benchmark(true, {blockKeys})`) | user flipping mirrored state from the keyboard |
-| 4 | **Console input lock** | new `CenterConsole.setInputLocked(bool)`: pointer events aimed at the screen plane are still swallowed (don't leak to the game) but perform no app routing; synthetic `tap()` returns `{ok:false, error:'locked'}`; emits `consoleInputBlocked {u,v}`. **Programmatic `comfort.controller.set` stays open** — it is VehicleState's own projection path. | touch taps on comfort/audio/phone/layout |
-| 5 | **Menu lockdown** | existing `ui.hideMenu` (`PromptDriveHideMenu.set(true)`) | settings panels + bottom-bar toggles |
+| #   | Lock                    | Mechanism                                                                                                                                                                                                                                                                                                                                               | Blocks                                         |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 1   | **Headlight hard lock** | New `build-main.js` patch **inside** `setHeadlights(e, t = false) {` (anchor `deobfuscated.js:2029`): early-return unless `!VehicleState._lightsLocked                                                                                                                                                                                                  |                                                |
+| 2   | **Day/night freeze**    | record `handles.dayNight.value`, set cycle `0` (off); restore on release                                                                                                                                                                                                                                                                                | dusk transitions ever starting                 |
+| 3   | **Keyboard filter**     | capture-phase `keydown`/`keyup` listener on `window` + `document`, `preventDefault` + `stopImmediatePropagation` for a configurable code list (default `['KeyH']`, extend via `benchmark(true, {blockKeys})`)                                                                                                                                           | user flipping mirrored state from the keyboard |
+| 4   | **Console input lock**  | new `CenterConsole.setInputLocked(bool)`: pointer events aimed at the screen plane are still swallowed (don't leak to the game) but perform no app routing; synthetic `tap()` returns `{ok:false, error:'locked'}`; emits `consoleInputBlocked {u,v}`. **Programmatic `comfort.controller.set` stays open** — it is VehicleState's own projection path. | touch taps on comfort/audio/phone/layout       |
+| 5   | **Menu lockdown**       | existing `ui.hideMenu` (`PromptDriveHideMenu.set(true)`)                                                                                                                                                                                                                                                                                                | settings panels + bottom-bar toggles           |
 
 Not locked (they touch no mirrored field): driving input, pause/resume, cameras, autodrive, cruise, traffic. Weather/skin stay programmatically settable (ambience, §4.7) — lock #1 absorbs the weather system's forced-headlight side effect. `benchmark(false)` restores prior dayNight and hideMenu values, removes the key filter, unlocks the console.
 
@@ -310,44 +310,44 @@ Legend — **LINKED**: drives existing sim visuals in the baseline. **SIM**: sim
 
 ### 5.1 Dynamic fields (all 31)
 
-| CAR-bench field | Baseline backing | Exact sim target / notes | Visual upgrade |
-| --- | --- | --- | --- |
-| `head_lights_low_beams` | **LINKED** | `ego.setHeadlights(on, true)` under `_applying` (engine spotlights; `PromptDrive.telemetry.state().headlights` reflects it) | WP-V1 refines into a true low beam |
-| `climate_temperature_driver` | **LINKED** | `console.comfort` `driver.tempC` — identical range/step (16–28 × 0.5) | — (already visible on console) |
-| `climate_temperature_passenger` | **LINKED** | `console.comfort` `passenger.tempC` | — |
-| `seat_heating_driver` | **LINKED** | `console.comfort` `driver.seatHeat` (0–3, identical) | — |
-| `seat_heating_passenger` | **LINKED** | `console.comfort` `passenger.seatHeat` | — |
-| `fan_speed` | **LINKED** | projected to **all three** comfort zones' `fan` (coherent single-fan story on screen); driver zone is the canonical read-back | — |
-| `head_lights_high_beams` | SIM | pure state in baseline — deliberately *not* boosting the single spotlight pair (keeps baseline behavior trivially predictable) | →WP-V1 |
-| `fog_lights` | SIM | | →WP-V1 |
-| `ambient_light` | SIM | 10-value color enum stored verbatim | →WP-V2 |
-| `reading_light_driver` / `_passenger` / `_driver_rear` / `_passenger_rear` | SIM | | →WP-V2 |
-| `window_driver_position` / `_passenger_` / `_driver_rear_` / `_passenger_rear_` | SIM | 0–100 ints | →WP-V3 |
-| `sunroof_position` / `sunshade_position` | SIM | 0–100 ints | →WP-V3 |
-| `trunk_door_position` | SIM | **verbatim free string** (`"closed"` default; tools write `"OPEN"`/`"CLOSE"`) — never normalize case | none (not visible from the cabin) |
-| `window_front_defrost` / `window_rear_defrost` | SIM | | →WP-V4 |
-| `fan_airflow_direction` | SIM | 7-value enum verbatim | →WP-V4 |
-| `air_conditioning` | SIM | note: console `auto` flag is *not* this — kept independent | →WP-V4 |
-| `air_circulation` | SIM | 3-value enum verbatim | →WP-V4 |
-| `steering_wheel_heating` | SIM | 0–3 | →WP-V4 |
-| `navigation_active` | SIM | | →WP-V6 |
-| `waypoints_id` / `routes_to_final_destination_id` | SIM | ids are opaque to the sim; human-readable metadata arrives via `vehicle.navDisplay` | →WP-V6 |
-| `email_addresses_sent_mail_to` | SIM | append-only log, stored verbatim | none |
-| `phone_numbers_called` | SIM | console Phone app contacts are fictional and disjoint from CAR-bench's contact DB — deliberately **not** linked | none |
+| CAR-bench field                                                                 | Baseline backing | Exact sim target / notes                                                                                                       | Visual upgrade                     |
+| ------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `head_lights_low_beams`                                                         | **LINKED**       | `ego.setHeadlights(on, true)` under `_applying` (engine spotlights; `PromptDrive.telemetry.state().headlights` reflects it)    | WP-V1 refines into a true low beam |
+| `climate_temperature_driver`                                                    | **LINKED**       | `console.comfort` `driver.tempC` — identical range/step (16–28 × 0.5)                                                          | — (already visible on console)     |
+| `climate_temperature_passenger`                                                 | **LINKED**       | `console.comfort` `passenger.tempC`                                                                                            | —                                  |
+| `seat_heating_driver`                                                           | **LINKED**       | `console.comfort` `driver.seatHeat` (0–3, identical)                                                                           | —                                  |
+| `seat_heating_passenger`                                                        | **LINKED**       | `console.comfort` `passenger.seatHeat`                                                                                         | —                                  |
+| `fan_speed`                                                                     | **LINKED**       | projected to **all three** comfort zones' `fan` (coherent single-fan story on screen); driver zone is the canonical read-back  | —                                  |
+| `head_lights_high_beams`                                                        | SIM              | pure state in baseline — deliberately *not* boosting the single spotlight pair (keeps baseline behavior trivially predictable) | →WP-V1                             |
+| `fog_lights`                                                                    | SIM              |                                                                                                                                | →WP-V1                             |
+| `ambient_light`                                                                 | SIM              | 10-value color enum stored verbatim                                                                                            | →WP-V2                             |
+| `reading_light_driver` / `_passenger` / `_driver_rear` / `_passenger_rear`      | SIM              |                                                                                                                                | →WP-V2                             |
+| `window_driver_position` / `_passenger_` / `_driver_rear_` / `_passenger_rear_` | SIM              | 0–100 ints                                                                                                                     | →WP-V3                             |
+| `sunroof_position` / `sunshade_position`                                        | SIM              | 0–100 ints                                                                                                                     | →WP-V3                             |
+| `trunk_door_position`                                                           | SIM              | **verbatim free string** (`"closed"` default; tools write `"OPEN"`/`"CLOSE"`) — never normalize case                           | none (not visible from the cabin)  |
+| `window_front_defrost` / `window_rear_defrost`                                  | SIM              |                                                                                                                                | →WP-V4                             |
+| `fan_airflow_direction`                                                         | SIM              | 7-value enum verbatim                                                                                                          | →WP-V4                             |
+| `air_conditioning`                                                              | SIM              | note: console `auto` flag is *not* this — kept independent                                                                     | →WP-V4                             |
+| `air_circulation`                                                               | SIM              | 3-value enum verbatim                                                                                                          | →WP-V4                             |
+| `steering_wheel_heating`                                                        | SIM              | 0–3                                                                                                                            | →WP-V4                             |
+| `navigation_active`                                                             | SIM              |                                                                                                                                | →WP-V6                             |
+| `waypoints_id` / `routes_to_final_destination_id`                               | SIM              | ids are opaque to the sim; human-readable metadata arrives via `vehicle.navDisplay`                                            | →WP-V6                             |
+| `email_addresses_sent_mail_to`                                                  | SIM              | append-only log, stored verbatim                                                                                               | none                               |
+| `phone_numbers_called`                                                          | SIM              | console Phone app contacts are fictional and disjoint from CAR-bench's contact DB — deliberately **not** linked                | none                               |
 
 Comfort extras with no CAR-bench counterpart (`rear` zone temp/seatHeat, `auto`, `sync` flags): frozen at `vehicle.reset` in benchmark mode (`auto:false, sync:false`, rear temp = driver init temp for cosmetic coherence, rear seatHeat 0) and held by the console input lock. `sync`'s driver-copy behavior (`ComfortApp` mirrors driver temp/fan) would fight per-zone temperatures, and an active `auto` badge would imply autonomous behavior — both contradict the benchmark world model.
 
 ### 5.2 Fixed context (all 12)
 
-| Field | Sim use |
-| --- | --- |
-| `state_of_charge` | stored in `VehicleState.fixed` | →WP-V5 cluster SOC gauge |
-| `battery_capacity_kwh`, `useable_battery_percentage`, `energy_consumption`, `max_charging_power_ac/dc`, `charging_curve_parameters` | stored for inspection (charging tools compute in Python) |
-| `current_datetime` | stored; drives ambience time slot (§4.7) |
-| `current_location` | stored; weather-lookup key for ambience (resolved Python-side); optional city label in WP-V6 card |
-| `seats_occupied` | stored — this is exactly the "simulated state without visible results" case: `get_seats_occupancy` answers from it (e.g. driver-only = 1 occupant) with no visual counterpart |
-| `car_color` | stored for inspection (`get_car_color`); vehicle paint is not an exposed engine field — visual mapping out of scope |
-| `user_preferences` | stored for inspection (read only by `get_user_preferences` in Python) |
+| Field                                                                                                                               | Sim use                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state_of_charge`                                                                                                                   | stored in `VehicleState.fixed`                                                                                                                                                |
+| `battery_capacity_kwh`, `useable_battery_percentage`, `energy_consumption`, `max_charging_power_ac/dc`, `charging_curve_parameters` | stored for inspection (charging tools compute in Python)                                                                                                                      |
+| `current_datetime`                                                                                                                  | stored; drives ambience time slot (§4.7)                                                                                                                                      |
+| `current_location`                                                                                                                  | stored; weather-lookup key for ambience (resolved Python-side); optional city label in WP-V6 card                                                                             |
+| `seats_occupied`                                                                                                                    | stored — this is exactly the "simulated state without visible results" case: `get_seats_occupancy` answers from it (e.g. driver-only = 1 occupant) with no visual counterpart |
+| `car_color`                                                                                                                         | stored for inspection (`get_car_color`); vehicle paint is not an exposed engine field — visual mapping out of scope                                                           |
+| `user_preferences`                                                                                                                  | stored for inspection (read only by `get_user_preferences` in Python)                                                                                                         |
 
 ---
 
@@ -357,24 +357,24 @@ Comfort extras with no CAR-bench counterpart (`rear` zone temp/seatHeat, `auto`,
 
 ### Vehicle SET — 17 tools → `LiveContextState.update_state` → mirrored to `vehicle.set`
 
-| Tool | Fields written | Sim effect (baseline) |
-| --- | --- | --- |
-| `set_head_lights_low_beams` | `head_lights_low_beams` | **engine headlights toggle (visible)** |
-| `set_climate_temperature` | `climate_temperature_driver/_passenger` (zones ALL_ZONES/DRIVER/PASSENGER) | **console Comfort temp readout (visible)** |
-| `set_seat_heating` | `seat_heating_driver/_passenger` | **console Comfort seat-heat pips (visible)** |
-| `set_fan_speed` | `fan_speed` | **console Comfort fan gauge, all zones (visible)** |
-| `set_head_lights_high_beams` *(REQUIRES_CONFIRMATION)* | `head_lights_high_beams` | state only → WP-V1 |
-| `set_fog_lights` | `fog_lights` | state only → WP-V1 |
-| `set_ambient_lights` | `ambient_light` | state only → WP-V2 |
-| `set_reading_light` | one of 4 `reading_light_*` | state only → WP-V2 |
-| `open_close_window` | 1–4 `window_*_position` (window enum incl. ALL, RIGHT_REAR≡DRIVER_REAR, LEFT_REAR≡PASSENGER_REAR) | state only → WP-V3 |
-| `open_close_sunroof` / `open_close_sunshade` | `sunroof_position` / `sunshade_position` | state only → WP-V3 |
-| `open_close_trunk_door` *(REQUIRES_CONFIRMATION)* | `trunk_door_position` = `"OPEN"`/`"CLOSE"` | state only |
-| `set_window_defrost` | `window_front_defrost`/`window_rear_defrost` | state only → WP-V4 |
-| `set_fan_airflow_direction` | `fan_airflow_direction` | state only → WP-V4 |
-| `set_air_conditioning` | `air_conditioning` | state only → WP-V4 |
-| `set_air_circulation` | `air_circulation` | state only → WP-V4 |
-| `set_steering_wheel_heating` | `steering_wheel_heating` | state only → WP-V4 |
+| Tool                                                   | Fields written                                                                                    | Sim effect (baseline)                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `set_head_lights_low_beams`                            | `head_lights_low_beams`                                                                           | **engine headlights toggle (visible)**             |
+| `set_climate_temperature`                              | `climate_temperature_driver/_passenger` (zones ALL_ZONES/DRIVER/PASSENGER)                        | **console Comfort temp readout (visible)**         |
+| `set_seat_heating`                                     | `seat_heating_driver/_passenger`                                                                  | **console Comfort seat-heat pips (visible)**       |
+| `set_fan_speed`                                        | `fan_speed`                                                                                       | **console Comfort fan gauge, all zones (visible)** |
+| `set_head_lights_high_beams` *(REQUIRES_CONFIRMATION)* | `head_lights_high_beams`                                                                          | state only → WP-V1                                 |
+| `set_fog_lights`                                       | `fog_lights`                                                                                      | state only → WP-V1                                 |
+| `set_ambient_lights`                                   | `ambient_light`                                                                                   | state only → WP-V2                                 |
+| `set_reading_light`                                    | one of 4 `reading_light_*`                                                                        | state only → WP-V2                                 |
+| `open_close_window`                                    | 1–4 `window_*_position` (window enum incl. ALL, RIGHT_REAR≡DRIVER_REAR, LEFT_REAR≡PASSENGER_REAR) | state only → WP-V3                                 |
+| `open_close_sunroof` / `open_close_sunshade`           | `sunroof_position` / `sunshade_position`                                                          | state only → WP-V3                                 |
+| `open_close_trunk_door` *(REQUIRES_CONFIRMATION)*      | `trunk_door_position` = `"OPEN"`/`"CLOSE"`                                                        | state only                                         |
+| `set_window_defrost`                                   | `window_front_defrost`/`window_rear_defrost`                                                      | state only → WP-V4                                 |
+| `set_fan_airflow_direction`                            | `fan_airflow_direction`                                                                           | state only → WP-V4                                 |
+| `set_air_conditioning`                                 | `air_conditioning`                                                                                | state only → WP-V4                                 |
+| `set_air_circulation`                                  | `air_circulation`                                                                                 | state only → WP-V4                                 |
+| `set_steering_wheel_heating`                           | `steering_wheel_heating`                                                                          | state only → WP-V4                                 |
 
 ### Vehicle GET — 12 tools → read `LiveContextState` / `LiveFixedContext` attributes (local, zero latency; values match the sim by §4.1 write-through + verification)
 
@@ -447,32 +447,38 @@ Conventions for implementers: never edit built `static/js/*.js` bundles — edit
 Each package: expected functionality, integration point, acceptance criteria. All read state exclusively from `window.VehicleState` via the `vehicleState` event — none may write state in benchmark mode.
 
 #### WP-V1 — High/low beam split + fog lights — **S/M**
+
 - **Functionality:** `head_lights_low_beams` keeps today's spotlight look. `head_lights_high_beams=true` (with low on or alone) visibly intensifies and lengthens the beams: intensity ×~2 and the spotlight target pushed further ahead. `fog_lights=true` renders a distinct cue — v1 may be a cluster telltale only; v1.1 adds two short, wide, low-mounted cones. Cluster shows standard telltales: green low-beam, blue high-beam, green fog lamp.
 - **Integration:** extend the WP3 `setHeadlights` patch region in `scripts/build-main.js` with a beam-mode multiplier read from `VehicleState` (the headlight intensity update path is adjacent to `deobfuscated.js:2029-2042`); telltale glyphs in `src/cluster/icons.js` + a small zone in `src/cluster/InstrumentCluster.js`/`layout.js`.
 - **Acceptance:** toggling high beams with low on visibly changes throw/intensity in chase and first-person cameras; all three telltales reflect state within one frame of `vehicle.set`; with both new fields false, rendering is pixel-equivalent to today; benchmark lock still blocks non-`_applying` writes.
 
 #### WP-V2 — Ambient cabin light + reading lights — **M**
+
 - **Functionality:** `ambient_light` tints the cabin in first-person view with the enum color (one interior point light + optional emissive trim strip; `OFF` removes it; exact color map for the 9 colors in `src/vehicle/config.js`). The four `reading_light_*` fields each toggle a small warm-white point light at the corresponding seat position.
 - **Integration:** no engine patch needed — `src/vehicle/link.js` creates lights with `PromptDriveBridge.handles.THREE` parented to `handles.ego.geo`; re-attach on vehicle-change events (the console does the same via `resetForVehicleChange`).
 - **Acceptance:** each enum color visibly and distinctly tints the cabin in FP camera; `OFF` returns to stock; the 4 reading lights toggle independently; exterior cameras show no effect beyond window glow; frame-rate impact < 5 %.
 
 #### WP-V3 — Window glass + sunroof/sunshade visuals (experimental) — **L**
+
 - **Functionality:** per-window translucent glass plane in the cabin whose top edge lowers proportionally to `window_*_position`; a roof aperture whose opening tracks `sunroof_position` with a sliding opaque shade tracking `sunshade_position`, letting sky light into the cabin.
 - **Integration:** geometry added to the interior model from `src/vehicle/link.js` (or a `build-main.js` patch if the interior mesh must be split). The interior anchor-mesh discovery pattern is in `src/console/CenterConsole.js` (`_findAnchor`, `INTERIOR_MESH`).
 - **Mandated fallback:** if the interior meshes don't decompose cleanly, ship **indicator glyphs instead** — window/sunroof percent readouts on the cluster or a console status strip — and keep the package "done". State round-trips are already guaranteed by WP1 either way.
 - **Acceptance:** positions 0/50/100 are visually distinct in FP view (or fallback readouts match state); no z-fighting artifacts in exterior cameras; state behavior unchanged.
 
 #### WP-V4 — Console Climate screen (full HVAC display) — **M**
+
 - **Functionality:** extend the Comfort app with a second pane/row rendering the remaining HVAC state: AC on/off badge, front/rear defrost buttons, 7-value airflow-direction pictogram (feet/head/windshield combinations), 3-state circulation selector, steering-wheel-heat 0–3 pips. Values come from `VehicleState`; in benchmark mode the pane is display-only (input lock); in free-play, taps write to `VehicleState` and emit `vehicleState`.
 - **Integration:** `src/console/apps/ComfortApp.js` + `src/console/config.js` (layout constants, icons); subscribes to `vehicleState` via `PromptDriveBridge`.
 - **Acceptance:** all six field groups render current values within one frame of `vehicle.set`; benchmark-mode taps emit `consoleInputBlocked` and change nothing; free-play taps round-trip through `VehicleState`; existing three-zone pane unaffected.
 
 #### WP-V5 — Cluster SOC/battery gauge — **S/M**
+
 - **Functionality:** a battery/SOC arc + percentage readout on the instrument cluster fed from `VehicleState.fixed.state_of_charge` (static per task; the fixed default 10 % renders as a low-battery state). Optional low-SOC tint below 20 %.
 - **Integration:** `src/cluster/InstrumentCluster.js` + `src/cluster/layout.js` (new zone; the arc-gauge drawing helper already exists), reading via a bridge subscription set up in `src/vehicle/link.js` or directly from `window.VehicleState`.
 - **Acceptance:** gauge shows the init SOC immediately after `vehicle.reset`; defaults render correctly with no fixed context set; no regression to the speed/power/odometer zones.
 
 #### WP-V6 — Nav app destination card — **S/M**
+
 - **Functionality:** when `navigation_active` is true and `vehicle.navDisplay(meta)` has been pushed, the console Nav app renders a header card: destination name, waypoint count/names, total distance km / ETA, and a "NAV ACTIVE" badge; the card clears on `navDisplay(null)` or `navigation_active=false`. The existing lane-view rendering is untouched.
 - **Integration:** `src/console/apps/NavApp.js` (header band above the current view); `vehicle.navDisplay` op from WP2; Python adapter pushes metadata after successful nav-set tools (§6).
 - **Acceptance:** in a live task, `set_new_navigation` makes the card appear with the destination name within one turn; `delete_current_navigation` clears it; no card when metadata was never pushed.
@@ -532,16 +538,16 @@ Rules: unknown `op` ⇒ `res` with `{ok:false, error:'unknown_op'}`; exceptions 
 
 ## Appendix B — Ambience mapping (reference table)
 
-| Input | Preset intent | Name-substring match against active skin list |
-| --- | --- | --- |
-| hour 5–8 | sunrise | `sunrise` (`springSunrise`, `winterSunrise`, …) |
-| hour 8–17 | clear | `clear` (`clearSpring`, `clearSnow`, …) |
-| hour 17–20 | sunset | `sunset` / `twilight` |
-| hour 20–5 | night | `night` (`nightSnow`) — wins over condition |
-| condition ~ rain/thunderstorm/hail | rain | `rain` |
-| condition ~ snow | snow | `snow` (Winter skin) |
-| condition ~ fog | closest wet/dim preset | `rain`, else `twilight` |
-| no match | clear | fall back to weather index 1 |
+| Input                              | Preset intent          | Name-substring match against active skin list   |
+| ---------------------------------- | ---------------------- | ----------------------------------------------- |
+| hour 5–8                           | sunrise                | `sunrise` (`springSunrise`, `winterSunrise`, …) |
+| hour 8–17                          | clear                  | `clear` (`clearSpring`, `clearSnow`, …)         |
+| hour 17–20                         | sunset                 | `sunset` / `twilight`                           |
+| hour 20–5                          | night                  | `night` (`nightSnow`) — wins over condition     |
+| condition ~ rain/thunderstorm/hail | rain                   | `rain`                                          |
+| condition ~ snow                   | snow                   | `snow` (Winter skin)                            |
+| condition ~ fog                    | closest wet/dim preset | `rain`, else `twilight`                         |
+| no match                           | clear                  | fall back to weather index 1                    |
 
 ## Appendix C — Serialization gotchas (source of hash bugs; read before coding)
 

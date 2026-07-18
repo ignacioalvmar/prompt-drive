@@ -2032,6 +2032,10 @@
       this.fireEvent(we);
     }
     setHeadlights(e, t = false) {
+      if (typeof window !== "undefined" && window.VehicleState && window.VehicleState._benchmark && !window.VehicleState._applying) {
+        try { if (window.PromptDriveBridge) window.PromptDriveBridge.emit("vehicleExternalAttempt", { field: "head_lights_low_beams", source: "engine" }); } catch (_e) {}
+        return;
+      }
       if (!!e || !!t || !this.headlights || !this.headlightsManual) {
         this.headlightsManual = (this.headlightsManual || t) && e;
         this.headlights = e;

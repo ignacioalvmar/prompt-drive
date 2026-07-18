@@ -13,7 +13,7 @@
       ]
     },
     {
-      "source": "/static/js/(api|cluster|metrics|lanes|traffic|wheel).js",
+      "source": "/static/js/(api|cluster|metrics|lanes|traffic|wheel|console|vehicle).js",
       "headers": [
         {
           "key": "Cache-Control",

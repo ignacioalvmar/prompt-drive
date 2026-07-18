@@ -109,6 +109,7 @@
     <button data-tab="dynamic">② Dynamic config</button>
     <button data-tab="metrics">③ Metrics &amp; logs</button>
     <button data-tab="console">④ Center console</button>
+    <button data-tab="vehicle">⑤ Vehicle state</button>
   </div></div>
 
   <div class="tabwrap">
@@ -467,6 +468,68 @@
               <input type="number" id="cc-u" min="0" max="1" step="0.01" value="0.5" />
               <input type="number" id="cc-v" min="0" max="1" step="0.01" value="0.5" />
               <button data-call="ccTap" data-live>Tap</button></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ VEHICLE STATE (CAR-bench) ============ -->
+    <div class="tab-panel" id="tab-vehicle">
+      <div class="gate full">⚠ The vehicle-state store lives in the <b>sim tab</b> (window.VehicleState). Open a
+        simulation; state ops work even before pressing “begin”. See <code>car-bench-compat-plan.md</code>.</div>
+      <div class="group needslive">
+        <h3>Benchmark mode &amp; snapshot</h3>
+        <div class="body">
+          <p class="hint">Benchmark mode locks every un-commanded state change (auto-dusk / weather-forced
+            headlights, KeyH, console taps, settings menu) — “the system never autonomously changes state”.</p>
+          <div class="btnrow">
+            <button data-call="vBenchOn" data-live>Benchmark ON</button>
+            <button data-call="vBenchOff" class="sec" data-live>Benchmark OFF</button>
+            <button data-call="vSnapshot" class="sec" data-live>Snapshot</button>
+            <button data-call="vGet" class="sec" data-live>Get dynamic</button>
+            <button data-call="vFixed" class="sec" data-live>Get fixed</button>
+          </div>
+          <pre class="out" id="vehicle-out" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Quick setters (linked fields drive real visuals)</h3>
+        <div class="body">
+          <div class="row"><label>Fan speed 0..5</label>
+            <div class="setrow"><input type="number" id="v-fan" min="0" max="5" value="3" /><button data-call="vFan" data-live>Set</button></div></div>
+          <div class="row"><label>Climate driver °C (16–28, 0.5)</label>
+            <div class="setrow"><input type="number" id="v-temp" min="16" max="28" step="0.5" value="22" /><button data-call="vTemp" data-live>Set</button></div></div>
+          <div class="row"><label>Seat heating driver 0..3</label>
+            <div class="setrow"><input type="number" id="v-seat" min="0" max="3" value="2" /><button data-call="vSeat" data-live>Set</button></div></div>
+          <div class="row"><label>Ambient light</label>
+            <div class="setrow"><select id="v-ambient">
+              <option>OFF</option><option>RED</option><option>GREEN</option><option>BLUE</option>
+              <option>YELLOW</option><option>WHITE</option><option>PINK</option><option>ORANGE</option>
+              <option>PURPLE</option><option>CYAN</option></select><button data-call="vAmbient" data-live>Set</button></div></div>
+          <div class="row"><label>Driver window %</label>
+            <div class="setrow"><input type="number" id="v-window" min="0" max="100" value="50" /><button data-call="vWindow" data-live>Set</button></div></div>
+          <div class="btnrow">
+            <button data-call="vLowOn" data-live>Low beams ON</button>
+            <button data-call="vLowOff" class="sec" data-live>Low beams OFF</button>
+            <button data-call="vHighOn" data-live>High beams ON</button>
+            <button data-call="vTrunkOpen" class="sec" data-live>Trunk OPEN</button>
+            <button data-call="vTrunkClose" class="sec" data-live>Trunk CLOSE</button>
+          </div>
+          <p class="hint">Low beams → engine headlights; climate/seat/fan → console Comfort. Others are stored
+            state (upgraded to visuals by the optional WP-V packages). Out-of-range values are rejected.</p>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Per-task reset (init config)</h3>
+        <div class="body">
+          <p class="hint">Apply a flat <code>context_init_config</code> (ContextState + FixedContext keys;
+            foreign keys ignored), exactly as a CAR-bench task would.</p>
+          <textarea id="v-reset" rows="5" style="width:100%;font-family:monospace;font-size:12px"
+            spellcheck="false">{ "head_lights_low_beams": true, "climate_temperature_driver": 24, "fan_speed": 4, "ambient_light": "BLUE", "state_of_charge": 55 }</textarea>
+          <div class="btnrow" style="margin-top:6px">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="v-bench" checked /> benchmark</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="v-amb" /> ambience</label>
+            <button data-call="vReset" data-live>Reset to config</button>
+          </div>
         </div>
       </div>
     </div>
@@ -844,6 +907,30 @@
     ccComfortGet: async () => { const r = await op('console.comfort.get'); showOut('console-out', r); return r; },
     ccComfortReset: () => op('console.comfort.reset'),
     ccTap: () => op('console.tap', num('cc-u'), num('cc-v')),
+    vBenchOn: () => op('vehicle.benchmark', true),
+    vBenchOff: () => op('vehicle.benchmark', false),
+    vSnapshot: async () => { const r = await op('vehicle.snapshot'); showOut('vehicle-out', r); return r; },
+    vGet: async () => { const r = await op('vehicle.get'); showOut('vehicle-out', r); return r; },
+    vFixed: async () => { const r = await op('vehicle.fixed.get'); showOut('vehicle-out', r); return r; },
+    vFan: () => op('vehicle.set', { fan_speed: num('v-fan') }),
+    vTemp: () => op('vehicle.set', { climate_temperature_driver: num('v-temp') }),
+    vSeat: () => op('vehicle.set', { seat_heating_driver: num('v-seat') }),
+    vAmbient: () => op('vehicle.set', { ambient_light: val('v-ambient') }),
+    vWindow: () => op('vehicle.set', { window_driver_position: num('v-window') }),
+    vLowOn: () => op('vehicle.set', { head_lights_low_beams: true }),
+    vLowOff: () => op('vehicle.set', { head_lights_low_beams: false }),
+    vHighOn: () => op('vehicle.set', { head_lights_high_beams: true }),
+    vTrunkOpen: () => op('vehicle.set', { trunk_door_position: 'OPEN' }),
+    vTrunkClose: () => op('vehicle.set', { trunk_door_position: 'CLOSE' }),
+    vReset: async () => {
+      let cfg;
+      try { cfg = JSON.parse(val('v-reset')); }
+      catch (e) { return { ok: false, error: 'bad_json', message: String(e.message || e) }; }
+      const opts = { benchmark: document.getElementById('v-bench').checked, ambience: document.getElementById('v-amb').checked };
+      const r = await op('vehicle.reset', cfg, opts);
+      showOut('vehicle-out', r);
+      return r;
+    },
   };
 
   document.querySelectorAll('button[data-call]').forEach((b) => b.addEventListener('click', async () => {

@@ -36,6 +36,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Traffic — `traffic.*`](#traffic--traffic)
   - [Steering wheel — `wheel.*`](#steering-wheel--wheel)
   - [Center console — `console.*`](#center-console--console)
+  - [Vehicle state — `vehicle.*`](#vehicle-state--vehicle)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -45,6 +46,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [In-page (direct)](#in-page-direct)
   - [Iframe (`postMessage`)](#iframe-postmessage)
   - [Cross-tab (`BroadcastChannel`)](#cross-tab-broadcastchannel)
+  - [WebSocket (`src/api/socket.js`)](#websocket-srcapisocketjs)
   - [Auto-start (bypass the “begin” splash)](#auto-start-bypass-the-begin-splash)
 - [Validation & error codes](#validation--error-codes)
 - [The test console (`api-test.html`)](#the-test-console-api-testhtml)
@@ -475,6 +477,44 @@ PromptDrive.console.tap(0.39, 0.94);       // e.g. taps the Map dock icon
   `consoleAudio`, `consolePhone` (incl. a `phase:'missed'` payload on the 30 s
   ring timeout), `consoleComfort`.
 
+### Vehicle state — `vehicle.*`
+
+A CAR-bench-compatible in-cabin vehicle-state store (`window.VehicleState`,
+`src/vehicle/`). It mirrors the [CAR-bench](https://github.com/CAR-bench)
+`ContextState` (31 mutable fields: sunroof, sunshade, trunk, four windows, four
+reading lights, fog/low/high beams, ambient light, per-zone climate temperature,
+steering-wheel/seat heating, fan speed, front/rear defrost, airflow direction,
+AC, air circulation, navigation, and the email/call logs) plus a read-only
+`FixedContext` (battery/SOC, seats occupancy, location, datetime, preferences).
+Field names, enum strings, ranges and defaults are byte-faithful to the Python
+models. See [`car-bench-compat-plan.md`](car-bench-compat-plan.md).
+
+Works **live and pre-launch** — the store is engine-independent, so state
+round-trips before the sim starts. When the sim is running, a subset of fields is
+projected onto real visuals (baseline: `head_lights_low_beams` → engine
+headlights; `climate_temperature_driver/_passenger`, `seat_heating_*`,
+`fan_speed` → the console **Comfort** app); every other field is faithfully
+stored and queryable.
+
+```js
+PromptDrive.vehicle.get();                       // full ContextState snapshot
+PromptDrive.vehicle.get(['fan_speed','ambient_light']); // subset
+PromptDrive.vehicle.set({ fan_speed: 3, ambient_light: 'BLUE' });
+// → { ok:true, value:{ changed:['fan_speed','ambient_light'] } }
+PromptDrive.vehicle.set({ sunroof_position: 101 }); // → { ok:false, error:'bad_value', key:'sunroof_position' }
+PromptDrive.vehicle.snapshot();                  // { dynamic, fixed, benchmark }
+PromptDrive.vehicle.fixed.get();                 // battery/SOC, seats_occupied, location, datetime, preferences
+PromptDrive.vehicle.reset(initConfig, opts);     // per-task init (one flat dict; foreign keys ignored)
+PromptDrive.vehicle.benchmark(true);             // lock all un-commanded state changes (see plan §4.5)
+```
+
+Validation is **atomic** (a single bad key rejects the whole `set`) and
+**rejects** out-of-range / non-0.5-step temperatures / invalid enums rather than
+clamping, so a write-through mirror can't silently mask an adapter bug. Emits
+`vehicleState` (per `set`), `vehicleReset`, `vehicleBenchmark`, `vehicleFixed`
+(see [Events](#events)). `benchmark`, `reset`-time linked projection, and
+`ambience` are fully wired once the in-cabin linkage bundle is present.
+
 ### Metrics run & export — `run.*`
 
 Controls the driving-metrics run lifecycle and downloads. Recording auto-starts
@@ -546,6 +586,10 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `applied` | `{ path, value }` | API — fired for each successful dynamic change. |
 | `ended` | `{ report, downloaded }` | API — fired by `end()` when the sim is finalized. |
 | `tick` | ego `state()` | API — ~10 Hz while there is a listener (the “live feed”). |
+| `vehicleState` | `{ changed, snapshot }` | Vehicle — fired for each `vehicle.set`. |
+| `vehicleReset` | `{ snapshot }` | Vehicle — fired by `vehicle.reset`. |
+| `vehicleBenchmark` | `{ on }` | Vehicle — benchmark mode engaged/released. |
+| `vehicleFixed` | `{ snapshot }` | Vehicle — fired by `vehicle.fixed.set`. |
 | `weatherChange` | weather name/index | Engine |
 | `skinChange` | skin name | Engine |
 | `cameraChange` | camera mode | Engine |
@@ -741,6 +785,55 @@ Because it is same-origin, the console and the sim share `localStorage` — so
 `pd-autostart` flag work across the two tabs. Ops execute in the **sim's**
 context; a caller with no sim open simply gets timeouts until one appears.
 
+### WebSocket (`src/api/socket.js`)
+
+For driving the sim from an **external process** (e.g. the CAR-bench Python
+harness), the page can open a WebSocket **out** to a server you run — there is
+still no server inside the page. Activate by loading the sim with
+`?ws=<url>&wsToken=<token>` (or set `localStorage['pd-ws']` / `['pd-ws-token']`);
+without a `ws` url the transport is inert, so normal users are unaffected.
+
+**Envelope** (same `ns:'promptdrive'` and dot-path `op` as the other transports):
+
+```
+browser→server  { ns:'promptdrive', kind:'hello', role:'sim', token, version, url }
+server→browser  { ns:'promptdrive', kind:'req',   id, op, args }
+browser→server  { ns:'promptdrive', kind:'res',   id, result }
+browser→server  { ns:'promptdrive', kind:'event', event, payload }
+```
+
+On connect the page sends `hello`; the server should reject a wrong/missing
+token. Every engine/API event is forwarded (which also keeps the ~10 Hz
+`telemetry` tick alive). The page reconnects automatically with exponential
+backoff (0.5 s → 30 s) and re-sends `hello`; because Python stays authoritative
+over the state, on reconnect the harness re-pushes the full `vehicle` state. A
+minimal Python server:
+
+```python
+import asyncio, json, websockets
+
+async def handler(ws):
+    hello = json.loads(await ws.recv())          # {kind:'hello', token, ...}
+    await ws.send(json.dumps({"ns": "promptdrive", "kind": "req", "id": 1,
+                              "op": "vehicle.set", "args": [{"fan_speed": 3}]}))
+    async for raw in ws:
+        d = json.loads(raw)
+        if d.get("kind") == "res":   print("res", d["id"], d["result"])
+        elif d.get("kind") == "event": print("event", d["event"])
+
+async def main():
+    async with websockets.serve(handler, "127.0.0.1", 8765):
+        await asyncio.Future()
+
+asyncio.run(main())
+```
+
+Then launch the sim pointed at it:
+`…/index.html?ws=ws%3A%2F%2F127.0.0.1%3A8765&wsToken=<token>&autostart=1&hideMenu=1`.
+See [`car-bench-compat-plan.md`](car-bench-compat-plan.md) §4.4 / Appendix A for
+the full protocol and the CAR-bench adapter. The transport is covered by
+`scripts/test_socket.py` (+ the headless `scripts/test-socket-sim.js`).
+
 ### Auto-start (bypass the “begin” splash)
 
 By default the sim waits behind a **begin** splash requiring a click. For
@@ -775,6 +868,8 @@ All mutating calls return `{ ok, … }`. Failures carry an `error` code:
 | `unavailable` | A dependency (e.g. `LaneRoads`, `localStorage`) is missing. |
 | `disabled` | The feature is turned off — e.g. a `console.*` action while `vehicle.showConsole` is `false`. |
 | `unsupported_apply_mode` | `config.apply` was called with an unknown `mode`. |
+| `unknown_op` | (WebSocket transport) the requested `op` is not a facade method. |
+| `exception` | (WebSocket transport) the facade method threw; includes `message`. |
 
 Successful results include the resulting `value`; numeric values coerced into
 range additionally carry `clamped: true`. Errors are contained per-field, so one
@@ -839,10 +934,14 @@ straight into a live sim.
 | `src/api/PromptDriveApi.js` | The `window.PromptDrive` facade. |
 | `src/api/postmessage.js` | Iframe `postMessage` transport + origin allow-list. |
 | `src/api/broadcast.js` | Cross-tab `BroadcastChannel` transport. |
+| `src/api/socket.js` | WebSocket transport for external (Python) harnesses (`?ws=`). |
 | `src/api/autostart.js` | Optional “begin”-splash bypass. |
 | `src/api/hidemenu.js` | Participant lockdown — hides the bottom-bar menu icons (`ui.hideMenu` / `?hideMenu=1`). |
+| `src/vehicle/` | CAR-bench-shaped vehicle-state store (`window.VehicleState`) behind `vehicle.*`. |
 | `src/wheel/` | Steering-wheel & pedal subsystem (`window.WheelControls`) behind `wheel.*`. |
 | `scripts/build-api.js` | Bundles `src/api/` → `static/js/api.js`. |
+| `scripts/build-vehicle.js` | Bundles `src/vehicle/` → `static/js/vehicle.js`. |
+| `scripts/test_socket.py`, `scripts/test-socket-sim.js` | WebSocket transport integration test. |
 | `api-test.html` | Local test console. |
 
 Engine wiring is added by `scripts/build-main.js` (anchored patches): it

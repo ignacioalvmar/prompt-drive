@@ -3191,6 +3191,7 @@ class CenterConsole {
       try { this.apps[id].init?.(facade); } catch (e) { console.error('CenterConsole app init failed', id, e); }
     }
 
+    this._inputLocked = false; // benchmark mode: swallow screen taps, no routing
     this._ensureFonts();
     this._armPointer();
     this._wireEngineAudio();
@@ -3706,6 +3707,15 @@ class CenterConsole {
       }
       return;
     }
+    if (this._inputLocked) {
+      // Benchmark mode (car-bench): the pointer hit the screen, so swallow it
+      // (never leak a tap to the game) but do NOT route it to any app — the
+      // vehicle state is Python-authoritative. Report the blocked attempt.
+      e.preventDefault();
+      e.stopPropagation();
+      if (type === 'down') this._emitBlocked(pt);
+      return;
+    }
     if (this._capture) this._lastDragPt = pt;
     const consumed = this._routePoint(type, pt.x, pt.y);
     if (!this._capture) this._lastDragPt = null;
@@ -3825,8 +3835,27 @@ class CenterConsole {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
   }
 
+  /**
+   * Benchmark-mode input lock (car-bench-compat-plan.md §4.5, lock #4). When
+   * locked, screen taps are swallowed but not routed, and tap() is refused —
+   * programmatic controller access (e.g. comfort.controller.set, VehicleState's
+   * own projection path) stays open.
+   */
+  setInputLocked(locked) {
+    this._inputLocked = !!locked;
+    return { ok: true, value: { locked: this._inputLocked } };
+  }
+
+  _emitBlocked(pt) {
+    try {
+      const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
+      if (b) b.emit('consoleInputBlocked', { u: pt.x / this.canvas.width, v: pt.y / this.canvas.height });
+    } catch (_e) { /* no bridge yet — nothing to report to */ }
+  }
+
   /** Synthetic tap for the API: u, v normalized 0..1 across the screen. */
   tap(u, v) {
+    if (this._inputLocked) return { ok: false, error: 'locked' };
     if (!(u >= 0 && u <= 1 && v >= 0 && v <= 1)) return { ok: false, error: 'bad_value', message: 'u and v must be 0..1' };
     const x = u * this.canvas.width;
     const y = v * this.canvas.height;
