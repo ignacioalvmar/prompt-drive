@@ -713,7 +713,6 @@ function applyStatic(opts) {
   if (!_pending['controls.autodrive']) {
     try { localStorage.removeItem('has-autodrive'); } catch (_e) {}
   }
-
   if (typeof location !== 'undefined') location.reload();
   return ok({ mode: 'reload', applied, skipped });
 }
