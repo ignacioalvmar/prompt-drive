@@ -787,6 +787,46 @@ const PromptDrive = {
     };
   })(),
 
+  // CAR-bench-compatible vehicle state (window.VehicleState, src/vehicle/): the
+  // full ContextState mirror + fixed context. Works live AND pre-launch (the
+  // store is engine-independent; linked-field projection + benchmark locks attach
+  // once the sim runs — WP3). VehicleState's own methods already return
+  // { ok, ... } result objects, so pass those through instead of double-wrapping;
+  // raw reads (get/snapshot/fixed.get) are wrapped with ok(). See
+  // car-bench-compat-plan.md §4.3.
+  vehicle: (() => {
+    const VS = () => (typeof window !== 'undefined' ? window.VehicleState : null);
+    const pass = (r) => (r && typeof r === 'object' && typeof r.ok === 'boolean') ? r : ok(r);
+    return {
+      get: (keys) => { const v = VS(); return v ? ok(v.get(keys)) : err('unavailable'); },
+      set: (partial) => { const v = VS(); return v ? pass(v.set(partial)) : err('unavailable'); },
+      snapshot: () => { const v = VS(); return v ? ok(v.snapshot()) : err('unavailable'); },
+      reset: (initConfig, opts) => { const v = VS(); return v ? pass(v.reset(initConfig, opts)) : err('unavailable'); },
+      benchmark: (on, opts) => { const v = VS(); return v ? pass(v.benchmark(on, opts)) : err('unavailable'); },
+      // Optional ambience sync (WP3 installs VehicleState.ambience via ambience.js).
+      ambience: (spec) => {
+        const v = VS();
+        if (!v) return err('unavailable');
+        if (typeof v.ambience === 'function') return pass(v.ambience(spec));
+        return err('unavailable', { message: 'ambience not installed (WP3)' });
+      },
+      // Display-only route metadata for the Nav card (WP-V6). Baseline just
+      // stores it on VehicleState (if supported) and emits vehicleNavDisplay so
+      // subscribers/consoles can react.
+      navDisplay: (meta) => {
+        const v = VS();
+        if (!v) return err('unavailable');
+        if (typeof v.navDisplay === 'function') return pass(v.navDisplay(meta));
+        try { if (window.PromptDriveBridge) window.PromptDriveBridge.emit('vehicleNavDisplay', { meta: meta || null }); } catch (_e) {}
+        return ok({ meta: meta || null });
+      },
+      fixed: {
+        get: () => { const v = VS(); return v ? ok(v.fixed.get()) : err('unavailable'); },
+        set: (partial) => { const v = VS(); return v ? pass(v.fixed.set(partial)) : err('unavailable'); },
+      },
+    };
+  })(),
+
   // Driving-metrics selection (which families/metrics are computed). Works live
   // and pre-launch (staged to localStorage the metrics subsystem reads on load).
   metrics: {
