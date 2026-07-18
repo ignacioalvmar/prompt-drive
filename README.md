@@ -240,6 +240,11 @@ lower side of the screen — shown fullscreen or in a **⅔ + ⅓ split**:
 - **Comfort** — seat and climate controls (temperature, fan, seat heating)
   for driver, passenger, and rear, with AUTO/SYNC modes.
 
+The console can be turned off from the game's own settings panel — **Interior:
+Show center console** in the vehicle section (next to *Show wheel*), or
+`vehicle.showConsole` via the API / static config. While it's off the console
+isn't rendered and its `console.*` API actions return `disabled`.
+
 Everything on the screen is operable two ways: **mouse/touch taps on the 3D
 screen itself** (pointer rays are cast onto the display plane) and the
 **integration API** — `PromptDrive.console.*` can open/split apps, drive the

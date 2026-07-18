@@ -35,6 +35,7 @@ const STAGE_STORAGE = {
   'vehicle.gripFactor': 'config-vehicle-grip',
   'vehicle.speedFactor': 'config-vehicle-speed',
   'vehicle.showWheel': 'config-vehicle-show-wheel',
+  'vehicle.showConsole': 'config-vehicle-show-console',
   'vehicle.side': 'config-vehicle-side',
   'vehicle.seat': 'config-vehicle-seat',
   'vehicle.seatAdjustment': 'config-vehicle-seat-adjustment',
@@ -106,6 +107,7 @@ function snapshot() {
       speedFactor: v.speedFactor,
       steerRotationIndex: v.steerRotationIndex,
       showWheel: v.showWheel,
+      showConsole: v.showConsole !== false,
       side: v.side,
       seat: v.seat,
       seatAdjustment: v.seatAdjustment,
@@ -190,6 +192,7 @@ function applyDynamic(path, value, opts) {
       return ok(value);
     }
     case 'vehicle.showWheel': h.vehicleConfig.set('showWheel', value); return ok(value);
+    case 'vehicle.showConsole': h.vehicleConfig.set('showConsole', value); return ok(value);
     case 'vehicle.side': h.vehicleConfig.set('side', value); return ok(value);
     case 'vehicle.seat': h.vehicleConfig.set('seat', value); return ok(value);
     case 'vehicle.seatAdjustment': h.vehicleConfig.set('seatAdjustment', value); return ok(value);
@@ -671,9 +674,12 @@ const PromptDrive = {
   // comfort). Live-only — the instance exists once the sim starts; every call
   // guards with err('unavailable') before that (traffic/wheel pattern). The
   // screen itself is only visible in the first-person (in-cabin) camera; the
-  // API still works from any camera mode. State changes are announced on the
-  // event stream: consoleApp / consoleLayout / consoleAudio / consolePhone /
-  // consoleComfort.
+  // API still works from any camera mode. When the console is turned off in the
+  // vehicle settings ("Interior: Show center console" / vehicle.showConsole),
+  // it is not rendered and every action call returns err('disabled'); only the
+  // read-only state() stays available (reporting enabled:false). State changes
+  // are announced on the event stream: consoleApp / consoleLayout /
+  // consoleAudio / consolePhone / consoleComfort.
   console: (() => {
     const inst = () => {
       const b = (typeof window !== 'undefined') ? window.PromptDriveBridge : null;
@@ -687,12 +693,24 @@ const PromptDrive = {
       if (!c) return null;
       return c.apps && c.apps[id];
     };
-    const call = (fn) => {
+    // Resolve the instance for an action, or an error: unavailable before the
+    // sim starts, disabled when the vehicle toggle is off.
+    const gate = () => {
       const c = inst();
-      if (!c) return err('unavailable');
-      try { return fn(c); } catch (e) { return err('engine_rejected', { message: String((e && e.message) || e) }); }
+      if (!c) return { err: err('unavailable') };
+      if (typeof c.enabled === 'function' && !c.enabled()) {
+        return { err: err('disabled', { message: 'center console is turned off (vehicle.showConsole is false)' }) };
+      }
+      return { c };
+    };
+    const call = (fn) => {
+      const g = gate();
+      if (g.err) return g.err;
+      try { return fn(g.c); } catch (e) { return err('engine_rejected', { message: String((e && e.message) || e) }); }
     };
     const ctl = (id, fn) => {
+      const g = gate();
+      if (g.err) return g.err;
       const a = app(id);
       if (!a || !a.controller) return err('unavailable');
       try {
@@ -708,7 +726,12 @@ const PromptDrive = {
     };
     const finite = (v) => typeof v === 'number' && isFinite(v);
     return {
-      state: () => call((c) => ok(c.state())),
+      // Read-only: always available so callers can discover enabled:false.
+      state: () => {
+        const c = inst();
+        if (!c) return err('unavailable');
+        try { return ok(c.state()); } catch (e) { return err('engine_rejected', { message: String((e && e.message) || e) }); }
+      },
       open: (id) => call((c) => c.open(id)),
       split: (primary, secondary) => call((c) => c.split(primary, secondary)),
       layout: (mode) => call((c) => (mode == null ? ok(Object.assign({}, c.layout)) : c.setLayoutMode(mode))),

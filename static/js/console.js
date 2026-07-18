@@ -3358,9 +3358,28 @@ class CenterConsole {
 
   // --- engine integration -----------------------------------------------------
 
+  /**
+   * Whether the console is turned on in the vehicle settings
+   * (`VehicleConfig.showConsole`, the "Interior: Show center console" toggle).
+   * Defaults to on when the handle isn't available yet. When off, the console
+   * never renders and the API rejects console calls.
+   */
+  enabled() {
+    const h = this._handles();
+    try {
+      if (h && h.vehicleConfig && h.vehicleConfig.value) {
+        return h.vehicleConfig.value.showConsole !== false;
+      }
+    } catch (_e) {}
+    return true;
+  }
+
   /** Per-tick entry point (patched into updateUI): attach/show + redraw. */
   frame(root, active) {
-    this.applyToObject(root, active);
+    // Gate on the vehicle-config toggle as well as the cabin view, so turning
+    // the console off in settings removes it even in first-person.
+    const show = !!active && this.enabled();
+    this.applyToObject(root, show);
     if (!this._active || !this.screenMesh) return;
     this._refreshData();
     this.draw();
@@ -3826,6 +3845,7 @@ class CenterConsole {
     try { phone = PhoneApp.controller ? PhoneApp.controller.status() : null; } catch (_e) {}
     try { comfort = ComfortApp.controller ? ComfortApp.controller.get() : null; } catch (_e) {}
     return {
+      enabled: this.enabled(),
       visible: !!(this._active && this.screenMesh && this.screenMesh.visible),
       layout: Object.assign({}, this.layout),
       apps: APP_ORDER.slice(),

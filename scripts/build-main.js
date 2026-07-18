@@ -575,5 +575,51 @@ src = replaceOnce(
   'bridge attach center console handles',
 );
 
+// --- Patch: add a `showConsole` VehicleConfig field so the center console can
+// be toggled from the game's own settings panel (like "Interior: Show wheel").
+// Three insertions into the VehicleConfig triplet — storage key map (Pe),
+// defaults (Ge), and the settings descriptors (Be) that the panel renders. ---
+src = replaceOnce(
+  src,
+  '    showWheel: "config-vehicle-show-wheel",\n    autodriveSide: "config-autodrive-side",',
+  '    showWheel: "config-vehicle-show-wheel",\n    showConsole: "config-vehicle-show-console",\n    autodriveSide: "config-autodrive-side",',
+  'VehicleConfig showConsole storage key',
+);
+
+src = replaceOnce(
+  src,
+  '    showWheel: true,\n    seatAdjustment: 0,',
+  '    showWheel: true,\n    showConsole: true,\n    seatAdjustment: 0,',
+  'VehicleConfig showConsole default',
+);
+
+src = replaceOnce(
+  src,
+  `    showWheel: {
+      readable: "Interior: Show wheel",
+      desc: "Toggle visibility of the steering wheel",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showWheel", e)
+    },
+    steerRotationIndex: {`,
+  `    showWheel: {
+      readable: "Interior: Show wheel",
+      desc: "Toggle visibility of the steering wheel",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showWheel", e)
+    },
+    showConsole: {
+      readable: "Interior: Show center console",
+      desc: "Toggle the in-cabin center-stack touchscreen (map / nav / audio / phone / comfort)",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showConsole", e)
+    },
+    steerRotationIndex: {`,
+  'VehicleConfig showConsole descriptor',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);

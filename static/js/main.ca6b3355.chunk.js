@@ -2586,6 +2586,7 @@
     seatAdjustment: "config-vehicle-seat-adjustment",
     seatHeight: "config-vehicle-seat-height",
     showWheel: "config-vehicle-show-wheel",
+    showConsole: "config-vehicle-show-console",
     autodriveSide: "config-autodrive-side",
     autodriveSideIndex: "config-autodrive-side-index"
   };
@@ -2600,6 +2601,7 @@
     gripFactor: 1,
     speedFactor: 1,
     showWheel: true,
+    showConsole: true,
     seatAdjustment: 0,
     seatHeight: 0,
     autodriveSide: -1,
@@ -2664,6 +2666,13 @@
       type: u.Boolean,
       default: true,
       onSet: e => We.set("showWheel", e)
+    },
+    showConsole: {
+      readable: "Interior: Show center console",
+      desc: "Toggle the in-cabin center-stack touchscreen (map / nav / audio / phone / comfort)",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showConsole", e)
     },
     steerRotationIndex: {
       readable: "Interior: Max wheel rotation",

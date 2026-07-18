@@ -411,9 +411,16 @@ taps) only in the **first-person camera**; the API below works from any camera
 mode once the sim is running. All calls are **live-only** and return
 `{ ok:false, error:'unavailable' }` before launch.
 
+The console can be turned off in the vehicle settings ("Interior: Show center
+console", `vehicle.showConsole` — a static or live config field like
+`vehicle.showWheel`). While it is off the console is **not rendered**, and
+every action call (`open`, `split`, `swap`, `layout`, `tap`, `audio.*`,
+`phone.*`, `comfort.*`) returns `{ ok:false, error:'disabled' }`. Only the
+read-only `state()` stays available and reports `enabled:false`.
+
 ```js
 PromptDrive.console.state();
-// → { ok:true, value:{ visible, layout:{mode:'full'|'split', primary, secondary},
+// → { ok:true, value:{ enabled, visible, layout:{mode:'full'|'split', primary, secondary},
 //      apps:['map','nav','audio','phone','comfort'],
 //      audio:{ index, track:{id,title,artist,album}, playing, positionSec,
 //              durationSec, volume },
@@ -594,6 +601,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `vehicle.speedFactor` | float | **S+D** | `0.5`–`2` |
 | `vehicle.steerRotationIndex` | enum | **S+D** | `0`–`4` → 270/360/450/720/900° |
 | `vehicle.showWheel` | boolean | **S+D** | — |
+| `vehicle.showConsole` | boolean | **S+D** | Center-console visibility; when `false` the console isn't rendered and `console.*` actions return `disabled` |
 | `vehicle.side` | enum | **S+D** | `0` right, `1` left |
 | `vehicle.seat` | enum | **S+D** | `0` driver, `1` passenger |
 | `vehicle.seatAdjustment` | float | **S+D** | `-0.25`–`0.25` |
@@ -765,6 +773,7 @@ All mutating calls return `{ ok, … }`. Failures carry an `error` code:
 | `engine_rejected` | The engine's own setter threw (e.g. a weather index past the active skin's list, or the sim isn't live yet). Includes `message`. |
 | `no_metrics` | A `run.*` call was made but the metrics subsystem is absent. |
 | `unavailable` | A dependency (e.g. `LaneRoads`, `localStorage`) is missing. |
+| `disabled` | The feature is turned off — e.g. a `console.*` action while `vehicle.showConsole` is `false`. |
 | `unsupported_apply_mode` | `config.apply` was called with an unknown `mode`. |
 
 Successful results include the resulting `value`; numeric values coerced into

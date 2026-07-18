@@ -182,6 +182,8 @@
             <select id="s-seat"><option value="0">driver</option><option value="1">passenger</option></select></div>
           <div class="row"><label>Interior: show wheel</label>
             <select id="s-wheel"><option value="true">shown</option><option value="false">hidden</option></select></div>
+          <div class="row"><label>Interior: show center console</label>
+            <select id="s-console"><option value="true">shown</option><option value="false">hidden</option></select></div>
           <div class="row"><label>Max wheel rotation</label>
             <select id="s-steer"><option value="0">270°</option><option value="1">360°</option><option value="2">450°</option><option value="3">720°</option><option value="4">900°</option></select></div>
           <div class="row"><label>Camera (initial)</label><select id="s-camera"></select></div>
@@ -720,6 +722,7 @@
     p['vehicle.side'] = num('s-side');
     p['vehicle.seat'] = num('s-seat');
     p['vehicle.showWheel'] = val('s-wheel') === 'true';
+    p['vehicle.showConsole'] = val('s-console') === 'true';
     p['vehicle.steerRotationIndex'] = num('s-steer');
     if (val('s-camera') !== '') p['controls.cameraMode'] = num('s-camera');
     p['vehicle.seatAdjustment'] = num('s-seatadj');
@@ -747,6 +750,7 @@
     set('s-mode', g.vehicle.mode); set('s-autolane', g.controls.autodriveSideIndex);
     set('s-grip', g.vehicle.gripFactor); set('s-speed', g.vehicle.speedFactor);
     set('s-side', g.vehicle.side); set('s-seat', g.vehicle.seat); set('s-wheel', String(!!g.vehicle.showWheel));
+    set('s-console', String(g.vehicle.showConsole !== false));
     set('s-steer', g.vehicle.steerRotationIndex); set('s-seatadj', g.vehicle.seatAdjustment); set('s-seath', g.vehicle.seatHeight);
     if (g.controls) set('s-camera', g.controls.cameraMode);
     if (g.lanes) { set('s-fwd', g.lanes.forward); set('s-bwd', g.lanes.backward); set('s-width', g.lanes.width == null ? '' : g.lanes.width); }
