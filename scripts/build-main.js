@@ -621,5 +621,24 @@ src = replaceOnce(
   'VehicleConfig showConsole descriptor',
 );
 
+// --- Patch: benchmark-mode headlight lock (car-bench-compat-plan.md §4.5 #1) ---
+// In benchmark mode the vehicle state is Python-authoritative; only
+// VehicleState's own projection (_applying) may drive the engine headlights.
+// Gate setHeadlights itself so auto-dusk (deobf ~:10873), weather-forced
+// (~:11205/:13083) and KeyH writes are blocked and reported, rather than
+// silently flipping a mirrored field between eval snapshots.
+src = replaceOnce(
+  src,
+  `    setHeadlights(e, t = false) {
+      if (!!e || !!t || !this.headlights || !this.headlightsManual) {`,
+  `    setHeadlights(e, t = false) {
+      if (typeof window !== "undefined" && window.VehicleState && window.VehicleState._benchmark && !window.VehicleState._applying) {
+        try { if (window.PromptDriveBridge) window.PromptDriveBridge.emit("vehicleExternalAttempt", { field: "head_lights_low_beams", source: "engine" }); } catch (_e) {}
+        return;
+      }
+      if (!!e || !!t || !this.headlights || !this.headlightsManual) {`,
+  'benchmark headlight lock',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);
