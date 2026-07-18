@@ -2586,6 +2586,7 @@
     seatAdjustment: "config-vehicle-seat-adjustment",
     seatHeight: "config-vehicle-seat-height",
     showWheel: "config-vehicle-show-wheel",
+    showConsole: "config-vehicle-show-console",
     autodriveSide: "config-autodrive-side",
     autodriveSideIndex: "config-autodrive-side-index"
   };
@@ -2600,6 +2601,7 @@
     gripFactor: 1,
     speedFactor: 1,
     showWheel: true,
+    showConsole: true,
     seatAdjustment: 0,
     seatHeight: 0,
     autodriveSide: -1,
@@ -2664,6 +2666,13 @@
       type: u.Boolean,
       default: true,
       onSet: e => We.set("showWheel", e)
+    },
+    showConsole: {
+      readable: "Interior: Show center console",
+      desc: "Toggle the in-cabin center-stack touchscreen (map / nav / audio / phone / comfort)",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showConsole", e)
     },
     steerRotationIndex: {
       readable: "Interior: Max wheel rotation",
@@ -18610,6 +18619,7 @@
       this.instrumentCluster = null;
       this.clusterMesh = null;
       this.drivingMetrics = null;
+      this.centerConsole = null;
       this.speedFactor = 1;
       this.distFactor = 1;
       this.onUnitsChangedBound = this.onUnitsChanged.bind(this);
@@ -18705,6 +18715,13 @@
           console.error("InstrumentCluster init failed", clusterErr);
         }
       }
+      if (typeof CenterConsole !== "undefined" && !this.centerConsole) {
+        try {
+          this.centerConsole = new CenterConsole(r);
+        } catch (consoleErr) {
+          console.error("CenterConsole init failed", consoleErr);
+        }
+      }
       if (typeof DrivingMetrics !== "undefined" && !this.drivingMetrics) {
         try {
           this.drivingMetrics = new DrivingMetrics(r);
@@ -18745,7 +18762,14 @@
             ticker: oe,
             cameraDefs: Ol,
             THREE: r,
-            drivingMetrics: this.drivingMetrics
+            camera: Xs,
+            roadState: si,
+            project: ii,
+            closestNode: ti,
+            firstPerson: Js,
+            audioManager: xe,
+            drivingMetrics: this.drivingMetrics,
+            centerConsole: this.centerConsole
           });
         }
       } catch (_pdAttachErr) {
@@ -18884,6 +18908,11 @@
       this.clusterMesh = null;
       if (this.instrumentCluster) {
         this.instrumentCluster.applyToObject(Ae.geo, false);
+      }
+      if (this.centerConsole) {
+        try {
+          this.centerConsole.resetForVehicleChange();
+        } catch (consoleResetErr) {}
       }
       for (this.update = this.updatePass; Ae.geo.children.length;) {
         Ae.geo.remove(Ae.geo.children[Ae.geo.children.length - 1]);
@@ -19355,6 +19384,11 @@
           clock: new Date()
         });
         this.instrumentCluster.texture.needsUpdate = true;
+      }
+      if (this.centerConsole) {
+        try {
+          this.centerConsole.frame(Ae.geo, Js.value);
+        } catch (consoleFrameErr) {}
       }
     }
     updateBasic(e) {

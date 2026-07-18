@@ -66,6 +66,7 @@ const FIELDS = [
   { path: 'vehicle.speedFactor', type: FieldType.Float, cls: 'both', min: 0.5, max: 2, step: 0.01, desc: 'Motor power / top-speed scaling.' },
   { path: 'vehicle.steerRotationIndex', type: FieldType.Enum, cls: 'both', values: [0, 1, 2, 3, 4], labels: [270, 360, 450, 720, 900], desc: 'Steering-wheel range (visual).' },
   { path: 'vehicle.showWheel', type: FieldType.Boolean, cls: 'both', desc: 'Steering-wheel mesh visibility.' },
+  { path: 'vehicle.showConsole', type: FieldType.Boolean, cls: 'both', desc: 'Center-console (center-stack touchscreen) visibility; when off the console API is disabled.' },
   { path: 'vehicle.side', type: FieldType.Enum, cls: 'both', values: [0, 1], labels: ['right', 'left'], desc: 'Driver side.' },
   { path: 'vehicle.seat', type: FieldType.Enum, cls: 'both', values: [0, 1], labels: ['driver', 'passenger'], desc: 'Interior camera anchor.' },
   { path: 'vehicle.seatAdjustment', type: FieldType.Float, cls: 'both', min: -0.25, max: 0.25, step: 0.01, desc: 'First-person camera fwd/back.' },

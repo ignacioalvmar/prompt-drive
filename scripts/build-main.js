@@ -489,5 +489,137 @@ src = replaceOnce(
   'WheelControls input takeover',
 );
 
+// ---------------------------------------------------------------------------
+// Center console (window.CenterConsole, src/console/ -> static/js/console.js).
+// The patches below anchor on text INSERTED by the cluster/metrics/bridge
+// patches above, so they must stay after them in this file.
+// ---------------------------------------------------------------------------
+
+// --- Patch: centerConsole field in VehicleController constructor ---
+src = replaceOnce(
+  src,
+  '      this.drivingMetrics = null;\n      this.speedFactor = 1;',
+  '      this.drivingMetrics = null;\n      this.centerConsole = null;\n      this.speedFactor = 1;',
+  'constructor centerConsole field',
+);
+
+// --- Patch: create the center console during controller initialise ---
+src = replaceOnce(
+  src,
+  '      if (typeof DrivingMetrics !== "undefined" && !this.drivingMetrics) {',
+  `      if (typeof CenterConsole !== "undefined" && !this.centerConsole) {
+        try {
+          this.centerConsole = new CenterConsole(r);
+        } catch (consoleErr) {
+          console.error("CenterConsole init failed", consoleErr);
+        }
+      }
+      if (typeof DrivingMetrics !== "undefined" && !this.drivingMetrics) {`,
+  'initialise center console',
+);
+
+// --- Patch: drive the console every updateUI tick (attach + redraw; the
+// console itself gates all work on the first-person observable) ---
+src = replaceOnce(
+  src,
+  '        this.instrumentCluster.texture.needsUpdate = true;\n      }\n    }',
+  `        this.instrumentCluster.texture.needsUpdate = true;
+      }
+      if (this.centerConsole) {
+        try {
+          this.centerConsole.frame(Ae.geo, Js.value);
+        } catch (consoleFrameErr) {}
+      }
+    }`,
+  'updateUI center console frame',
+);
+
+// --- Patch: drop console meshes before initVehicle purges Ae.geo children ---
+src = replaceOnce(
+  src,
+  `      this.clusterMesh = null;
+      if (this.instrumentCluster) {
+        this.instrumentCluster.applyToObject(Ae.geo, false);
+      }`,
+  `      this.clusterMesh = null;
+      if (this.instrumentCluster) {
+        this.instrumentCluster.applyToObject(Ae.geo, false);
+      }
+      if (this.centerConsole) {
+        try {
+          this.centerConsole.resetForVehicleChange();
+        } catch (consoleResetErr) {}
+      }`,
+  'initVehicle reset center console',
+);
+
+// --- Patch: extend the bridge handles with the camera + road/audio seams the
+// console (and future tools) need: Xs = the PerspectiveCamera, si = road
+// state, ii/ti = road projection / closest node, Js = first-person
+// observable, xe = the WebAudio manager. All module-scoped, in scope here. ---
+src = replaceOnce(
+  src,
+  `            THREE: r,
+            drivingMetrics: this.drivingMetrics
+          });`,
+  `            THREE: r,
+            camera: Xs,
+            roadState: si,
+            project: ii,
+            closestNode: ti,
+            firstPerson: Js,
+            audioManager: xe,
+            drivingMetrics: this.drivingMetrics,
+            centerConsole: this.centerConsole
+          });`,
+  'bridge attach center console handles',
+);
+
+// --- Patch: add a `showConsole` VehicleConfig field so the center console can
+// be toggled from the game's own settings panel (like "Interior: Show wheel").
+// Three insertions into the VehicleConfig triplet — storage key map (Pe),
+// defaults (Ge), and the settings descriptors (Be) that the panel renders. ---
+src = replaceOnce(
+  src,
+  '    showWheel: "config-vehicle-show-wheel",\n    autodriveSide: "config-autodrive-side",',
+  '    showWheel: "config-vehicle-show-wheel",\n    showConsole: "config-vehicle-show-console",\n    autodriveSide: "config-autodrive-side",',
+  'VehicleConfig showConsole storage key',
+);
+
+src = replaceOnce(
+  src,
+  '    showWheel: true,\n    seatAdjustment: 0,',
+  '    showWheel: true,\n    showConsole: true,\n    seatAdjustment: 0,',
+  'VehicleConfig showConsole default',
+);
+
+src = replaceOnce(
+  src,
+  `    showWheel: {
+      readable: "Interior: Show wheel",
+      desc: "Toggle visibility of the steering wheel",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showWheel", e)
+    },
+    steerRotationIndex: {`,
+  `    showWheel: {
+      readable: "Interior: Show wheel",
+      desc: "Toggle visibility of the steering wheel",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showWheel", e)
+    },
+    showConsole: {
+      readable: "Interior: Show center console",
+      desc: "Toggle the in-cabin center-stack touchscreen (map / nav / audio / phone / comfort)",
+      type: u.Boolean,
+      default: true,
+      onSet: e => We.set("showConsole", e)
+    },
+    steerRotationIndex: {`,
+  'VehicleConfig showConsole descriptor',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);

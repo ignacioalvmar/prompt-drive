@@ -70,8 +70,8 @@
   .switchwrap .state { font: 12px var(--mono); color: var(--dim); }
   .gate { display: none; background: rgba(255,207,92,.1); border: 1px solid var(--warn); color: var(--warn);
     border-radius: 8px; padding: 10px 12px; font-size: 12px; }
-  body:not(.is-live) #tab-dynamic .gate, body:not(.is-live) #tab-metrics .gate { display: block; }
-  body:not(.is-live) #tab-dynamic .group:not(.gate), body:not(.is-live) #tab-metrics .needslive { opacity: .45; pointer-events: none; }
+  body:not(.is-live) #tab-dynamic .gate, body:not(.is-live) #tab-metrics .gate, body:not(.is-live) #tab-console .gate { display: block; }
+  body:not(.is-live) #tab-dynamic .group:not(.gate), body:not(.is-live) #tab-metrics .needslive, body:not(.is-live) #tab-console .needslive { opacity: .45; pointer-events: none; }
   .foot { border-top: 1px solid var(--line); background: var(--panel); }
   .foot .cols { display: grid; grid-template-columns: 1fr 1fr; max-width: 1100px; margin: 0 auto; }
   .foot .telem { font: 11px var(--mono); padding: 8px 12px; border-right: 1px solid var(--line); max-height: 150px; overflow-y: auto; }
@@ -108,6 +108,7 @@
     <button data-tab="static" class="active">① Static config</button>
     <button data-tab="dynamic">② Dynamic config</button>
     <button data-tab="metrics">③ Metrics &amp; logs</button>
+    <button data-tab="console">④ Center console</button>
   </div></div>
 
   <div class="tabwrap">
@@ -181,6 +182,8 @@
             <select id="s-seat"><option value="0">driver</option><option value="1">passenger</option></select></div>
           <div class="row"><label>Interior: show wheel</label>
             <select id="s-wheel"><option value="true">shown</option><option value="false">hidden</option></select></div>
+          <div class="row"><label>Interior: show center console</label>
+            <select id="s-console"><option value="true">shown</option><option value="false">hidden</option></select></div>
           <div class="row"><label>Max wheel rotation</label>
             <select id="s-steer"><option value="0">270°</option><option value="1">360°</option><option value="2">450°</option><option value="3">720°</option><option value="4">900°</option></select></div>
           <div class="row"><label>Camera (initial)</label><select id="s-camera"></select></div>
@@ -382,6 +385,88 @@
           <p class="hint">Ends the run, <b>automatically downloads the driver-performance report + logs</b>,
             and halts the sim. Downloads are produced by the sim tab.</p>
           <div class="btnrow"><button data-call="end" class="danger" data-live>End simulation &amp; export</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CENTER CONSOLE ============ -->
+    <div class="tab-panel" id="tab-console">
+      <div class="gate full">⚠ The center console exists once a <b>simulation is running</b>. The screen itself
+        shows in the first-person (in-cabin) camera; the API works from any camera.</div>
+      <div class="group needslive">
+        <h3>Apps &amp; layout</h3>
+        <div class="body">
+          <p class="hint">Open an app fullscreen, or split the screen ⅔ + ⅓. Tapping a dock icon in split mode
+            pushes the old primary app into the small pane.</p>
+          <div class="btnrow">
+            <button data-call="ccMap" data-live>Map</button>
+            <button data-call="ccNav" data-live>Navigation</button>
+            <button data-call="ccAudio" data-live>Audio</button>
+            <button data-call="ccPhone" data-live>Phone</button>
+            <button data-call="ccComfort" data-live>Comfort</button>
+          </div>
+          <div class="btnrow">
+            <button data-call="ccSplit" class="sec" data-live>Split view</button>
+            <button data-call="ccFull" class="sec" data-live>Fullscreen</button>
+            <button data-call="ccSwap" class="sec" data-live>Swap panes</button>
+            <button data-call="ccState" class="sec" data-live>State</button>
+          </div>
+          <pre class="out" id="console-out" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Audio player</h3>
+        <div class="body">
+          <div class="btnrow">
+            <button data-call="ccAudioToggle" data-live>Play / pause</button>
+            <button data-call="ccAudioPrev" class="sec" data-live>⏮ Prev</button>
+            <button data-call="ccAudioNext" class="sec" data-live>Next ⏭</button>
+            <button data-call="ccAudioStatus" class="sec" data-live>Status</button>
+          </div>
+          <div class="row"><label>Volume 0..1</label>
+            <div class="setrow"><input type="number" id="cc-vol" min="0" max="1" step="0.05" value="0.7" /><button data-call="ccAudioVol" data-live>Set</button></div></div>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Phone</h3>
+        <div class="body">
+          <div class="row"><label>Caller (name / index / blank = random)</label>
+            <div class="setrow"><input type="text" id="cc-caller" placeholder="e.g. Dana" /><button data-call="ccRing" data-live>☎ Incoming call</button></div></div>
+          <div class="btnrow">
+            <button data-call="ccAccept" data-live>Accept</button>
+            <button data-call="ccReject" class="sec" data-live>Reject</button>
+            <button data-call="ccEnd" class="danger" data-live>End call</button>
+            <button data-call="ccPhoneStatus" class="sec" data-live>Status</button>
+          </div>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Comfort (seat &amp; climate)</h3>
+        <div class="body">
+          <div class="row"><label>Zone</label>
+            <select id="cc-zone"><option value="driver">driver</option><option value="passenger">passenger</option><option value="rear">rear</option></select></div>
+          <div class="row"><label>Temp °C / fan 0-5 / seat heat 0-3</label>
+            <div class="setrow">
+              <input type="number" id="cc-temp" min="16" max="28" step="0.5" value="21" />
+              <input type="number" id="cc-fan" min="0" max="5" value="2" />
+              <input type="number" id="cc-heat" min="0" max="3" value="0" />
+              <button data-call="ccComfortSet" data-live>Set</button></div></div>
+          <div class="btnrow">
+            <button data-call="ccComfortGet" class="sec" data-live>Get</button>
+            <button data-call="ccComfortReset" class="sec" data-live>Reset defaults</button>
+          </div>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Synthetic touch</h3>
+        <div class="body">
+          <p class="hint">Tap the screen at normalized coordinates (u, v in 0..1) — same routing as a real
+            mouse/touch tap on the 3D screen. v ≈ 0.94 hits the app dock.</p>
+          <div class="row"><label>u / v</label>
+            <div class="setrow">
+              <input type="number" id="cc-u" min="0" max="1" step="0.01" value="0.5" />
+              <input type="number" id="cc-v" min="0" max="1" step="0.01" value="0.5" />
+              <button data-call="ccTap" data-live>Tap</button></div></div>
         </div>
       </div>
     </div>
@@ -637,6 +722,7 @@
     p['vehicle.side'] = num('s-side');
     p['vehicle.seat'] = num('s-seat');
     p['vehicle.showWheel'] = val('s-wheel') === 'true';
+    p['vehicle.showConsole'] = val('s-console') === 'true';
     p['vehicle.steerRotationIndex'] = num('s-steer');
     if (val('s-camera') !== '') p['controls.cameraMode'] = num('s-camera');
     p['vehicle.seatAdjustment'] = num('s-seatadj');
@@ -664,6 +750,7 @@
     set('s-mode', g.vehicle.mode); set('s-autolane', g.controls.autodriveSideIndex);
     set('s-grip', g.vehicle.gripFactor); set('s-speed', g.vehicle.speedFactor);
     set('s-side', g.vehicle.side); set('s-seat', g.vehicle.seat); set('s-wheel', String(!!g.vehicle.showWheel));
+    set('s-console', String(g.vehicle.showConsole !== false));
     set('s-steer', g.vehicle.steerRotationIndex); set('s-seatadj', g.vehicle.seatAdjustment); set('s-seath', g.vehicle.seatHeight);
     if (g.controls) set('s-camera', g.controls.cameraMode);
     if (g.lanes) { set('s-fwd', g.lanes.forward); set('s-bwd', g.lanes.backward); set('s-width', g.lanes.width == null ? '' : g.lanes.width); }
@@ -734,6 +821,29 @@
     dlReport: () => op('run.downloadReport'),
     dlLogs: () => op('run.downloadLogs'),
     end: async () => { const r = await op('end'); showOut('metrics-out', r && r.value ? r.value.report : r); return r; },
+    ccMap: () => op('console.open', 'map'),
+    ccNav: () => op('console.open', 'nav'),
+    ccAudio: () => op('console.open', 'audio'),
+    ccPhone: () => op('console.open', 'phone'),
+    ccComfort: () => op('console.open', 'comfort'),
+    ccSplit: () => op('console.layout', 'split'),
+    ccFull: () => op('console.layout', 'full'),
+    ccSwap: () => op('console.swap'),
+    ccState: async () => { const r = await op('console.state'); showOut('console-out', r); return r; },
+    ccAudioToggle: () => op('console.audio.toggle'),
+    ccAudioPrev: () => op('console.audio.prev'),
+    ccAudioNext: () => op('console.audio.next'),
+    ccAudioStatus: async () => { const r = await op('console.audio.status'); showOut('console-out', r); return r; },
+    ccAudioVol: () => op('console.audio.volume', num('cc-vol')),
+    ccRing: () => { const v = val('cc-caller'); return op('console.phone.ring', v === '' ? undefined : (/^\d+$/.test(v) ? Number(v) : v)); },
+    ccAccept: () => op('console.phone.accept'),
+    ccReject: () => op('console.phone.reject'),
+    ccEnd: () => op('console.phone.end'),
+    ccPhoneStatus: async () => { const r = await op('console.phone.status'); showOut('console-out', r); return r; },
+    ccComfortSet: () => op('console.comfort.set', { zone: val('cc-zone'), tempC: num('cc-temp'), fan: num('cc-fan'), seatHeat: num('cc-heat') }),
+    ccComfortGet: async () => { const r = await op('console.comfort.get'); showOut('console-out', r); return r; },
+    ccComfortReset: () => op('console.comfort.reset'),
+    ccTap: () => op('console.tap', num('cc-u'), num('cc-v')),
   };
 
   document.querySelectorAll('button[data-call]').forEach((b) => b.addEventListener('click', async () => {
