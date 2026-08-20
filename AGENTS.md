@@ -17,6 +17,7 @@ Edit the **source**, then rebuild:
 | Driving metrics | `src/metrics/` | `npm run build:metrics` |
 | Dynamic lanes | `src/lanes/` | `npm run build:lanes` |
 | Traffic road actors | `src/traffic/` | `npm run build:traffic` |
+| Map generation | `src/mapgen/` | `npm run build:mapgen` |
 | Integration API | `src/api/` | `npm run build:api` |
 | Game-engine behavior | `scripts/build-main.js` (patches `src-extracted/deobfuscated.js`) | `npm run build:main` |
 
@@ -49,13 +50,16 @@ subsystems are layered on top as separate IIFE bundles, each exposed as a
 | Driving metrics | `src/metrics/` | `static/js/metrics.js` | `DrivingMetrics` |
 | Dynamic lanes | `src/lanes/` | `static/js/lanes.js` | `LaneRoads` |
 | Traffic road actors | `src/traffic/` | `static/js/traffic.js` | `RoadTraffic` |
+| Map generation | `src/mapgen/` | `static/js/mapgen.js` | `MapGen` |
 | Integration API | `src/api/` | `static/js/api.js` | `PromptDrive` (+ `PromptDriveBridge`) |
 
 **Script load order matters** (see `index.html`): `cluster → metrics → lanes →
-traffic → api → main`. The API bundle must load after `lanes.js` and
-`traffic.js` (it delegates lane changes to `LaneRoads` and traffic calls to
-`RoadTraffic`) and before the main bundle (so `PromptDriveBridge` exists when
-the patched engine attaches handles). Preserve this order.
+traffic → … → mapgen → api → main`. The API bundle must load after `lanes.js`,
+`traffic.js` and `mapgen.js` (it delegates lane changes to `LaneRoads`, traffic
+calls to `RoadTraffic` and map-generation calls to `MapGen`) and before the
+main bundle (so `PromptDriveBridge` exists when the patched engine attaches
+handles, and `MapGen` exists when the engine registers its topography tables).
+Preserve this order.
 
 ### The extension pattern
 

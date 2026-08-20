@@ -59,6 +59,9 @@ const FIELDS = [
   // --- traffic road actors — delegated to window.RoadTraffic (validates + persists) ---
   { path: 'traffic', type: FieldType.Object, cls: 'static', desc: 'Traffic vehicles { enabled, density 0-16, speed 2-45 m/s, oncoming, seed }. Applies on reload; the stopped-vehicle event is live via traffic.spawnStopped.' },
 
+  // --- procedural map generation — delegated to window.MapGen (validates + persists) ---
+  { path: 'map', type: FieldType.Object, cls: 'static', desc: 'Procedural map generation (window.MapGen) { expanded, custom: { Hills:{…}, Planet:{…} } }. Terrain parameters bake into the world at generation; applies on reload. Topography selection is scene.topography / PromptDrive.map.select; parameter ranges via PromptDrive.map.schema().' },
+
   // --- steering wheel & pedals — delegated to window.WheelControls (validates + persists) ---
   { path: 'wheel', type: FieldType.Object, cls: 'dynamic', desc: 'Steering-wheel rig (G923-class) { enabled, deviceId, axes, steering { rangeDeg, deadzone }, pedals, bindings }. Applies live; see PromptDrive.wheel.* for calibration and button bindings.' },
 
@@ -164,7 +167,15 @@ function validateField(path, value) {
         const asNum = Number(v);
         if (Number.isFinite(asNum)) v = asNum;
       }
-      if (!f.values.includes(v)) return { ok: false, error: 'bad_value', path, values: f.values };
+      if (!f.values.includes(v)) {
+        // scene.topography is expandable at runtime: MapGen registers extra
+        // presets (expanded/custom) into the engine's own topography tables.
+        if (path === 'scene.topography' && typeof v === 'string'
+          && typeof window !== 'undefined' && window.MapGen && window.MapGen.has(v)) {
+          return { ok: true, value: v };
+        }
+        return { ok: false, error: 'bad_value', path, values: f.values };
+      }
       return { ok: true, value: v };
     }
 
@@ -183,13 +194,26 @@ function validateField(path, value) {
 function buildSchema(extra) {
   const fields = {};
   for (const f of FIELDS) {
+    let values = f.values;
+    if (f.path === 'scene.topography') {
+      // Publish the live topography list (built-in + MapGen expanded/custom).
+      try {
+        if (typeof window !== 'undefined' && window.MapGen) {
+          const merged = new Set(values);
+          for (const scene of ['Hills', 'Planet']) {
+            for (const name of window.MapGen.menuNames(scene)) merged.add(name);
+          }
+          values = Array.from(merged);
+        }
+      } catch (_e) { /* fall back to the static list */ }
+    }
     fields[f.path] = {
       type: f.type,
       class: f.cls,
       ...(f.min != null ? { min: f.min } : {}),
       ...(f.max != null ? { max: f.max } : {}),
       ...(f.step != null ? { step: f.step } : {}),
-      ...(f.values ? { values: f.values } : {}),
+      ...(values ? { values } : {}),
       ...(f.labels ? { labels: f.labels } : {}),
       desc: f.desc,
     };
@@ -408,6 +432,7 @@ function snapshot() {
   const lanes = (typeof window !== 'undefined' && window.LaneRoads) ? window.LaneRoads.get() : null;
   const traffic = (typeof window !== 'undefined' && window.RoadTraffic) ? window.RoadTraffic.get() : null;
   const wheel = (typeof window !== 'undefined' && window.WheelControls) ? window.WheelControls.get() : null;
+  const map = (typeof window !== 'undefined' && window.MapGen) ? window.MapGen.get() : null;
   return {
     scene: {
       seed: s.seed,
@@ -422,6 +447,7 @@ function snapshot() {
     lanes,
     traffic,
     wheel,
+    map,
     vehicle: {
       type: v.type,
       mode: v.mode,
@@ -647,6 +673,13 @@ function commitStagedField(path, value) {
   if (path === 'wheel') {
     if (typeof window !== 'undefined' && window.WheelControls) {
       window.WheelControls.set(value);
+      return true;
+    }
+    return false;
+  }
+  if (path === 'map') {
+    if (typeof window !== 'undefined' && window.MapGen) {
+      window.MapGen.set(value);
       return true;
     }
     return false;
@@ -901,6 +934,11 @@ const PromptDrive = {
         extra.scenes = scenes;
       }
     } catch (_e) { /* not ready yet — schema still useful */ }
+    try {
+      if (typeof window !== 'undefined' && window.MapGen) {
+        extra.map = window.MapGen.schema();
+      }
+    } catch (_e) { /* map generation schema is optional */ }
     return buildSchema(extra);
   },
 
@@ -981,6 +1019,30 @@ const PromptDrive = {
     state: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.state()) : err('unavailable')),
     spawnStopped: (opts) => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.spawnStopped(opts) : err('unavailable')),
     clear: () => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.clear() : err('unavailable')),
+  },
+
+  // Procedural map generation (window.MapGen, src/mapgen/). Generation
+  // parameters are static config: they bake into the terrain, so map.set is
+  // staged like seed/topography and takes effect on a world rebuild (reload).
+  // map.select switches the active topography — live when the sim is running
+  // (the same path the game's own menu uses), otherwise on the next load.
+  map: {
+    get: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.get()) : err('unavailable')),
+    set: (cfg) => {
+      if (typeof window === 'undefined' || !window.MapGen) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'map' });
+      return ok(window.MapGen.set(cfg), { appliesOn: 'reload' });
+    },
+    select: (name) => (typeof window !== 'undefined' && window.MapGen ? window.MapGen.select(name) : err('unavailable')),
+    presets: (scene) => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.presets(scene)) : err('unavailable')),
+    schema: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.schema()) : err('unavailable')),
+    // What the engine actually generated the current world with.
+    active: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.active()) : err('unavailable')),
+    apply: () => {
+      if (typeof window === 'undefined' || !window.MapGen) return err('unavailable');
+      window.MapGen.apply();
+      return ok({ mode: 'reload' });
+    },
   },
 
   // Steering-wheel & pedal rig (window.WheelControls, src/wheel/). All calls

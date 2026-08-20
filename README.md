@@ -19,11 +19,12 @@ Any static file server works (`npx serve .`, Python `http.server`, etc.).
 The instrument cluster and game patches are built from source:
 
 ```bash
-npm run build          # cluster + metrics + lanes + traffic + wheel + console + api + main bundle
+npm run build          # cluster + metrics + lanes + traffic + wheel + console + mapgen + api + main bundle
 npm run build:cluster  # src/cluster/ → static/js/cluster.js
 npm run build:metrics  # src/metrics/ → static/js/metrics.js
 npm run build:lanes    # src/lanes/   → static/js/lanes.js
 npm run build:traffic  # src/traffic/ → static/js/traffic.js
+npm run build:mapgen   # src/mapgen/  → static/js/mapgen.js
 npm run build:wheel    # src/wheel/   → static/js/wheel.js
 npm run build:console  # src/console/ → static/js/console.js
 npm run build:api      # src/api/     → static/js/api.js
@@ -49,6 +50,7 @@ npm run build
 | `src/metrics/`                              | Driving-performance metrics (panel/overlay/report) |
 | `src/lanes/`                                | Dynamic multi-lane road config + settings UI |
 | `src/traffic/`                              | AI traffic road actors (`window.RoadTraffic`) |
+| `src/mapgen/`                               | Procedural map generation expansion (`window.MapGen`) |
 | `src/wheel/`                                | Steering-wheel & pedal input (`window.WheelControls`) |
 | `src/console/`                              | In-cabin center console / center stack (`window.CenterConsole`) |
 | `src/api/`                                  | Integration API (`window.PromptDrive`) — see [`API.md`](API.md) |
@@ -139,6 +141,31 @@ divider** at the forward/oncoming split, **dashed white lines** between same-dir
 as it nears the carriageway edge**, so a lane that grows in (or merges out) as the road
 widens / narrows appears / disappears smoothly rather than popping. Markings are on the paved
 (summer/spring) scene.
+
+## Procedural map generation
+
+A map-generation subsystem (`src/mapgen/`, exposed as `window.MapGen`) expands
+the engine's procedural world generation beyond the five stock topographies:
+
+- **Expanded presets** — registered into the engine's own per-scene topography
+  tables at startup, so they appear in the game's *road complexity* menu,
+  validation and the world builder exactly like built-ins. Hills gains
+  `rolling`, `alpine` and `canyon` (plus the engine's hidden `flat` pad, now
+  selectable); the off-world Planet scene gains `plains` and `cratered`.
+- **Custom terrain** — a per-scene `custom` topography whose generation
+  parameters (terrain amplitude, base elevation, noise octaves, roughness,
+  crater layers/depth, road width, midline smoothing, autodrive cornering
+  factor) are dialled in directly, validated against per-scene ranges.
+- **Configuration** — settings panel → **map generation** section (below *road
+  lanes*): topography preset grid, custom-terrain steppers, seed field with
+  randomizer and a *Rebuild world* button. Selecting a topography regenerates
+  the world in place (the same path as the game's own menu); parameter and
+  seed changes bake in on rebuild. Persists in `localStorage`
+  (`pd-mapgen-config`); also settable via `PromptDrive.map.*` or
+  `PromptDrive.config.set({ map: {…}, 'scene.topography': 'alpine' })`.
+- **Safety** — unknown persisted topography names fall back to `normal` at
+  generation, and name-keyed engine lookups (autodrive bendiness, fastest-mile
+  records) are guarded for names the stock tables don't know.
 
 ## Traffic road actors
 

@@ -34,6 +34,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Static config — `config.*`](#static-config--config)
   - [Telemetry — `telemetry.*`](#telemetry--telemetry)
   - [Traffic — `traffic.*`](#traffic--traffic)
+  - [Map generation — `map.*`](#map-generation--map)
   - [Steering wheel — `wheel.*`](#steering-wheel--wheel)
   - [Center console — `console.*`](#center-console--console)
   - [Vehicle state — `vehicle.*`](#vehicle-state--vehicle)
@@ -359,6 +360,53 @@ PromptDrive.traffic.clear();  // remove all traffic vehicles
   width, but the ego autopilot follows its own lane's centre (markings drawn)
   so the oncoming lane is clear.
 
+### Map generation — `map.*`
+
+Procedural map generation expansion (`window.MapGen`, `src/mapgen/`). MapGen
+registers **expanded topography presets** (Hills: `flat`, `rolling`, `alpine`,
+`canyon`; Planet: `flat`, `plains`, `cratered`) plus an optional per-scene
+**custom** parameter set into the engine's own topography tables, so they are
+selectable everywhere a built-in is — including `scene.topography` and the
+in-game menu. Generation parameters are **static**: they bake into the terrain
+and apply on a world rebuild. Topography **selection** is live when the sim is
+running (the engine regenerates the world in place, the same path as the
+game's own menu).
+
+```js
+PromptDrive.map.get();       // { ok:true, value:{ expanded, custom:{ Hills, Planet } } }
+PromptDrive.map.set({ custom: { Hills: { heightScale: 260, roadWidth: 2.6 } } });
+// → { ok:true, value:{ …persisted config }, appliesOn:'reload' }
+
+PromptDrive.map.select('alpine');   // switch topography (live when running)
+// → { ok:true, value:'alpine', appliedLive:true }  |  { …, appliesOn:'reload' }
+//   | { ok:false, error:'unknown_topography', options:[…] }
+
+PromptDrive.map.presets('Hills');
+// → { ok:true, value:[ { id, label, desc, source:'engine'|'expanded'|'custom',
+//                        roadWidth, smoothWindow, params? } ] }
+
+PromptDrive.map.schema();    // per-scene parameter ranges/docs (also on schema().map)
+PromptDrive.map.active();    // what the engine actually generated the world with:
+// → { ok:true, value:{ scene, topography, seed, params } | null }
+
+PromptDrive.map.apply();     // reload → rebuild the world with staged params
+```
+
+- **Custom parameters** (per scene, clamped to `map.schema()` ranges) — Hills:
+  `heightScale`, `heightOffset`, `resolutions` (noise-octave array),
+  `depthHeightFactor`, `squared`, `roadWidth`, `smoothWindow`, `bendyFactor`;
+  Planet: `heightScale`, `heightOffset`, `heightInitial`, `resolution`,
+  `craterLayers`, `craterDepth`, `depth`, `upscaleFactor`, `squared`,
+  `compound`, `roadWidth`, `smoothWindow`, `bendyFactor`.
+- `bendyFactor` feeds the autodrive's cornering-speed model, which is keyed by
+  topography name; expanded/custom presets carry their own value and anything
+  unknown falls back to the `normal` factor.
+- `map` also stages through `config.set({ map: {…} })` / `config.apply`, and
+  `scene.topography` accepts every registered name (the live list is in
+  `schema().fields['scene.topography'].values` and `schema().scenes`).
+- Setting `expanded: false` retracts the curated presets (a persisted name
+  that disappears falls back to `normal` at generation).
+
 ### Steering wheel — `wheel.*`
 
 Physical steering-wheel + pedal rigs (Logitech G923-class) via the browser
@@ -626,13 +674,14 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.seed` | string | **S** | any seed string; change reloads |
 | `scene.startNode` | integer | **S** | ≥ 0 |
 | `scene.sceneName` | enum | **S** | `Hills`, `Planet` |
-| `scene.topography` | enum | **S** | `straight`, `casual`, `easy`, `normal`, `hard` |
+| `scene.topography` | enum | **S** | `straight`, `casual`, `easy`, `normal`, `hard`, plus every MapGen-registered preset (`flat`, `rolling`, `alpine`, `canyon`, `plains`, `cratered`, `custom`) — see [`map.*`](#map-generation--map) |
 | `scene.skin` | string | **S+D** | per-scene (e.g. `summer`, `winter`, `mars`) — see `schema().scenes` |
 | `scene.weatherIndex` | integer | **S+D** | index into the active skin's weather list |
 | `scene.dayNightCycle` | enum | **S+D** | `0` off, `1`=180 s, `2`=480 s, `3`=900 s |
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
 | `traffic` | object | **S** | `{ enabled, density 0–16, speed 2–45 m/s, oncoming, seed }`; the stopped-vehicle event is live via [`traffic.spawnStopped`](#traffic--traffic) |
+| `map` | object | **S** | `{ expanded, custom:{ Hills, Planet } }` procedural map generation parameters; ranges via [`map.schema()`](#map-generation--map) |
 | `wheel` | object | **D** | Steering-wheel rig `{ enabled, deviceId, axes, steering, pedals, bindings }` — applies live; see [`wheel.*`](#steering-wheel--wheel) |
 
 ### Vehicle

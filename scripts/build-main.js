@@ -640,5 +640,199 @@ src = replaceOnce(
   'benchmark headlight lock',
 );
 
+// ---------------------------------------------------------------------------
+// Procedural map generation expansion (window.MapGen, src/mapgen/ ->
+// static/js/mapgen.js). MapGen injects expanded/custom topography presets
+// into the engine's own per-scene tables; the patches below (a) hand it those
+// tables before SceneConfig builds sceneMeta, (b) accept the extra names in
+// validation and the in-game menu, (c) publish what was actually generated,
+// and (d) keep name-keyed lookups (autodrive bendiness, fastest-mile records)
+// safe for topography names the stock tables don't know.
+// ---------------------------------------------------------------------------
+
+// --- Patch: register the per-scene topography tables on MapGen at startup.
+// Must run before SceneConfig (Nh) is constructed so buildSceneMeta and the
+// world builders see the injected names exactly like built-ins. ---
+src = replaceOnce(
+  src,
+  `  const yh = {
+    Hills: Yo,
+    Planet: Ah
+  };`,
+  `  try {
+    if (typeof window !== "undefined" && window.MapGen) {
+      window.MapGen._registerScene("Hills", Yo.config.topography);
+      window.MapGen._registerScene("Planet", Ah.config.topography);
+    }
+  } catch (mapGenRegErr) {
+    console.error("MapGen topography registration failed", mapGenRegErr);
+  }
+  const yh = {
+    Hills: Yo,
+    Planet: Ah
+  };`,
+  'MapGen scene registration',
+);
+
+// --- Patch: accept MapGen topography names in the ?topo= query-string check ---
+src = replaceOnce(
+  src,
+  `        } else if (e[0] == "topo") {
+          if (Sh.includes(e[1]) || e[1] === "flat") {`,
+  `        } else if (e[0] == "topo") {
+          if (Sh.includes(e[1]) || e[1] === "flat" || typeof window !== "undefined" && window.MapGen && window.MapGen.has(e[1])) {`,
+  'MapGen QS topo validation',
+);
+
+// --- Patch: Hills world build — fall back to "normal" if the persisted
+// topography name is unknown (e.g. MapGen was removed/disabled after a custom
+// name was saved), and publish the effective generation parameters. ---
+src = replaceOnce(
+  src,
+  `      this.seed = e;
+      let s = t.topography;
+      this.topoIndex = this.topoList.indexOf(s);
+      delete this.heightmap;
+      this.heightmap = new wi(e, Vs.topography[s].heightmap);
+      bt(Vs.topography[s].smoothWindow);
+      Vt(Vs.topography[s].roadWidth);`,
+  `      this.seed = e;
+      let s = t.topography;
+      if (!Vs.topography[s]) {
+        console.warn("Unknown topography '" + s + "', generating with 'normal'");
+        s = "normal";
+      }
+      this.topoIndex = this.topoList.indexOf(s);
+      delete this.heightmap;
+      this.heightmap = new wi(e, Vs.topography[s].heightmap);
+      bt(Vs.topography[s].smoothWindow);
+      Vt(Vs.topography[s].roadWidth);
+      try {
+        if (typeof window !== "undefined" && window.MapGen) {
+          window.MapGen._publishActive({ scene: "Hills", topography: s, seed: e, params: Vs.topography[s] });
+        }
+      } catch (mapGenPubErr) {}`,
+  'MapGen Hills generation',
+);
+
+// --- Patch: Planet world build — same fallback + publish as Hills ---
+src = replaceOnce(
+  src,
+  `      this.seed = e;
+      let n = t.topography;
+      this.topoIndex = this.topoList.indexOf(n);
+      if ((s = this.heightmap) !== null && s !== undefined) {
+        s.destroy();
+      }
+      this.heightmap = new Xo(e, Fr.topography[n].heightmap);`,
+  `      this.seed = e;
+      let n = t.topography;
+      if (!Fr.topography[n]) {
+        console.warn("Unknown topography '" + n + "', generating with 'normal'");
+        n = "normal";
+      }
+      this.topoIndex = this.topoList.indexOf(n);
+      if ((s = this.heightmap) !== null && s !== undefined) {
+        s.destroy();
+      }
+      this.heightmap = new Xo(e, Fr.topography[n].heightmap);
+      try {
+        if (typeof window !== "undefined" && window.MapGen) {
+          window.MapGen._publishActive({ scene: "Planet", topography: n, seed: e, params: Fr.topography[n] });
+        }
+      } catch (mapGenPubErr) {}`,
+  'MapGen Planet generation',
+);
+
+// --- Patch: autodrive bendiness — the stock factor tables are keyed by the
+// five built-in names; expanded/custom presets carry their own bendyFactor,
+// and anything else falls back to "normal" instead of undefined (which would
+// NaN the cornering-speed math). ---
+src = replaceOnce(
+  src,
+  `    onTopographyChanged() {
+      if (jh.value.sceneName == "Planet") {
+        this.bendyFactor = Qd[jh.value.topography];
+      } else {
+        this.bendyFactor = Hd[jh.value.topography];
+      }
+    }`,
+  `    onTopographyChanged() {
+      let mapGenBendy = null;
+      try {
+        if (typeof window !== "undefined" && window.MapGen) {
+          mapGenBendy = window.MapGen.bendyFactor(jh.value.sceneName, jh.value.topography);
+        }
+      } catch (mapGenBendyErr) {
+        mapGenBendy = null;
+      }
+      if (jh.value.sceneName == "Planet") {
+        this.bendyFactor = Qd[jh.value.topography] ?? mapGenBendy ?? Qd.normal;
+      } else {
+        this.bendyFactor = Hd[jh.value.topography] ?? mapGenBendy ?? Hd.normal;
+      }
+    }`,
+  'MapGen autodrive bendy fallback',
+);
+
+// --- Patch: fastest-mile records — the personal-record table is built from
+// the five stock names (and older tables persist in localStorage), so lazily
+// add a slot for topographies it doesn't know instead of throwing. ---
+src = replaceOnce(
+  src,
+  `    checkRecordBreak(e, t, i) {
+      return !(e < 1) && (this.tr = t.personal[od.view.topography][od.view.vehicle], (e < this.tr || this.tr < 0) && (t.personal[od.view.topography][od.view.vehicle] = e, true));
+    }`,
+  `    checkRecordBreak(e, t, i) {
+      if (!t.personal[od.view.topography]) {
+        t.personal[od.view.topography] = {};
+      }
+      if (t.personal[od.view.topography][od.view.vehicle] == null) {
+        t.personal[od.view.topography][od.view.vehicle] = -1;
+      }
+      return !(e < 1) && (this.tr = t.personal[od.view.topography][od.view.vehicle], (e < this.tr || this.tr < 0) && (t.personal[od.view.topography][od.view.vehicle] = e, true));
+    }`,
+  'MapGen records guard',
+);
+
+// --- Patch: records UI — guard the personal + global record reads the same way ---
+src = replaceOnce(
+  src,
+  `    const o = i[e][t];`,
+  `    const o = i[e] && i[e][t] != null ? i[e][t] : -1;`,
+  'MapGen personal record UI guard',
+);
+
+src = replaceOnce(
+  src,
+  `    if (o) {
+      h = o[e][t][i];
+    }`,
+  `    if (o && o[e] && o[e][t]) {
+      h = o[e][t][i];
+    }`,
+  'MapGen global record UI guard',
+);
+
+// --- Patch: in-game "road complexity" menu — list every registered
+// topography (engine + expanded + custom) for the pending scene selection.
+// The five extra background images simply don't exist for injected names;
+// Rp already tolerates an undefined bg entry. ---
+src = replaceOnce(
+  src,
+  `            options: ["STRAIGHT", "CASUAL", "EASY", "NORMAL", "HARD"],`,
+  `            options: typeof window !== "undefined" && window.MapGen ? window.MapGen.menuOptions(v) : ["STRAIGHT", "CASUAL", "EASY", "NORMAL", "HARD"],`,
+  'MapGen menu options',
+);
+
+src = replaceOnce(
+  src,
+  `            selectedIndex: Sh.indexOf(f),
+            onSelectIndex: e => b(Sh[e])`,
+  `            selectedIndex: typeof window !== "undefined" && window.MapGen ? window.MapGen.menuNames(v).indexOf(f) : Sh.indexOf(f),
+            onSelectIndex: e => b(typeof window !== "undefined" && window.MapGen ? window.MapGen.menuNames(v)[e] : Sh[e])`,
+  'MapGen menu selection',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);

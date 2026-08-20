@@ -86,6 +86,7 @@ function snapshot() {
   const lanes = (typeof window !== 'undefined' && window.LaneRoads) ? window.LaneRoads.get() : null;
   const traffic = (typeof window !== 'undefined' && window.RoadTraffic) ? window.RoadTraffic.get() : null;
   const wheel = (typeof window !== 'undefined' && window.WheelControls) ? window.WheelControls.get() : null;
+  const map = (typeof window !== 'undefined' && window.MapGen) ? window.MapGen.get() : null;
   return {
     scene: {
       seed: s.seed,
@@ -100,6 +101,7 @@ function snapshot() {
     lanes,
     traffic,
     wheel,
+    map,
     vehicle: {
       type: v.type,
       mode: v.mode,
@@ -325,6 +327,13 @@ function commitStagedField(path, value) {
   if (path === 'wheel') {
     if (typeof window !== 'undefined' && window.WheelControls) {
       window.WheelControls.set(value);
+      return true;
+    }
+    return false;
+  }
+  if (path === 'map') {
+    if (typeof window !== 'undefined' && window.MapGen) {
+      window.MapGen.set(value);
       return true;
     }
     return false;
@@ -579,6 +588,11 @@ const PromptDrive = {
         extra.scenes = scenes;
       }
     } catch (_e) { /* not ready yet — schema still useful */ }
+    try {
+      if (typeof window !== 'undefined' && window.MapGen) {
+        extra.map = window.MapGen.schema();
+      }
+    } catch (_e) { /* map generation schema is optional */ }
     return buildSchema(extra);
   },
 
@@ -659,6 +673,30 @@ const PromptDrive = {
     state: () => (typeof window !== 'undefined' && window.RoadTraffic ? ok(window.RoadTraffic.state()) : err('unavailable')),
     spawnStopped: (opts) => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.spawnStopped(opts) : err('unavailable')),
     clear: () => (typeof window !== 'undefined' && window.RoadTraffic ? window.RoadTraffic.clear() : err('unavailable')),
+  },
+
+  // Procedural map generation (window.MapGen, src/mapgen/). Generation
+  // parameters are static config: they bake into the terrain, so map.set is
+  // staged like seed/topography and takes effect on a world rebuild (reload).
+  // map.select switches the active topography — live when the sim is running
+  // (the same path the game's own menu uses), otherwise on the next load.
+  map: {
+    get: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.get()) : err('unavailable')),
+    set: (cfg) => {
+      if (typeof window === 'undefined' || !window.MapGen) return err('unavailable');
+      if (cfg == null || typeof cfg !== 'object') return err('bad_value', { path: 'map' });
+      return ok(window.MapGen.set(cfg), { appliesOn: 'reload' });
+    },
+    select: (name) => (typeof window !== 'undefined' && window.MapGen ? window.MapGen.select(name) : err('unavailable')),
+    presets: (scene) => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.presets(scene)) : err('unavailable')),
+    schema: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.schema()) : err('unavailable')),
+    // What the engine actually generated the current world with.
+    active: () => (typeof window !== 'undefined' && window.MapGen ? ok(window.MapGen.active()) : err('unavailable')),
+    apply: () => {
+      if (typeof window === 'undefined' || !window.MapGen) return err('unavailable');
+      window.MapGen.apply();
+      return ok({ mode: 'reload' });
+    },
   },
 
   // Steering-wheel & pedal rig (window.WheelControls, src/wheel/). All calls

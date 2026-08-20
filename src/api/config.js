@@ -56,6 +56,9 @@ const FIELDS = [
   // --- traffic road actors — delegated to window.RoadTraffic (validates + persists) ---
   { path: 'traffic', type: FieldType.Object, cls: 'static', desc: 'Traffic vehicles { enabled, density 0-16, speed 2-45 m/s, oncoming, seed }. Applies on reload; the stopped-vehicle event is live via traffic.spawnStopped.' },
 
+  // --- procedural map generation — delegated to window.MapGen (validates + persists) ---
+  { path: 'map', type: FieldType.Object, cls: 'static', desc: 'Procedural map generation (window.MapGen) { expanded, custom: { Hills:{…}, Planet:{…} } }. Terrain parameters bake into the world at generation; applies on reload. Topography selection is scene.topography / PromptDrive.map.select; parameter ranges via PromptDrive.map.schema().' },
+
   // --- steering wheel & pedals — delegated to window.WheelControls (validates + persists) ---
   { path: 'wheel', type: FieldType.Object, cls: 'dynamic', desc: 'Steering-wheel rig (G923-class) { enabled, deviceId, axes, steering { rangeDeg, deadzone }, pedals, bindings }. Applies live; see PromptDrive.wheel.* for calibration and button bindings.' },
 
@@ -161,7 +164,15 @@ function validateField(path, value) {
         const asNum = Number(v);
         if (Number.isFinite(asNum)) v = asNum;
       }
-      if (!f.values.includes(v)) return { ok: false, error: 'bad_value', path, values: f.values };
+      if (!f.values.includes(v)) {
+        // scene.topography is expandable at runtime: MapGen registers extra
+        // presets (expanded/custom) into the engine's own topography tables.
+        if (path === 'scene.topography' && typeof v === 'string'
+          && typeof window !== 'undefined' && window.MapGen && window.MapGen.has(v)) {
+          return { ok: true, value: v };
+        }
+        return { ok: false, error: 'bad_value', path, values: f.values };
+      }
       return { ok: true, value: v };
     }
 
@@ -180,13 +191,26 @@ function validateField(path, value) {
 function buildSchema(extra) {
   const fields = {};
   for (const f of FIELDS) {
+    let values = f.values;
+    if (f.path === 'scene.topography') {
+      // Publish the live topography list (built-in + MapGen expanded/custom).
+      try {
+        if (typeof window !== 'undefined' && window.MapGen) {
+          const merged = new Set(values);
+          for (const scene of ['Hills', 'Planet']) {
+            for (const name of window.MapGen.menuNames(scene)) merged.add(name);
+          }
+          values = Array.from(merged);
+        }
+      } catch (_e) { /* fall back to the static list */ }
+    }
     fields[f.path] = {
       type: f.type,
       class: f.cls,
       ...(f.min != null ? { min: f.min } : {}),
       ...(f.max != null ? { max: f.max } : {}),
       ...(f.step != null ? { step: f.step } : {}),
-      ...(f.values ? { values: f.values } : {}),
+      ...(values ? { values } : {}),
       ...(f.labels ? { labels: f.labels } : {}),
       desc: f.desc,
     };
