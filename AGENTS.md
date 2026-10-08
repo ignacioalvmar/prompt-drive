@@ -18,6 +18,7 @@ Edit the **source**, then rebuild:
 | Dynamic lanes | `src/lanes/` | `npm run build:lanes` |
 | Traffic road actors | `src/traffic/` | `npm run build:traffic` |
 | Integration API | `src/api/` | `npm run build:api` |
+| Cabin feedback features (Cabina Abierta) | `src/feedback/` (one file per feature in `features/`) | `npm run build:feedback` |
 | Game-engine behavior | `scripts/build-main.js` (patches `src-extracted/deobfuscated.js`) | `npm run build:main` |
 
 The built files **are committed to the repo**, so after editing source you must
@@ -50,6 +51,7 @@ subsystems are layered on top as separate IIFE bundles, each exposed as a
 | Dynamic lanes | `src/lanes/` | `static/js/lanes.js` | `LaneRoads` |
 | Traffic road actors | `src/traffic/` | `static/js/traffic.js` | `RoadTraffic` |
 | Integration API | `src/api/` | `static/js/api.js` | `PromptDrive` (+ `PromptDriveBridge`) |
+| Cabin feedback | `src/feedback/` | `static/js/feedback.js` | `CabinFeedback` (+ `PromptDrive.feedback`) |
 
 **Script load order matters** (see `index.html`): `cluster → metrics → lanes →
 traffic → api → main`. The API bundle must load after `lanes.js` and

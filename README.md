@@ -295,3 +295,16 @@ Before publishing, update social meta tags in `index.html` (`og:url`, `twitter:u
 ## Known gaps
 
 The checked-in `static/media/` set is incomplete relative to the full game bundle. Summer/spring gameplay works.
+## Cabin feedback layer (`src/feedback/`)
+
+Agent tool calls land in `VehicleState`, but most of the 31 fields have no visible or audible effect in the cabin. `src/feedback/` is the extension point for that feedback: a registry (`CabinFeedback`, `static/js/feedback.js`) plus one file per feature in `src/feedback/features/`. Each feature declares the `VehicleState` fields it listens to and renders them in its own full-screen DOM layer above the canvas, in the center console's status strip (`CenterConsole.registerOverlay`, a band reserved at the top of the screen), or in the 3D scene through `PromptDriveBridge.handles`, with optional sound. Agent interaction states (listening, thinking, speaking, confirm, action, error) reach features through `CabinFeedback.agent(state, detail)`, also exposed to the transports as `PromptDrive.feedback.agent(...)`.
+
+```bash
+npm run build:feedback   # src/feedback/ → static/js/feedback.js
+```
+
+Rules for a feature: never write to `VehicleState` (feedback shows state, it does not change it; benchmark mode must stay literal); keep everything inside `src/feedback/`; be defensive (the engine may not be running yet). The reference implementations are `features/reading_light.js` and `features/agent_indicator.js`. Features contributed through the Cabina Abierta challenge are credited in `docs/feedback/CREDITS.md`.
+
+| Subsystem | Source | Bundle | Global |
+| --- | --- | --- | --- |
+| Cabin feedback | `src/feedback/` | `static/js/feedback.js` | `CabinFeedback` (+ `PromptDrive.feedback`) |

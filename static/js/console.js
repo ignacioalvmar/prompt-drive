@@ -3170,6 +3170,12 @@ class CenterConsole {
     }
     this._dockHits = new HitMap();
 
+    // Status-strip overlays (Cabina Abierta seam): drawers that paint into a
+    // band reserved at the top of the screen, above the app panes. Each entry
+    // is { id, height, draw(ctx, rect, now, data) }; the band is as tall as the
+    // tallest registered overlay and disappears when none is registered.
+    this._overlays = [];
+
     // Layout: fullscreen primary, or 2/3 + 1/3 split.
     this.layout = this._loadLayout();
 
@@ -3184,6 +3190,8 @@ class CenterConsole {
       layout: () => Object.assign({}, this.layout),
       emit: (name, payload) => this._emit(name, payload),
       requestDraw: () => this._requestDraw(),
+      registerOverlay: (spec) => this.registerOverlay(spec),
+      unregisterOverlay: (id) => this.unregisterOverlay(id),
     };
     this._facade = facade;
     for (const id of APP_ORDER) {
@@ -3341,19 +3349,65 @@ class CenterConsole {
   }
 
   /** Pane rectangles in canvas px. Secondary reserves a small swap header. */
+  // --- status-strip overlays (feedback seam) ----------------------------------
+
+  /**
+   * Register a drawer for the status strip at the top of the screen.
+   * spec: { id: string, height: number (px, canvas space, default 56),
+   *         draw(ctx, rect, now, data) } — `rect` is { x, y, w, h } in canvas
+   * coordinates (not translated); `data` is the console's refreshed data.
+   * Returns an unregister function. Overlays only draw; they never receive
+   * pointer events (taps on the strip are swallowed like empty screen).
+   */
+  registerOverlay(spec) {
+    if (!spec || typeof spec.id !== 'string' || typeof spec.draw !== 'function') return () => {};
+    this.unregisterOverlay(spec.id);
+    this._overlays.push({ id: spec.id, height: Math.max(0, spec.height || 56), draw: spec.draw });
+    this._requestDraw();
+    return () => this.unregisterOverlay(spec.id);
+  }
+
+  unregisterOverlay(id) {
+    const i = this._overlays.findIndex((o) => o.id === id);
+    if (i >= 0) { this._overlays.splice(i, 1); this._requestDraw(); }
+  }
+
+  _overlayHeight() {
+    let h = 0;
+    for (const o of this._overlays) if (o.height > h) h = o.height;
+    return h;
+  }
+
+  _drawOverlays(now) {
+    const h = this._overlayHeight();
+    if (!h) return;
+    const ctx = this.ctx;
+    const rect = { x: 0, y: 0, w: this.canvas.width, h };
+    for (const o of this._overlays) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rect.x, rect.y, rect.w, rect.h);
+      ctx.clip();
+      try { o.draw(ctx, rect, now, this._data); }
+      catch (e) { if (!o._errorLogged) { o._errorLogged = true; console.error('CenterConsole overlay draw failed', o.id, e); } }
+      ctx.restore();
+    }
+  }
+
   _paneRects() {
     const W = this.canvas.width;
-    const contentH = this.canvas.height - DOCK.height;
+    const top = this._overlayHeight();
+    const contentH = this.canvas.height - DOCK.height - top;
     if (this.layout.mode !== 'split' || !this.layout.secondary) {
-      return { primary: { x: 0, y: 0, w: W, h: contentH }, secondary: null, header: null };
+      return { primary: { x: 0, y: top, w: W, h: contentH }, secondary: null, header: null };
     }
     const pw = Math.round(W * SPLIT.primaryFrac) - SPLIT.divider;
     const sx = pw + SPLIT.divider * 2;
     const headerH = 36;
     return {
-      primary: { x: 0, y: 0, w: pw, h: contentH },
-      header: { x: sx, y: 0, w: W - sx, h: headerH },
-      secondary: { x: sx, y: headerH, w: W - sx, h: contentH - headerH },
+      primary: { x: 0, y: top, w: pw, h: contentH },
+      header: { x: sx, y: top, w: W - sx, h: headerH },
+      secondary: { x: sx, y: top + headerH, w: W - sx, h: contentH - headerH },
     };
   }
 
@@ -3544,10 +3598,11 @@ class CenterConsole {
     if (rects.secondary) {
       // Divider + secondary header (label + swap affordance), owned by the core.
       ctx.fillStyle = CONSOLE_COLORS.divider;
-      ctx.fillRect(rects.primary.w, 0, rects.secondary.x - rects.primary.w, H - DOCK.height);
+      ctx.fillRect(rects.primary.w, rects.primary.y, rects.secondary.x - rects.primary.w, H - DOCK.height - rects.primary.y);
       this._drawSecondaryHeader(rects.header, now);
       this._drawPane(this.layout.secondary, rects.secondary, now);
     }
+    this._drawOverlays(now);
     this._drawDock(now);
     this.texture.needsUpdate = true;
   }
