@@ -298,7 +298,7 @@ PromptDrive.config.set({
   'scene.season': 'winter',               // atmosphere: three independent axes
   'scene.timeOfDay': 'dusk',
   'scene.weather': 'fog',
-  'vehicle.type': 'Coach',
+  'vehicle.type': 'Truck',
   'lanes': { forward: 3, backward: 0 },   // initial layout (full range, not ±1)
 });
 PromptDrive.config.pending();             // → the staged diff (incl. desugared scene.skin/weatherIndex)
@@ -668,7 +668,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 
 | Path | Type | Class | Values / range |
 | --- | --- | --- | --- |
-| `vehicle.type` | enum | **S** | `Roadster`, `Coach` |
+| `vehicle.type` | enum | **S** | `Roadster`, `Truck` |
 | `vehicle.mode` | enum | **S+D** | `0` AWD, `1` FWD, `2` RWD |
 | `vehicle.gripFactor` | float | **S+D** | `0.25`–`3` |
 | `vehicle.speedFactor` | float | **S+D** | `0.5`–`2` |

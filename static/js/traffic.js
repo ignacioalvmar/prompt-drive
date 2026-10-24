@@ -165,6 +165,25 @@ function trafficResolveThree(THREE) {
 }
 
 /**
+ * Road-aligned collision box for a vehicle def (or the live ego, which carries
+ * the same `wheels`/`metrics`). Origin is the rear axle. Defs that publish
+ * `metrics.dims` ({ front, rear, width }, metres from the rear axle) use their
+ * real body; otherwise overhangs are approximated from the wheelbase.
+ */
+function vehicleBox(v) {
+  const w = v.wheels;
+  const d = v.metrics && v.metrics.dims;
+  if (d && Number.isFinite(d.front) && Number.isFinite(d.rear) && Number.isFinite(d.width)) {
+    return { length: d.front + d.rear, width: d.width, centerOffset: (d.front - d.rear) / 2 };
+  }
+  return {
+    length: w.length + 1.2,
+    width: w.width + 2 * (w.tyreWidth || 0.1),
+    centerOffset: w.length / 2,
+  };
+}
+
+/**
  * Loads and caches the engine's vehicle OBJ assets (one template per vehicle
  * definition), so each traffic vehicle is a cheap `.clone()`. Materials are
  * the engine's shared `_d` palette, except body/livery meshes which get a
@@ -306,11 +325,13 @@ class TrafficVehicle {
     this.color = opts.color;
     // Collision box (road-aligned): origin is the rear axle, so the box
     // centre sits half a wheelbase ahead. Overhangs approximated from the
-    // wheelbase; width is the real track incl. tyres — kept tight so a
-    // correct-lane pass against oncoming traffic never registers contact.
-    this.length = opts.def.wheels.length + 1.2;
-    this.width = opts.def.wheels.width + 2 * opts.def.wheels.tyreWidth;
-    this.centerOffset = opts.def.wheels.length / 2;
+    // wheelbase (or the def's `metrics.dims`); width is the real track incl.
+    // tyres — kept tight so a correct-lane pass against oncoming traffic
+    // never registers contact.
+    const box = vehicleBox(opts.def);
+    this.length = box.length;
+    this.width = box.width;
+    this.centerOffset = box.centerOffset;
     this.wheelRadius = opts.def.wheels.radius;
     this.wheelRoll = 0;
     this.wheelMeshes = [];
@@ -470,11 +491,18 @@ class TrafficManager {
     }
     const V = trafficResolveThree(h.THREE).Vector3;
     this._scratch = V ? new V() : null;
-    if (h.ego && h.ego.wheels) {
-      this.ego.length = h.ego.wheels.length + 1.2;
-      this.ego.width = h.ego.wheels.width + 2 * (h.ego.wheels.tyreWidth || 0.1);
-      this.ego.centerOffset = h.ego.wheels.length / 2;
-    }
+    this._refreshEgoBox();
+  }
+
+  /** Ego box from the live vehicle; re-read each frame so a vehicle swap
+   * (e.g. Roadster → Truck) takes effect without re-attaching. */
+  _refreshEgoBox() {
+    const ego = this.h && this.h.ego;
+    if (!ego || !ego.wheels) return;
+    const box = vehicleBox(ego);
+    this.ego.length = box.length;
+    this.ego.width = box.width;
+    this.ego.centerOffset = box.centerOffset;
   }
 
   // ---------------------------------------------------------------- helpers
@@ -621,6 +649,7 @@ class TrafficManager {
     const h = this.h;
     if (!h.roadState.vehicleNode || !h.ego.wheels) return;
     const cfg = this.store.get();
+    this._refreshEgoBox();
     this._projectEgo();
     // Maintain population (throttled to one spawn attempt per 1/4 s).
     this.spawnCooldown -= dt;

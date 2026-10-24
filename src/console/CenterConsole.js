@@ -25,7 +25,8 @@ import { ComfortApp } from './apps/ComfortApp.js';
 
 // The full-width dashboard surface is part of this mesh in the Roadster body
 // OBJ (roadster-07-int); coords below are body-OBJ-local (+X forward, +Y up,
-// +Z vehicle right). The dash top's rear edge sits at (x 1.9242, y 0.8672),
+// +Z vehicle right). The dash top's rear edge sits at (x 1.9242, y 0.8672)
+// (other vehicles override it with `metrics.consoleMount`),
 // laterally centred at z ≈ 0. The console is a tablet-style display standing
 // on that edge, leaning back slightly toward the windscreen — low enough not
 // to block the road, high enough that the whole screen (including the icon
@@ -524,13 +525,20 @@ export class CenterConsole {
     // Placement: display standing on the dash-top rear edge, tilted back.
     // The plane's up direction after rotation is (sin tilt, cos tilt, 0), and
     // its normal (-cos tilt, +sin tilt, 0) — facing the cabin, slightly up.
+    // Vehicles other than the Roadster publish their own dash-top rear edge
+    // as `metrics.consoleMount` (body-OBJ-local, same frame as MOUNT.base).
+    let base = MOUNT.base;
+    try {
+      const cm = this._handles()?.ego?.metrics?.consoleMount;
+      if (cm && Number.isFinite(cm.x) && Number.isFinite(cm.y)) base = cm;
+    } catch (_e) {}
     const tilt = MOUNT.tilt;
     const rimH = SCREEN_PLANE.height + RIM.bezel * 2;
     const rimW = SCREEN_PLANE.width + RIM.bezel * 2;
     const lift = rimH / 2 - MOUNT.sink;
     const mid = {
-      x: MOUNT.base.x + Math.sin(tilt) * lift,
-      y: MOUNT.base.y + Math.cos(tilt) * lift,
+      x: base.x + Math.sin(tilt) * lift,
+      y: base.y + Math.cos(tilt) * lift,
     };
     const nx = -Math.cos(tilt); // screen normal (rearward, toward the driver)
     const ny = Math.sin(tilt);

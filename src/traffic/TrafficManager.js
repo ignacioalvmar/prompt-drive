@@ -53,11 +53,18 @@ class TrafficManager {
     }
     const V = trafficResolveThree(h.THREE).Vector3;
     this._scratch = V ? new V() : null;
-    if (h.ego && h.ego.wheels) {
-      this.ego.length = h.ego.wheels.length + 1.2;
-      this.ego.width = h.ego.wheels.width + 2 * (h.ego.wheels.tyreWidth || 0.1);
-      this.ego.centerOffset = h.ego.wheels.length / 2;
-    }
+    this._refreshEgoBox();
+  }
+
+  /** Ego box from the live vehicle; re-read each frame so a vehicle swap
+   * (e.g. Roadster → Truck) takes effect without re-attaching. */
+  _refreshEgoBox() {
+    const ego = this.h && this.h.ego;
+    if (!ego || !ego.wheels) return;
+    const box = vehicleBox(ego);
+    this.ego.length = box.length;
+    this.ego.width = box.width;
+    this.ego.centerOffset = box.centerOffset;
   }
 
   // ---------------------------------------------------------------- helpers
@@ -204,6 +211,7 @@ class TrafficManager {
     const h = this.h;
     if (!h.roadState.vehicleNode || !h.ego.wheels) return;
     const cfg = this.store.get();
+    this._refreshEgoBox();
     this._projectEgo();
     // Maintain population (throttled to one spawn attempt per 1/4 s).
     this.spawnCooldown -= dt;
