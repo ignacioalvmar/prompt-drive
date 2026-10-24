@@ -265,9 +265,10 @@ same extension pattern as the subsystems above: an IIFE bundle (`src/api/` →
 `scripts/build-main.js`.
 
 - **Facade** — `window.PromptDrive`: `schema()`, `get(path?)`, `config.*`
-  (static: `set`/`pending`/`apply`/`autostart`), `dynamic.*` (live: weather,
-  skin, lanes, drive mode, grip/speed, autodrive, headlights, camera, cruise,
-  FOV, units, general settings, and programmatic drive `input`), `telemetry.*`,
+  (static: `set`/`pending`/`apply`/`autostart`), `dynamic.*` (live: season,
+  time of day, weather — three independent axes — plus lanes, drive mode,
+  grip/speed, autodrive, headlights, camera, cruise, FOV, units, general
+  settings, and programmatic drive `input`), `telemetry.*`,
   `console.*` (the in-cabin center stack: apps, layout, audio, phone, comfort,
   synthetic taps), `metrics.*` (which driving metrics to collect), `run.*` (run lifecycle +
   report/log download), `end()` (finalize the run, auto-export the

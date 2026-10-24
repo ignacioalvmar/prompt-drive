@@ -94,6 +94,8 @@ function snapshot() {
       topography: s.topography,
       skin: s.skin,
       weatherIndex: s.weatherIndex,
+      // Season / time of day / weather, decoded from skin + weatherIndex.
+      ...decodeAtmosphere(s.sceneName, s.skin, s.weatherIndex),
       dayNightCycle: h.dayNight.value,
       antialias: s.antialias,
     },
@@ -158,6 +160,72 @@ function getPath(path) {
   return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), snap);
 }
 
+// --- atmosphere: season / time of day / weather <-> engine (skin, weatherIndex)
+// The three independent API axes desugar to the engine's skin + weatherIndex. On
+// the gridded Hills scene weatherIndex is a 4×4 grid (timeIdx*4 + weatherIdx; see
+// encodeWeatherIndex/decodeWeatherIndex + SEASON_TO_SKIN in config.js). Other
+// scenes (Planet) expose season only; time/weather are not applicable there.
+function sceneIsGrid(sceneName) { return sceneName === GRID_SCENE; }
+
+function normalizeSeason(v) {
+  if (v === 'autumn') return 'fall';
+  if (v === 'default') return 'summer';
+  return v;
+}
+
+// Baseline {sceneName, skin, weatherIndex} for desugaring a STAGED atmosphere
+// change. Precedence: already-staged _pending (so several axes in one/more
+// config.set calls accumulate instead of clobbering) → the live engine → stored
+// localStorage → engine defaults. (The live/dynamic path does not use this; it
+// reads the engine directly.)
+function currentScene() {
+  let live = null;
+  try { const s = H().sceneConfig.value; live = { sceneName: s.sceneName, skin: s.skin, weatherIndex: s.weatherIndex }; } catch (_e) {}
+  const readStored = (path) => {
+    try {
+      const raw = localStorage.getItem(STAGE_STORAGE[path]);
+      if (raw != null) { try { return JSON.parse(raw); } catch (_p) { return raw; } }
+    } catch (_e2) {}
+    return undefined;
+  };
+  const pick = (path, dflt) => {
+    if (_pending[path] != null) return _pending[path];
+    const k = path.split('.')[1];
+    if (live && live[k] != null) return live[k];
+    const st = readStored(path);
+    return st !== undefined ? st : dflt;
+  };
+  return {
+    sceneName: pick('scene.sceneName', 'Hills'),
+    skin: pick('scene.skin', 'default'),
+    weatherIndex: pick('scene.weatherIndex', 4),
+  };
+}
+
+function decodeAtmosphere(sceneName, skin, weatherIndex) {
+  const season = SKIN_TO_SEASON[skin] || skin;
+  if (!sceneIsGrid(sceneName)) return { season, timeOfDay: null, weather: null };
+  const { timeIdx, weatherIdx } = decodeWeatherIndex(weatherIndex);
+  return { season, timeOfDay: TIMES_OF_DAY[timeIdx], weather: WEATHERS[weatherIdx] };
+}
+
+// Resolve an atmosphere-axis change onto the current {skin, weatherIndex},
+// returning only the engine keys that change, or null if the axis is unsupported
+// for this scene. `value` is assumed already validated against its enum.
+function encodeAtmosphereChange(sceneName, cur, axis, value) {
+  if (axis === 'season') {
+    // On Hills, map season vocab → engine skin key; off-grid, treat as a raw skin.
+    return { skin: sceneIsGrid(sceneName) ? (SEASON_TO_SKIN[value] || value) : value };
+  }
+  if (!sceneIsGrid(sceneName)) return null; // time/weather need the grid
+  const dec = decodeWeatherIndex(cur.weatherIndex);
+  let timeIdx = dec.timeIdx;
+  let weatherIdx = dec.weatherIdx;
+  if (axis === 'timeOfDay') timeIdx = TIMES_OF_DAY.indexOf(value);
+  else if (axis === 'weather') weatherIdx = WEATHERS.indexOf(value);
+  return { weatherIndex: encodeWeatherIndex(timeIdx, weatherIdx) };
+}
+
 // --- dynamic apply: map a validated field onto the live engine setter --------
 function applyDynamic(path, value, opts) {
   const h = H();
@@ -165,6 +233,19 @@ function applyDynamic(path, value, opts) {
     case 'scene.skin': h.sceneConfig.set('skin', value); return ok(value);
     case 'scene.weatherIndex': h.sceneConfig.set('weatherIndex', value); return ok(value);
     case 'scene.dayNightCycle': h.dayNight.set(value); return ok(value);
+
+    // Season / time of day / weather desugar to skin + weatherIndex (grid).
+    case 'scene.season':
+    case 'scene.timeOfDay':
+    case 'scene.weather': {
+      const axis = path.split('.')[1];
+      const cur = { sceneName: h.sceneConfig.value.sceneName, skin: h.sceneConfig.value.skin, weatherIndex: h.sceneConfig.value.weatherIndex };
+      const change = encodeAtmosphereChange(cur.sceneName, cur, axis, value);
+      if (!change) return err('unsupported_for_scene', { path, sceneName: cur.sceneName, message: axis + ' requires the ' + GRID_SCENE + ' scene' });
+      if (change.skin != null) h.sceneConfig.set('skin', change.skin);
+      if (change.weatherIndex != null) h.sceneConfig.set('weatherIndex', change.weatherIndex);
+      return ok(value);
+    }
 
     case 'lanes': {
       if (typeof window === 'undefined' || !window.LaneRoads) return err('unavailable', { path });
@@ -299,6 +380,20 @@ function stageStatic(partial) {
     if (!f) { results[path] = err('unknown_key', { path }); continue; }
     const v = validateField(path, partial[path]);
     if (!v.ok) { results[path] = v; continue; }
+    // Season / time of day / weather desugar to skin + weatherIndex so the
+    // engine's existing static stores carry them across a reload. Multiple axes
+    // staged across calls merge, because currentScene() reads back _pending.
+    if (path === 'scene.season' || path === 'scene.timeOfDay' || path === 'scene.weather') {
+      const axis = path.split('.')[1];
+      const cur = currentScene();
+      const change = encodeAtmosphereChange(cur.sceneName, cur, axis, v.value);
+      if (!change) { results[path] = err('unsupported_for_scene', { path, sceneName: cur.sceneName, message: axis + ' requires the ' + GRID_SCENE + ' scene' }); continue; }
+      if (change.skin != null) _pending['scene.skin'] = change.skin;
+      if (change.weatherIndex != null) _pending['scene.weatherIndex'] = change.weatherIndex;
+      _pending[path] = v.value; // keep intent visible in pending(); commit is a no-op
+      results[path] = ok(v.value, { staged: true });
+      continue;
+    }
     _pending[path] = v.value;
     results[path] = ok(v.value, { staged: true });
   }
@@ -330,6 +425,10 @@ function commitStagedField(path, value) {
     return false;
   }
   if (path.indexOf('metrics.') === 0) return true; // handled by the metrics namespace directly
+
+  // Atmosphere axes are desugared to scene.skin + scene.weatherIndex at stage
+  // time (stageStatic), which persist on their own; nothing to write here.
+  if (path === 'scene.season' || path === 'scene.timeOfDay' || path === 'scene.weather') return true;
 
   // Autodrive on/off has no index-style store: the engine records it as the
   // *presence* of the `has-autodrive` localStorage key (see the engine's ce.set)
@@ -601,20 +700,12 @@ const PromptDrive = {
 
   dynamic: {
     set: (partial) => setDynamic(partial),
-    weather: (idxOrName) => {
-      // Accept a weather name (e.g. 'rain') as well as an index by resolving it
-      // against the active skin's weather list.
-      let v = idxOrName;
-      if (typeof v === 'string' && !/^\d+$/.test(v)) {
-        try {
-          const list = H().world.scene.skinWeatherList;
-          const i = Array.isArray(list) ? list.indexOf(v) : -1;
-          if (i >= 0) v = i; else return { 'scene.weatherIndex': err('bad_value', { path: 'scene.weatherIndex', message: 'unknown weather name', options: list }) };
-        } catch (_e) {}
-      }
-      return setDynamic({ 'scene.weatherIndex': v });
-    },
-    skin: (name) => setDynamic({ 'scene.skin': name }),
+    // Three independent atmosphere axes (Hills). Accept the canonical vocab;
+    // season() also tolerates the engine's 'autumn'/'default' aliases.
+    season: (name) => setDynamic({ 'scene.season': normalizeSeason(name) }),
+    timeOfDay: (t) => setDynamic({ 'scene.timeOfDay': t }),
+    weather: (w) => setDynamic({ 'scene.weather': w }),
+    skin: (name) => setDynamic({ 'scene.skin': name }), // advanced: raw engine skin key
     cycle: (idx) => setDynamic({ 'scene.dayNightCycle': idx }),
     headlights: (on) => setDynamic({ 'controls.headlights': on }),
     autodrive: (on) => setDynamic({ 'controls.autodrive': on }),
@@ -843,15 +934,11 @@ const PromptDrive = {
   // Camera modes available to dynamic.camera() — the current vehicle's own set.
   cameraModes: () => liveCameraModes(),
 
-  // Weather options for the active skin, as { index, name } (labels for the
-  // otherwise-opaque weatherIndex).
-  weathers: () => {
-    try {
-      const list = H().world.scene.skinWeatherList;
-      if (Array.isArray(list)) return list.map((name, index) => ({ index, name }));
-    } catch (_e) {}
-    return [];
-  },
+  // Atmosphere vocabularies for the gridded Hills scene — the labels for the
+  // scene.season / scene.timeOfDay / scene.weather enums.
+  seasons: () => SEASONS.slice(),
+  timesOfDay: () => TIMES_OF_DAY.slice(),
+  weathers: () => WEATHERS.map((name, index) => ({ index, name })),
 
   // End the simulation: finalize the run, auto-download report + logs, halt.
   end: (opts) => endSimulation(opts),

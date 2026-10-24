@@ -161,9 +161,10 @@
       </div>
 
       <div class="group">
-        <h3>Weather (initial)</h3>
+        <h3>Atmosphere (initial)</h3>
         <div class="body">
-          <div class="row"><label>Skin</label><select id="s-skin"><option value="">(keep)</option></select></div>
+          <div class="row"><label>Season</label><select id="s-season"><option value="">(keep)</option></select></div>
+          <div class="row"><label>Time of day</label><select id="s-time"><option value="">(keep)</option></select></div>
           <div class="row"><label>Weather</label><select id="s-weather"><option value="">(keep)</option></select></div>
         </div>
       </div>
@@ -248,10 +249,11 @@
         badge turns green when the live feed is flowing.</div>
 
       <div class="group">
-        <h3>Weather &amp; world</h3>
+        <h3>Atmosphere &amp; world</h3>
         <div class="body">
+          <div class="row"><label>Season</label><select id="d-season" data-dyn="season" data-live></select></div>
+          <div class="row"><label>Time of day</label><select id="d-time" data-dyn="timeOfDay" data-live></select></div>
           <div class="row"><label>Weather</label><select id="d-weather" data-dyn="weather" data-live></select></div>
-          <div class="row"><label>Skin</label><select id="d-skin" data-dyn="skin" data-live></select></div>
           <div class="row"><label>Day-night cycle</label>
             <select id="d-cycle" data-dyn="cycle" data-live><option value="0">off</option><option value="1">180s</option><option value="2">480s</option><option value="3">900s</option></select></div>
         </div>
@@ -679,8 +681,9 @@
     else if (kind === 'driveMode') r = await op('dynamic.driveMode', el.value);
     else if (kind === 'cycle') r = await op('dynamic.cycle', Number(el.value));
     else if (kind === 'camera') r = await op('dynamic.camera', el.value);
-    else if (kind === 'weather') r = await op('dynamic.weather', Number(el.value));
-    else if (kind === 'skin') { r = await op('dynamic.skin', el.value); setTimeout(populateLive, 400); }
+    else if (kind === 'season') { r = await op('dynamic.season', el.value); setTimeout(populateLive, 400); }
+    else if (kind === 'timeOfDay') r = await op('dynamic.timeOfDay', el.value);
+    else if (kind === 'weather') r = await op('dynamic.weather', el.value);
     else if (kind === 'units') { r = await op('dynamic.set', { units: Number(el.value) }); setTimeout(populateLive, 200); }
     log(kind, r, r && r.ok === false ? 'err' : 'applied');
   }));
@@ -709,18 +712,25 @@
       fillSelect('d-camera', cams.map((c) => ({ v: c.key, t: c.label })).concat([{ v: 'next', t: '↻ Next' }]), g.controls && g.controls.camera);
       fillSelect('s-camera', cams.map((c) => ({ v: c.index, t: c.label })), g.controls && g.controls.cameraMode);
     }
+    // Atmosphere: three independent axes. Vocab from the facade; current
+    // selection from get().scene (decoded season / timeOfDay / weather).
+    const seasons = await op('seasons');
+    if (Array.isArray(seasons) && seasons.length) {
+      const opts = seasons.map((s) => ({ v: s, t: s }));
+      fillSelect('d-season', opts, g.scene.season);
+      fillSelect('s-season', [{ v: '', t: '(keep)' }].concat(opts), g.scene.season);
+    }
+    const tod = await op('timesOfDay');
+    if (Array.isArray(tod) && tod.length) {
+      const opts = tod.map((t) => ({ v: t, t: t }));
+      fillSelect('d-time', opts, g.scene.timeOfDay);
+      fillSelect('s-time', [{ v: '', t: '(keep)' }].concat(opts), g.scene.timeOfDay);
+    }
     const wx = await op('weathers');
     if (Array.isArray(wx) && wx.length) {
-      const opts = wx.map((w) => ({ v: w.index, t: w.index + ' — ' + w.name }));
-      fillSelect('d-weather', opts, g.scene.weatherIndex);
-      fillSelect('s-weather', [{ v: '', t: '(keep)' }].concat(opts), g.scene.weatherIndex);
-    }
-    const sch = await op('schema');
-    const scene = sch && sch.scenes && sch.scenes[g.scene.sceneName];
-    if (scene && scene.skins) {
-      const opts = scene.skins.map((s) => ({ v: s, t: s }));
-      fillSelect('d-skin', opts, g.scene.skin);
-      fillSelect('s-skin', [{ v: '', t: '(keep)' }].concat(opts), g.scene.skin);
+      const opts = wx.map((w) => ({ v: w.name, t: w.name }));
+      fillSelect('d-weather', opts, g.scene.weather);
+      fillSelect('s-weather', [{ v: '', t: '(keep)' }].concat(opts), g.scene.weather);
     }
     await renderWheel();
   }
@@ -776,8 +786,9 @@
     p['graphics.viewLodIndex'] = num('s-view');
     p['graphics.detailLodIndex'] = num('s-detail');
     p['graphics.renderScale'] = num('s-render');
-    if (val('s-skin')) p['scene.skin'] = val('s-skin');
-    if (val('s-weather') !== '') p['scene.weatherIndex'] = num('s-weather');
+    if (val('s-season')) p['scene.season'] = val('s-season');
+    if (val('s-time')) p['scene.timeOfDay'] = val('s-time');
+    if (val('s-weather')) p['scene.weather'] = val('s-weather');
     p['vehicle.mode'] = num('s-mode');
     p['controls.autodriveSideIndex'] = num('s-autolane');
     p['vehicle.gripFactor'] = num('s-grip');
