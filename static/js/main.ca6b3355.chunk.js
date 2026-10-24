@@ -2516,6 +2516,148 @@
         }
       }
     },
+    Truck: {
+      enabled: true,
+      name: "Truck",
+      bodyObj: { default: i.p + "static/media/truck-01.obj" },
+      wheelObj: { default: i.p + "static/media/truck_wheel-01.obj" },
+      steerObj: i(40),
+      dashObj: i(41),
+      map: Ce,
+      icon: i.p + "static/media/veh_truck.svg",
+      audio: {
+        roll: ye,
+        engine: Ie
+      },
+      wheels: {
+        tyreWidth: 0.15,
+        width: 2,
+        widthHalf: 1,
+        length: 4.2,
+        radius: 0.5,
+        circumference: 3.1416,
+        travel: 0.14
+      },
+      skins: {
+        basic: {
+          body: 16316664
+        }
+      },
+      metrics: {
+        shadowMapSize: 8,
+        steerSpeed: 0.6,
+        accel: 7,
+        reverse: 3,
+        jerk: 16,
+        brake: 5,
+        mass: 7500,
+        steerAccel: 6,
+        maxSteer: 0.6,
+        axleHeight: 0.5,
+        dampening: 0.06,
+        rockFactor: 5,
+        drag: 0.0025,
+        topSpeed: 25,
+        rollResistance: 0.035,
+        steerInterval: 2,
+        slipBase: 1,
+        slipMod: 0.25,
+        aeroFactor: 0,
+        headlightPos: {
+          x: 0.92,
+          y: 1.32,
+          z: 5.4
+        },
+        steeringPos: {
+          x: 0.6,
+          y: 2.16,
+          z: 4.78
+        },
+        steeringAngle: 0.55,
+        consoleMount: {
+          x: 4.9,
+          y: 2.05
+        },
+        dims: {
+          front: 5.5,
+          rear: 2.27,
+          width: 2.5
+        }
+      },
+      cameras: {
+        Chase: {
+          pitch: {
+            near: 0.3,
+            far: 0.25
+          },
+          yOffset: {
+            near: 2.6,
+            far: 3.4
+          },
+          posOffset: [0, 0, 2.5],
+          range: {
+            near: 10,
+            far: 12
+          },
+          farSpeed: 25,
+          smoothFactor: 1.6
+        },
+        ChaseFar: {
+          pitch: {
+            near: 0.35,
+            far: 0.28
+          },
+          yOffset: {
+            near: 3,
+            far: 5
+          },
+          posOffset: [0, 0, 2.5],
+          range: {
+            near: 15,
+            far: 18
+          },
+          farSpeed: 25,
+          smoothFactor: 1.4
+        },
+        FirstPerson: {
+          isFirstPerson: true,
+          nearPlane: 0.08,
+          pitch: {
+            near: 0.04,
+            far: 0.04
+          },
+          yOffset: {
+            near: 0.7,
+            far: 0.7
+          },
+          posOffset: [0.6, 2.38, 4.3],
+          range: {
+            near: 0.75,
+            far: 0.75
+          },
+          farSpeed: 25,
+          smoothFactor: 0
+        },
+        Hood: {
+          pitch: {
+            near: 0.05,
+            far: 0.05
+          },
+          yOffset: {
+            near: 0.5,
+            far: 0.5
+          },
+          posOffset: [0, 1, 5.6],
+          range: {
+            near: 0,
+            far: 0
+          },
+          farSpeed: 25,
+          smoothFactor: 0.3,
+          hideVehicle: true
+        }
+      }
+    },
     Rover: {
       enabled: false,
       name: "Rover",
@@ -2568,11 +2710,10 @@
   };
   const je = {
     Roadster: Ne.Roadster,
-    Bike: Ne.Bike,
-    Coach: Ne.Bus,
+    Truck: Ne.Truck,
     Debug: Ne.Debug
   };
-  const ze = ["Roadster", "Bike", "Coach"];
+  const ze = ["Roadster", "Truck"];
   const Oe = 0;
   const Le = 1;
   const Re = 2;
@@ -2741,6 +2882,9 @@
           }
         } else {
           e = Ge[t];
+        }
+        if (t === "type" && !(e in je)) {
+          e = Ge.type;
         }
         this[t] = e;
         console.log("VehicleConfig: Load ", t, e);
@@ -18854,7 +18998,7 @@
       this.setLights(Ae.headlights);
     }
     changeVehicle(e) {
-      this.initVehicle(je[e]);
+      this.initVehicle(je[e] || je.Roadster);
       this.changeGrip();
       el.sendUpdate("vehicleChange", e);
     }

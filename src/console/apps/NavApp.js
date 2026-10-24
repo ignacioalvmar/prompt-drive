@@ -282,7 +282,11 @@ export const NavApp = {
     let w = 1.56;
     let l = 3.95;
     try {
-      if (h && h.ego && h.ego.wheels) {
+      const dims = h && h.ego && h.ego.metrics && h.ego.metrics.dims;
+      if (dims && Number.isFinite(dims.front) && Number.isFinite(dims.rear) && Number.isFinite(dims.width)) {
+        w = dims.width;
+        l = dims.front + dims.rear;
+      } else if (h && h.ego && h.ego.wheels) {
         w = (h.ego.wheels.width || 1.36) + 2 * (h.ego.wheels.tyreWidth || 0.1);
         l = (h.ego.wheels.length || 2.75) + 1.2;
       }

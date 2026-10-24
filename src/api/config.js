@@ -31,7 +31,7 @@ const SCENES = ['Hills', 'Planet'];
 const TOPOGRAPHIES = ['straight', 'casual', 'easy', 'normal', 'hard'];
 const DRIVE_MODES = ['AWD', 'FWD', 'RWD'];
 const INPUT_MODES = ['keyboard', 'mouse', 'gamepad'];
-const VEHICLES = ['Roadster', 'Coach'];
+const VEHICLES = ['Roadster', 'Truck'];
 const DAY_NIGHT_SECONDS = [0, 180, 480, 900]; // qs (deobfuscated.js, day-night cycle)
 
 /**
