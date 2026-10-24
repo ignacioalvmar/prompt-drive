@@ -34,6 +34,37 @@ const INPUT_MODES = ['keyboard', 'mouse', 'gamepad'];
 const VEHICLES = ['Roadster', 'Truck'];
 const DAY_NIGHT_SECONDS = [0, 180, 480, 900]; // qs (deobfuscated.js, day-night cycle)
 
+// --- Season / Time of day / Weather (prompt-drive-weather-season) -------------
+// The engine models scene atmosphere as skin (season) × weatherIndex (a flat
+// per-skin list that conflates time-of-day and weather). The build-main.js
+// "atmosphere grid" patch rebuilds each Hills skin's weather list into a 4×4
+// grid so the two become independent axes, with:
+//
+//     weatherIndex = timeIdx * WEATHERS.length + weatherIdx
+//
+// These vocab arrays, the grid ordering, and the season↔skin map below MUST stay
+// in sync with that patch (same order, same engine skin keys). Only the Hills
+// scene is gridded; other scenes (Planet) keep raw skin/weatherIndex semantics.
+const SEASONS = ['spring', 'summer', 'fall', 'winter'];
+const TIMES_OF_DAY = ['morning', 'midday', 'dusk', 'night'];
+const WEATHERS = ['clear', 'rain', 'snow', 'fog'];
+const GRID_SCENE = 'Hills'; // the only scene that uses the 4×4 atmosphere grid
+
+// Hills season (API vocab) → engine skin key, and back. 'summer' is the engine's
+// 'default' skin; accept the pre-sanitise 'summer' key as an alias on decode.
+const SEASON_TO_SKIN = { spring: 'spring', summer: 'default', fall: 'autumn', winter: 'winter' };
+const SKIN_TO_SEASON = { spring: 'spring', default: 'summer', summer: 'summer', autumn: 'fall', winter: 'winter' };
+
+function encodeWeatherIndex(timeIdx, weatherIdx) {
+  return timeIdx * WEATHERS.length + weatherIdx;
+}
+function decodeWeatherIndex(weatherIndex) {
+  const n = WEATHERS.length;
+  const span = TIMES_OF_DAY.length * n; // 16
+  const i = ((Math.round(weatherIndex) % span) + span) % span; // wrap into [0, span)
+  return { timeIdx: Math.floor(i / n), weatherIdx: i % n };
+}
+
 /**
  * The canonical field table. Each entry:
  *   { domain, key, path, type, cls, min?, max?, step?, values?, labels?, desc }
@@ -45,9 +76,15 @@ const FIELDS = [
   { path: 'scene.startNode', type: FieldType.Integer, cls: 'static', min: 0, desc: 'Where along the route the drive begins.' },
   { path: 'scene.sceneName', type: FieldType.Enum, cls: 'static', values: SCENES, desc: 'Whole-world swap, baked at generation.' },
   { path: 'scene.topography', type: FieldType.Enum, cls: 'static', values: TOPOGRAPHIES, desc: 'Height/road-width profile, baked into terrain.' },
-  { path: 'scene.skin', type: FieldType.String, cls: 'both', desc: 'Season/planet palette; live via setSkin.' },
-  { path: 'scene.weatherIndex', type: FieldType.Integer, cls: 'both', min: 0, desc: 'Index into the active skin\'s weather list.' },
-  { path: 'scene.dayNightCycle', type: FieldType.Enum, cls: 'both', values: [0, 1, 2, 3], labels: DAY_NIGHT_SECONDS.map((s) => (s ? s + 's' : 'off')), desc: 'Day-night cycle length index.' },
+  // Atmosphere, three independent axes (preferred interface; Hills scene).
+  { path: 'scene.season', type: FieldType.Enum, cls: 'both', values: SEASONS, desc: 'Season / palette: spring, summer, fall, winter. Live + static.' },
+  { path: 'scene.timeOfDay', type: FieldType.Enum, cls: 'both', values: TIMES_OF_DAY, desc: 'Time of day: morning, midday, dusk, night — independent of weather. Live + static.' },
+  { path: 'scene.weather', type: FieldType.Enum, cls: 'both', values: WEATHERS, desc: 'Weather: clear, rain, snow, fog (fog is synthesized thick haze) — independent of time of day. Live + static.' },
+  // Low-level engine handles (advanced / back-compat). season+timeOfDay+weather
+  // desugar to these; weatherIndex is the 4×4 grid index on Hills.
+  { path: 'scene.skin', type: FieldType.String, cls: 'both', desc: 'Engine skin key (advanced); prefer scene.season. Live via setSkin.' },
+  { path: 'scene.weatherIndex', type: FieldType.Integer, cls: 'both', min: 0, desc: 'Raw index into the active skin\'s weather list (advanced); prefer scene.timeOfDay + scene.weather. On Hills this is timeIdx*4 + weatherIdx.' },
+  { path: 'scene.dayNightCycle', type: FieldType.Enum, cls: 'both', values: [0, 1, 2, 3], labels: DAY_NIGHT_SECONDS.map((s) => (s ? s + 's' : 'off')), desc: 'Day-night cycle length index (auto-advances time of day when on).' },
   { path: 'scene.antialias', type: FieldType.Boolean, cls: 'static', desc: 'Renderer init flag.' },
 
   // --- lanes (3.1) — delegated to window.LaneRoads, live changes clamped ±1 ---
@@ -194,6 +231,12 @@ function buildSchema(extra) {
   return {
     version: '1.0',
     fields,
+    atmosphere: {
+      seasons: SEASONS,
+      timesOfDay: TIMES_OF_DAY,
+      weathers: WEATHERS,
+      gridScene: GRID_SCENE, // scene.season/timeOfDay/weather apply fully here
+    },
     ...(extra || {}),
   };
 }

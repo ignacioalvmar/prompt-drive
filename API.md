@@ -92,7 +92,9 @@ const grip = PromptDrive.get('vehicle.gripFactor');
 // 3. Change things live.
 PromptDrive.dynamic.autodrive(true);
 PromptDrive.dynamic.cruise({ enabled: true, speed: 22 }); // m/s
-PromptDrive.dynamic.weather('rain');           // by name or index
+PromptDrive.dynamic.season('winter');          // spring | summer | fall | winter
+PromptDrive.dynamic.timeOfDay('dusk');         // morning | midday | dusk | night
+PromptDrive.dynamic.weather('snow');           // clear | rain | snow | fog (independent of time)
 PromptDrive.dynamic.lanes({ forward: 2, backward: 2 });   // ±1/direction live
 
 // 4. Observe.
@@ -117,7 +119,8 @@ config.apply({ mode })        // 'reload' (default) | 'ahead'
 config.autostart(bool)        // bypass the "begin" splash on next load
 
 dynamic.set(partial)          // apply many live fields at once
-dynamic.weather(idxOrName)    dynamic.skin(name)     dynamic.cycle(idx)
+dynamic.season(name)  dynamic.timeOfDay(t)  dynamic.weather(w)  // three independent axes
+dynamic.skin(name)            dynamic.cycle(idx)     // advanced: raw skin / day-night cycle
 dynamic.headlights(bool)      dynamic.autodrive(bool) dynamic.driveMode(m)
 dynamic.camera(mode)          dynamic.lanes(cfg)     dynamic.cruise(cfg)
 dynamic.grip(f)   dynamic.speed(f)   dynamic.fov(f)   dynamic.units(u)
@@ -149,7 +152,8 @@ metrics.select(id, on)        // toggle one metric
 metrics.selectFamily(fam, on) // toggle a whole family
 
 cameraModes()                 // the current vehicle's camera modes (key + label)
-weathers()                    // active skin's weather options as { index, name }
+seasons()  timesOfDay()       // atmosphere vocab: ['spring',…] / ['morning',…]
+weathers()                    // weather vocab as { index, name }: clear/rain/snow/fog
 
 run.start()  run.stop()  run.reset()  run.status()
 run.downloadReport()          // Markdown report download
@@ -196,7 +200,7 @@ argument you get the whole tree; with a dot-path you get one value.
 ```js
 PromptDrive.get();                    // { scene:{…}, lanes:{…}, vehicle:{…}, controls:{…}, graphics:{…}, units:0 }
 PromptDrive.get('controls.autodrive') // true
-PromptDrive.get('scene.weatherIndex') // 2
+PromptDrive.get('scene.timeOfDay')    // 'midday'   (also scene.season / scene.weather)
 ```
 
 ### Dynamic config — `dynamic.*`
@@ -213,7 +217,9 @@ result map:
 PromptDrive.dynamic.set({
   'vehicle.mode': 'RWD',        // or 2
   'vehicle.gripFactor': 1.5,
-  'scene.weatherIndex': 4,
+  'scene.season': 'winter',
+  'scene.timeOfDay': 'night',
+  'scene.weather': 'snow',
   'lanes': { forward: 2, backward: 2 },
   'controls.cruise': { enabled: true, speed: 18 },
   'graphics.verticalFov': 75,
@@ -221,7 +227,9 @@ PromptDrive.dynamic.set({
 // → {
 //   'vehicle.mode':       { ok:true, value:2 },
 //   'vehicle.gripFactor': { ok:true, value:1.5 },
-//   'scene.weatherIndex': { ok:true, value:4 },
+//   'scene.season':       { ok:true, value:'winter' },
+//   'scene.timeOfDay':    { ok:true, value:'night' },
+//   'scene.weather':      { ok:true, value:'snow' },
 //   'lanes':              { ok:true, value:{forward:2,backward:2,width:null} },
 //   'controls.cruise':    { ok:true, value:{enabled:true,speed:18} },
 //   'graphics.verticalFov': { ok:true, value:75 }
@@ -232,9 +240,11 @@ Convenience wrappers each call `dynamic.set` for one field:
 
 | Method | Field | Notes |
 | --- | --- | --- |
-| `weather(idxOrName)` | `scene.weatherIndex` | An index, or a weather name (`"rain"`, `"night"`, …) resolved against the active skin. Use `weathers()` for the labeled list. |
-| `skin(name)` | `scene.skin` | e.g. `"summer"`, `"winter"`, `"mars"` — see `schema().scenes`. |
-| `cycle(idx)` | `scene.dayNightCycle` | `0` off, `1`=180 s, `2`=480 s, `3`=900 s. |
+| `season(name)` | `scene.season` | `"spring"`/`"summer"`/`"fall"`/`"winter"` (also accepts `"autumn"`). Sets the palette; keeps time of day + weather. |
+| `timeOfDay(t)` | `scene.timeOfDay` | `"morning"`/`"midday"`/`"dusk"`/`"night"`. Independent of weather. |
+| `weather(w)` | `scene.weather` | `"clear"`/`"rain"`/`"snow"`/`"fog"`. Independent of time of day. Fog is synthetic thick haze. |
+| `skin(name)` | `scene.skin` | *Advanced.* Raw engine skin key — prefer `season()`. See `schema().scenes`. |
+| `cycle(idx)` | `scene.dayNightCycle` | `0` off, `1`=180 s, `2`=480 s, `3`=900 s. Auto-advances time of day when on. |
 | `driveMode(m)` | `vehicle.mode` | `"AWD"`/`"FWD"`/`"RWD"` or `0`/`1`/`2`. |
 | `grip(f)` | `vehicle.gripFactor` | `0.25`–`3`. |
 | `speed(f)` | `vehicle.speedFactor` | `0.5`–`2`. |
@@ -246,6 +256,20 @@ Convenience wrappers each call `dynamic.set` for one field:
 | `fov(f)` | `graphics.verticalFov` | `40`–`80`. |
 | `units(u)` | `units` | `0` MPH/MI, `1` KPH/KM. |
 | `hideMenu(bool)` | `ui.hideMenu` | Participant lockdown — hides the bottom-bar menu icons + autodrive toggle so a participant can't change conditions. Live toggle does **not** persist; use `config.set`/`apply` (or `?hideMenu=1`) to bake it across reloads. |
+
+**Atmosphere — season / time of day / weather.** These are three *independent*
+axes (settable live and via static config), so you can combine any season with
+any time of day and any weather — e.g. `winter` + `night` + `rain`. They are the
+recommended replacement for the old opaque `scene.weatherIndex`, which conflated
+time of day and weather in one flat list. Under the hood they desugar to the
+engine's `skin` + `weatherIndex` (on the Hills scene, `weatherIndex = timeIdx*4 +
+weatherIdx`); `scene.skin` / `scene.weatherIndex` remain for advanced use.
+Caveats: the three axes apply fully to the **Hills** scene (Planet keeps raw
+skin/weatherIndex); `fog` has no dedicated engine preset, so it is synthesized as
+thick haze (tightened fog distance) on top of the chosen time of day; and `rain`
+is conveyed by overcast light + wet haze + rain audio (the engine has no rain
+particle mesh), while `snow` shows falling snow. `seasons()`, `timesOfDay()` and
+`weathers()` return the vocabularies; `schema().atmosphere` lists them too.
 
 **Live drive inputs** — `dynamic.input(signals)` feeds a virtual input source
 that is OR'd into the per-frame controls, letting a service *drive* the car:
@@ -270,13 +294,15 @@ substrate the engine reads on load and reloads the sim.
 ```js
 PromptDrive.config.set({
   'scene.seed': 'demo7',
-  'scene.sceneName': 'Planet',
   'scene.topography': 'hard',
+  'scene.season': 'winter',               // atmosphere: three independent axes
+  'scene.timeOfDay': 'dusk',
+  'scene.weather': 'fog',
   'vehicle.type': 'Truck',
   'lanes': { forward: 3, backward: 0 },   // initial layout (full range, not ±1)
 });
-PromptDrive.config.pending();             // → the staged diff
-PromptDrive.config.apply({ mode: 'reload' }); // commit + reload
+PromptDrive.config.pending();             // → the staged diff (incl. desugared scene.skin/weatherIndex)
+PromptDrive.config.apply({ mode: 'reload' }); // commit + reload → starts in winter / dusk / fog
 ```
 
 - `config.set(partial)` validates and stages; returns per-path
@@ -627,8 +653,11 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.startNode` | integer | **S** | ≥ 0 |
 | `scene.sceneName` | enum | **S** | `Hills`, `Planet` |
 | `scene.topography` | enum | **S** | `straight`, `casual`, `easy`, `normal`, `hard` |
-| `scene.skin` | string | **S+D** | per-scene (e.g. `summer`, `winter`, `mars`) — see `schema().scenes` |
-| `scene.weatherIndex` | integer | **S+D** | index into the active skin's weather list |
+| `scene.season` | enum | **S+D** | `spring`, `summer`, `fall`, `winter` (Hills). The palette/skin. |
+| `scene.timeOfDay` | enum | **S+D** | `morning`, `midday`, `dusk`, `night` (Hills). Independent of weather. |
+| `scene.weather` | enum | **S+D** | `clear`, `rain`, `snow`, `fog` (Hills). Independent of time of day; fog is synthetic thick haze. |
+| `scene.skin` | string | **S+D** | *Advanced.* Raw engine skin key (e.g. `default`, `winter`, `mars`); prefer `scene.season`. See `schema().scenes`. |
+| `scene.weatherIndex` | integer | **S+D** | *Advanced.* Raw weather-list index; prefer `scene.timeOfDay` + `scene.weather`. On Hills = `timeIdx*4 + weatherIdx`. |
 | `scene.dayNightCycle` | enum | **S+D** | `0` off, `1`=180 s, `2`=480 s, `3`=900 s |
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
@@ -725,7 +754,7 @@ argument array. `result` is whatever the facade method returns.
 const frame = document.querySelector('iframe#promptdrive').contentWindow;
 
 frame.postMessage({ ns:'promptdrive', id:42, op:'dynamic.set',
-  args:[{ 'controls.headlights':true, 'scene.weatherIndex':9, 'vehicle.mode':'RWD' }] }, ORIGIN);
+  args:[{ 'controls.headlights':true, 'scene.weather':'rain', 'vehicle.mode':'RWD' }] }, ORIGIN);
 
 window.addEventListener('message', (e) => {
   if (e.data?.ns !== 'promptdrive') return;

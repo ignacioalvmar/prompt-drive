@@ -845,5 +845,259 @@ src = replaceOnce(
   'changeVehicle unknown type fallback',
 );
 
+// ---------------------------------------------------------------------------
+// Season × Time-of-day × Weather (prompt-drive-weather-season).
+// ---------------------------------------------------------------------------
+
+// --- Patch: rebuild each Hills skin's flat `weathers` list into a deterministic
+// 4×4 grid so time-of-day and weather become INDEPENDENT axes:
+//     weatherIndex = timeIdx*4 + weatherIdx
+//     timeIdx:    0 morning, 1 midday, 2 dusk, 3 night
+//     weatherIdx: 0 clear,   1 rain,   2 snow, 3 fog
+// Clear reuses the existing hand-tuned time-of-day presets verbatim (so the
+// day-night `cycles` still resolve by name); rain/snow/fog are composed by
+// overlaying precipitation/haze onto that base and registered on Vs.weathers.
+// The ordering + skin keys MUST stay in sync with src/api/config.js. This runs
+// at module eval, before SceneConfig/buildSceneMeta, so the grid is already in
+// place when the settings panel and sceneMeta read it. Only Hills (Vs) is
+// gridded; Planet keeps raw skin/weatherIndex semantics.
+src = replaceOnce(
+  src,
+  '  var Vs = Ms;',
+  `  var Vs = Ms;
+  (function pdBuildAtmosphereGrid() {
+    try {
+      var W = Vs.weathers;
+      // Per-season (engine skin key) time-of-day base preset names.
+      var BASES = {
+        spring: ["springSunrise", "clearSpring", "autumnSunset", "night"],
+        default: ["sunrise", "clear", "sunset", "night"],
+        autumn: ["autumnSunrise", "clearAutumn", "twilight", "night"],
+        winter: ["winterSunrise", "clearSnow", "winterSunset", "nightSnow"]
+      };
+      var rainAudio = (W.rain && W.rain.audio) || (W.springRain && W.springRain.audio) || null;
+      var snowParticles = (W.snow && W.snow.particles) || { colour: 14406598, half: false, speed: 1.25 };
+      var KINDS = ["clear", "rain", "snow", "fog"];
+      var compose = function (baseName, kind, key) {
+        var base = W[baseName] || W.default;
+        if (kind === "clear") return baseName; // reuse the base preset verbatim
+        var o = Object.assign({}, base);
+        var bFar = base.fogFar != null ? base.fogFar : 1;
+        if (kind === "rain") {
+          o.dynamicFog = true;
+          o.fogFar = Math.min(bFar, 0.7);
+          o.dir = (base.dir != null ? base.dir : 0.8) * 0.6; // overcast gloom
+          if (rainAudio) o.audio = Object.assign({}, base.audio, { ambiance: rainAudio.ambiance });
+          delete o.particles; // engine has no rain mesh: haze + audio convey rain
+        } else if (kind === "snow") {
+          o.particles = snowParticles; // visible falling snow on any base
+          o.dynamicFog = true;
+          o.fogFar = Math.min(bFar, 0.7);
+        } else if (kind === "fog") {
+          o.dynamicFog = true;
+          o.fogNear = 0;
+          o.fogFar = 0.4; // thick synthetic haze (no dedicated engine fog preset)
+          delete o.particles;
+        }
+        W[key] = o;
+        return key;
+      };
+      for (var skinKey in BASES) {
+        if (!Vs.skins[skinKey]) continue;
+        var bases = BASES[skinKey];
+        var grid = [];
+        for (var ti = 0; ti < bases.length; ti++) {
+          for (var wi = 0; wi < KINDS.length; wi++) {
+            grid.push(compose(bases[ti], KINDS[wi], "pd_" + skinKey + "_" + ti + "_" + KINDS[wi]));
+          }
+        }
+        Vs.skins[skinKey].weathers = grid;
+      }
+      Vs._pdAtmosphereGrid = true;
+    } catch (_pdGridErr) {
+      try { console.error("PromptDrive atmosphere grid failed", _pdGridErr); } catch (_e) {}
+    }
+  })();`,
+  'atmosphere grid data',
+);
+
+// --- Patch: sensible scene default under the new grid. The stock default was
+// skin "summer" (not a real skin key — it was sanitised to "default") with
+// weatherIndex 2 (which is now morning/snow). Point it at the real "default"
+// (summer) skin and grid index 4 = midday + clear.
+src = replaceOnce(
+  src,
+  '    skin: "summer",\n    weatherIndex: 2,',
+  '    skin: "default",\n    weatherIndex: 4,',
+  'scene default midday/clear grid index',
+);
+
+// --- Patch: rebuild the scene settings panel into three independent rows
+// (Season / Time of day / Weather) + the cycle timer, for the gridded Hills
+// scene. Other scenes (Planet) fall back to the stock season→weather layout.
+// New time-of-day / weather icon assets live in static/media (the stock weather
+// icons w_*.svg were missing entirely). Row order + the 4×4 index math mirror
+// src/api/config.js.
+src = replaceOnce(
+  src,
+  `  const Bp = () => {
+    const [e, t] = Object(s.useState)(jh.sceneMeta.scenes[jh.sceneMeta.current]);
+    const [i, n] = Object(s.useState)(jh.value.skin);
+    const a = Object(s.useCallback)(() => {
+      t(jh.sceneMeta.scenes[jh.value.sceneName]);
+      n("default");
+    }, [t]);
+    Object(s.useEffect)(() => {
+      jh.addListener("sceneName", a);
+      return () => {
+        jh.removeListener("sceneName", a);
+      };
+    }, [a]);
+    Object(s.useEffect)(() => {
+      jh.addListener("skin", n);
+      return () => {
+        jh.removeListener("skin", n);
+      };
+    }, [n]);
+    Object(s.useEffect)(() => {
+      jh.addListener("seed", a);
+      return () => {
+        jh.removeListener("seed", a);
+      };
+    }, [a]);
+    const o = Object(s.useCallback)((t, i) => {
+      jh.set("skin", e.skins[t]);
+      jh.set("weatherIndex", i);
+    }, [e]);
+    const r = Object(s.useCallback)(t => {
+      jh.set("skin", e.skins[t]);
+      jh.set("weatherIndex", 0);
+    }, [e]);
+    let h = e.skins;
+    let l = e.skinNames;
+    let d = e.skinWeathers;
+    return Object(vc.jsxs)(Vp, {
+      icon: wp,
+      children: [h.length && h.map((e, t) => Object(vc.jsx)(Xp, {
+        selected: e == i,
+        icon: Np[l[e]],
+        label: l[e],
+        onMouseDown: () => r(t),
+        children: d[e].map((s, n) => Object(vc.jsx)(Gp, {
+          canSelect: e == i,
+          configKey: "weatherIndex",
+          configVal: n,
+          icon: kp[s],
+          onMouseDown: () => o(t, n)
+        }, n))
+      }, e)), e.hasCycles && Object(vc.jsx)(Pp, {}), Object(vc.jsx)("div", {
+        className: "stack-back",
+        style: {
+          width: "200px"
+        }
+      })]
+    });
+  };`,
+  `  var pdIconMorning = i.p + "static/media/td_morning.svg";
+  var pdIconMidday = i.p + "static/media/td_midday.svg";
+  var pdIconDusk = i.p + "static/media/td_dusk.svg";
+  var pdIconNight = i.p + "static/media/td_night.svg";
+  var pdIconWxClear = i.p + "static/media/wx_clear.svg";
+  var pdIconWxRain = i.p + "static/media/wx_rain.svg";
+  var pdIconWxSnow = i.p + "static/media/wx_snow.svg";
+  var pdIconWxFog = i.p + "static/media/wx_fog.svg";
+  const pdTimeLabels = ["morning", "midday", "dusk", "night"];
+  const pdTimeIcons = [pdIconMorning, pdIconMidday, pdIconDusk, pdIconNight];
+  const pdWeatherLabels = ["clear", "rain", "snow", "fog"];
+  const pdWeatherIcons = [pdIconWxClear, pdIconWxRain, pdIconWxSnow, pdIconWxFog];
+  const pdWeatherSpan = pdTimeLabels.length * pdWeatherLabels.length;
+  const Bp = () => {
+    const [meta, setMeta] = Object(s.useState)(jh.sceneMeta.scenes[jh.sceneMeta.current]);
+    const [skin, setSkinState] = Object(s.useState)(jh.value.skin);
+    const [wx, setWx] = Object(s.useState)(jh.value.weatherIndex);
+    const onScene = Object(s.useCallback)(() => {
+      setMeta(jh.sceneMeta.scenes[jh.value.sceneName]);
+      setSkinState(jh.value.skin);
+      setWx(jh.value.weatherIndex);
+    }, []);
+    Object(s.useEffect)(() => {
+      jh.addListener("sceneName", onScene);
+      jh.addListener("seed", onScene);
+      jh.addListener("skin", setSkinState);
+      jh.addListener("weatherIndex", setWx);
+      return () => {
+        jh.removeListener("sceneName", onScene);
+        jh.removeListener("seed", onScene);
+        jh.removeListener("skin", setSkinState);
+        jh.removeListener("weatherIndex", setWx);
+      };
+    }, [onScene]);
+    const skinKeys = (meta && meta.skins) || [];
+    const skinNames = (meta && meta.skinNames) || {};
+    const isGrid = jh.value.sceneName === "Hills";
+    if (!isGrid) {
+      const d = (meta && meta.skinWeathers) || {};
+      return Object(vc.jsxs)(Vp, {
+        icon: wp,
+        children: [skinKeys.length && skinKeys.map(k => Object(vc.jsx)(Xp, {
+          selected: k == skin,
+          icon: Np[skinNames[k]],
+          label: skinNames[k],
+          onMouseDown: () => { jh.set("skin", k); jh.set("weatherIndex", 0); },
+          children: (d[k] || []).map((nm, wi) => Object(vc.jsx)(Gp, {
+            canSelect: k == skin,
+            configKey: "weatherIndex",
+            configVal: wi,
+            icon: kp[nm],
+            onMouseDown: () => { jh.set("skin", k); jh.set("weatherIndex", wi); }
+          }, wi))
+        }, k)), meta && meta.hasCycles && Object(vc.jsx)(Pp, {}), Object(vc.jsx)("div", {
+          className: "stack-back",
+          style: { width: "200px" }
+        })]
+      });
+    }
+    const safeWx = ((Math.round(wx) % pdWeatherSpan) + pdWeatherSpan) % pdWeatherSpan;
+    const timeIdx = Math.floor(safeWx / pdWeatherLabels.length);
+    const wxIdx = safeWx % pdWeatherLabels.length;
+    const seasonHeader = Np[skinNames[skin]] || Np.summer;
+    return Object(vc.jsxs)(Vp, {
+      icon: wp,
+      children: [Object(vc.jsx)(Xp, {
+        selected: false,
+        icon: seasonHeader,
+        label: skinNames[skin] || "season",
+        children: skinKeys.map(k => Object(vc.jsx)(qp, {
+          selected: k == skin,
+          icon: Np[skinNames[k]],
+          onMouseDown: () => jh.set("skin", k)
+        }, k))
+      }, "pd-season"), Object(vc.jsx)(Xp, {
+        selected: false,
+        icon: pdTimeIcons[timeIdx],
+        label: pdTimeLabels[timeIdx],
+        children: pdTimeLabels.map((lb, ti) => Object(vc.jsx)(qp, {
+          selected: ti == timeIdx,
+          icon: pdTimeIcons[ti],
+          onMouseDown: () => jh.set("weatherIndex", ti * pdWeatherLabels.length + wxIdx)
+        }, lb))
+      }, "pd-time"), Object(vc.jsx)(Xp, {
+        selected: false,
+        icon: pdWeatherIcons[wxIdx],
+        label: pdWeatherLabels[wxIdx],
+        children: pdWeatherLabels.map((lb, wi) => Object(vc.jsx)(qp, {
+          selected: wi == wxIdx,
+          icon: pdWeatherIcons[wi],
+          onMouseDown: () => jh.set("weatherIndex", timeIdx * pdWeatherLabels.length + wi)
+        }, lb))
+      }, "pd-weather"), Object(vc.jsx)(Pp, {}), Object(vc.jsx)("div", {
+        className: "stack-back",
+        style: { width: "200px" }
+      })]
+    });
+  };`,
+  'scene panel three-axis rebuild',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);
