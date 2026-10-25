@@ -38,6 +38,7 @@ const STAGE_STORAGE = {
   'vehicle.showConsole': 'config-vehicle-show-console',
   'vehicle.side': 'config-vehicle-side',
   'vehicle.seat': 'config-vehicle-seat',
+  'vehicle.passengerSeat': 'config-vehicle-passenger-seat',
   'vehicle.seatAdjustment': 'config-vehicle-seat-adjustment',
   'vehicle.seatHeight': 'config-vehicle-seat-height',
   'vehicle.steerRotationIndex': 'config-vehicle-steer-index',
@@ -112,6 +113,7 @@ function snapshot() {
       showConsole: v.showConsole !== false,
       side: v.side,
       seat: v.seat,
+      passengerSeat: v.passengerSeat || 0,
       seatAdjustment: v.seatAdjustment,
       seatHeight: v.seatHeight,
     },
@@ -276,6 +278,7 @@ function applyDynamic(path, value, opts) {
     case 'vehicle.showConsole': h.vehicleConfig.set('showConsole', value); return ok(value);
     case 'vehicle.side': h.vehicleConfig.set('side', value); return ok(value);
     case 'vehicle.seat': h.vehicleConfig.set('seat', value); return ok(value);
+    case 'vehicle.passengerSeat': h.vehicleConfig.set('passengerSeat', value); return ok(value);
     case 'vehicle.seatAdjustment': h.vehicleConfig.set('seatAdjustment', value); return ok(value);
     case 'vehicle.seatHeight': h.vehicleConfig.set('seatHeight', value); return ok(value);
 

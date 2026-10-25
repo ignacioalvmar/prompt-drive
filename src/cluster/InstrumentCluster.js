@@ -1,5 +1,6 @@
 import { COLORS, SCREEN_CANVAS, OVERLAY, TOP_ARCH, zonesForCanvas } from './layout.js';
 import { drawLightning, drawAutodriveIcon, drawRoadWorm } from './icons.js';
+import { drawPassengerInfo } from './passenger.js';
 
 const DASHBOARD_MESH = 'z_dashboard_Cube.009';
 const INTERIOR_MESH = 'z_interior_Cube.008';
@@ -241,6 +242,29 @@ function dashboardRecessPlacement(geometry) {
   };
 }
 
+// Driverless vehicles publish `metrics.infoDisplay` ({ x, y, z, width,
+// height[, rotY] }, body-OBJ frame) for a passenger screen; the cluster then
+// mounts there and draws the passenger layout instead of driver gauges.
+function vehicleInfoDisplay() {
+  try {
+    const d = window.PromptDriveBridge?.handles?.ego?.metrics?.infoDisplay;
+    return d && Number.isFinite(d.x) && Number.isFinite(d.width) ? d : null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+function infoDisplayPlacement(d) {
+  return {
+    width: d.width,
+    height: d.height,
+    x: d.x,
+    y: d.y,
+    z: d.z || 0,
+    rotY: Number.isFinite(d.rotY) ? d.rotY : -Math.PI / 2,
+  };
+}
+
 function interiorRecessPlacement(geometry) {
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
@@ -348,6 +372,19 @@ export class InstrumentCluster {
   }
 
   _resolveAnchor(root) {
+    const info = vehicleInfoDisplay();
+    if (info) {
+      const interior = findInteriorMesh(root);
+      if (interior?.parent) {
+        return {
+          mode: 'info',
+          parent: interior.parent,
+          geometry: interior.geometry,
+          placement: () => infoDisplayPlacement(info),
+        };
+      }
+    }
+
     const dashboard = findDashboardAnchor(root);
     if (dashboard) {
       return {
@@ -451,17 +488,24 @@ export class InstrumentCluster {
     this._placementMode = null;
   }
 
-  draw({
-    speedKph = 0,
-    speedLerp = 0,
-    odometerKm = 0,
-    throttle = 0,
-    autodrive = false,
-    driveMode = 'AWD',
-    speedUnit = 'KPH',
-    distUnit = 'KM',
-    clock = new Date(),
-  }) {
+  draw(state = {}) {
+    if (this._placementMode === 'info') {
+      this._trip ||= { distM: 0, lastT: null };
+      drawPassengerInfo(this.ctx, this.canvas.width, this.canvas.height, state, this._trip);
+      this.texture.needsUpdate = true;
+      return;
+    }
+    const {
+      speedKph = 0,
+      speedLerp = 0,
+      odometerKm = 0,
+      throttle = 0,
+      autodrive = false,
+      driveMode = 'AWD',
+      speedUnit = 'KPH',
+      distUnit = 'KM',
+      clock = new Date(),
+    } = state;
     const ctx = this.ctx;
     const { width, height } = this.canvas;
     const zones = zonesForCanvas(width, height);

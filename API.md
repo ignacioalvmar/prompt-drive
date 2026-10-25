@@ -668,7 +668,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 
 | Path | Type | Class | Values / range |
 | --- | --- | --- | --- |
-| `vehicle.type` | enum | **S** | `Roadster`, `Truck` |
+| `vehicle.type` | enum | **S** | `Roadster`, `Truck`, `Shuttle` |
 | `vehicle.mode` | enum | **S+D** | `0` AWD, `1` FWD, `2` RWD |
 | `vehicle.gripFactor` | float | **S+D** | `0.25`–`3` |
 | `vehicle.speedFactor` | float | **S+D** | `0.5`–`2` |
@@ -677,6 +677,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `vehicle.showConsole` | boolean | **S+D** | Center-console visibility; when `false` the console isn't rendered and `console.*` actions return `disabled` |
 | `vehicle.side` | enum | **S+D** | `0` right, `1` left |
 | `vehicle.seat` | enum | **S+D** | `0` driver, `1` passenger |
+| `vehicle.passengerSeat` | enum | **S+D** | Shuttle only: `0` rear bench window, `1` rear bench centre, `2` front bench facing back, `3` standing by the door |
 | `vehicle.seatAdjustment` | float | **S+D** | `-0.25`–`0.25` |
 | `vehicle.seatHeight` | float | **S+D** | `-0.05`–`0.05` |
 

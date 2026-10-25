@@ -3477,6 +3477,14 @@ class CenterConsole {
   }
 
   _ensureMeshes(root) {
+    // A vehicle with `metrics.consoleMount: null` (the driverless shuttle)
+    // has no center stack.
+    try {
+      if (this._handles()?.ego?.metrics?.consoleMount === null) {
+        this._removeMeshes();
+        return false;
+      }
+    } catch (_e) {}
     const anchor = this._findAnchor(root);
     if (!anchor) return false;
     if (this.screenMesh && this.screenMesh.parent === anchor.parent) return true;
