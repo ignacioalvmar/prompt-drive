@@ -256,15 +256,174 @@ function truckBody() {
   o.write('truck-01.obj');
 }
 
-// Truck wheel: tyre r 0.5, width 0.3, steel rim with lug holes so rotation
-// reads. Axle along +Z from 0 (inboard) to 0.3 (outboard); the engine shifts
-// it by -tyreWidth (0.15) so the tyre is centred on the track line.
-function truckWheel() {
-  const o = new Obj('Prompt Drive truck wheel');
+// =============================================================================
+// Shuttle — driverless 6–12 seat people-mover ("bread-box"). Wheelbase 2.9 m,
+// track 1.75 m, r 0.38 m; 4.8 m long, 2.1 m wide, 2.55 m tall. Chamfered
+// corners, wrap-around glass, light bars front/rear, sliding door on +Z.
+// Inside: two facing benches, wheel-arch boxes, poles and ceiling rails, and
+// room on the front header for the passenger info display.
+// =============================================================================
+function shuttleBody() {
+  const o = new Obj('Prompt Drive shuttle body');
+  const X0 = -0.95; // rear face
+  const X1 = 3.85; // front face
+  const W = 1.05; // half-width
+  const C = 0.18; // corner chamfer
+  const YB = 0.32; // body bottom
+  const YK = 0.5; // top of the black skirt
+  const YF = 0.45; // cabin floor
+  const YS = 0.95; // window sill
+  const YH = 2.25; // window head
+  const YR = 2.55; // roof
+  const YA = 0.85; // wheel-arch top
+  const ARCH = [[-0.5, 0.5], [2.4, 3.4]];
+  const AD = 0.32; // arch depth (inboard from the side)
+  const I = 0.01; // interior inset
+
+  // Polygon oriented so its normal points along `dir` (auto-flips winding).
+  const faceDir = (pts, dir, uv, opts) => {
+    const n = cross(sub(pts[1], pts[0]), sub(pts[pts.length - 1], pts[0]));
+    const flip = n[0] * dir[0] + n[1] * dir[1] + n[2] * dir[2] < 0;
+    o.face(flip ? (pts.length === 4 ? [pts[1], pts[0], pts[3], pts[2]] : [pts[0], pts[2], pts[1]]) : pts, uv, opts);
+  };
+  // Octagonal plan (chamfered rectangle) at height y, facing up (+1) or down.
+  const plan = (y, dir, uv, inset = 0) => {
+    const w = W - inset;
+    const a = X0 + inset;
+    const b = X1 - inset;
+    const ring = [[a + C, w], [b - C, w], [b, w - C], [b, -(w - C)], [b - C, -w], [a + C, -w], [a, -(w - C)], [a, w - C]];
+    const c = [(a + b) / 2, y, 0];
+    for (let k = 0; k < ring.length; k++) {
+      const p = ring[k];
+      const q = ring[(k + 1) % ring.length];
+      faceDir([c, [p[0], y, p[1]], [q[0], y, q[1]]], [0, dir, 0], uv);
+    }
+  };
+  // Vertical band on a side (z = s·w) between x0..x1, y0..y1.
+  const side = (s, w, x0, x1, y0, y1, uv, inward = false, opts) =>
+    faceDir([[x0, y0, s * w], [x1, y0, s * w], [x1, y1, s * w], [x0, y1, s * w]], [0, 0, inward ? -s : s], uv, opts);
+  // Vertical band on an end (x = xe) across z ±zw.
+  const end = (xe, sx, zw, y0, y1, uv, inward = false, opts) =>
+    faceDir([[xe, y0, -zw], [xe, y0, zw], [xe, y1, zw], [xe, y1, -zw]], [inward ? -sx : sx, 0, 0], uv, opts);
+  // Chamfer band at a corner (sx: front +1 / rear -1, s: side).
+  const corner = (sx, s, w, y0, y1, uv, inward = false, opts) => {
+    const xe = sx > 0 ? X1 - (W - w) : X0 + (W - w);
+    const p = [xe - sx * C, s * w];
+    const q = [xe, s * (w - C)];
+    faceDir([[p[0], y0, p[1]], [q[0], y0, q[1]], [q[0], y1, q[1]], [p[0], y1, p[1]]], [inward ? -sx : sx, 0, inward ? -s : s], uv, opts);
+  };
+  const BANDS = [
+    [YB, YK, UV.black],
+    [YK, YS, UV.white],
+    [YS, YH, UV.sideGlass, { rot: true }],
+    [YH, YR, UV.white],
+  ];
+
+  o.object('z_shadow_parts_shadow');
+  o.box(X0, X1, YB, YR, -W, W);
+
+  // ---- painted exterior ----------------------------------------------------
+  o.object('z_map_body.001');
+  plan(YR, 1, UV.white);
+  plan(YB, -1, UV.black);
+  for (const s of [1, -1]) {
+    // Lower body with wheel-arch cut-outs.
+    const solid = [[X0 + C, ARCH[0][0]], [ARCH[0][1], ARCH[1][0]], [ARCH[1][1], X1 - C]];
+    for (const [a, b] of solid) {
+      side(s, W, a, b, YB, YK, UV.black);
+      side(s, W, a, b, YK, YS, UV.white);
+    }
+    for (const [a, b] of ARCH) {
+      side(s, W, a, b, YA, YS, UV.white);
+      // Arch liner: roof, inner wall and end caps (black) so the cabin never shows.
+      faceDir([[a, YA, s * W], [b, YA, s * W], [b, YA, s * (W - AD)], [a, YA, s * (W - AD)]], [0, -1, 0], UV.black);
+      side(s, W - AD, a, b, YB, YA, UV.black);
+      faceDir([[a, YB, s * W], [a, YB, s * (W - AD)], [a, YA, s * (W - AD)], [a, YA, s * W]], [1, 0, 0], UV.black);
+      faceDir([[b, YB, s * W], [b, YB, s * (W - AD)], [b, YA, s * (W - AD)], [b, YA, s * W]], [-1, 0, 0], UV.black);
+    }
+    // Window band: glass panes between white pillars.
+    const panes = [[X0 + C + 0.06, 0.55], [0.65, 2.25], [2.35, X1 - C - 0.06]];
+    const pillars = [[X0 + C, X0 + C + 0.06], [0.55, 0.65], [2.25, 2.35], [X1 - C - 0.06, X1 - C]];
+    for (const [a, b] of panes) side(s, W + 0.002, a, b, YS, YH, UV.sideGlass, false, { rot: true });
+    for (const [a, b] of pillars) side(s, W, a, b, YS, YH, UV.white);
+    side(s, W, X0 + C, X1 - C, YH, YR, UV.white);
+    // Wrap-around corners.
+    for (const sx of [1, -1]) for (const [y0, y1, uv, opts] of BANDS) corner(sx, s, W, y0, y1, uv, false, opts);
+  }
+  // Sliding door (+Z side): black seams over the panes and lower panel.
+  for (const x of [0.85, 1.45, 2.05]) side(1, W + 0.004, x - 0.012, x + 0.012, YK, YH, UV.black);
+  side(1, W + 0.004, 0.85, 2.05, YK, YK + 0.025, UV.black);
+  // Front: skirt, white lower panel with the Roadster nose, windscreen, header.
+  const ZE = W - C;
+  end(X1, 1, ZE, YB, YK, UV.black);
+  end(X1, 1, ZE, YK, YS, UV.white);
+  end(X1 + 0.004, 1, 0.75, YK + 0.02, 0.82, UV.nose);
+  end(X1, 1, ZE, YS, YH, UV.glass, false, { rot: true });
+  end(X1, 1, ZE, YH, YR, UV.white);
+  // Rear: skirt, white lower panel, rear window, header.
+  end(X0, -1, ZE, YB, YK, UV.black);
+  end(X0, -1, ZE, YK, 1.05, UV.white);
+  end(X0, -1, ZE, 1.05, YH, UV.glass, false, { rot: true });
+  end(X0, -1, ZE, YH, YR, UV.white);
+
+  // ---- lamps (light bars) --------------------------------------------------
+  o.object('z_headlight_body.002');
+  o.box(X1, X1 + 0.015, 0.84, 0.92, -0.85, 0.85, UV.white, ['nx']);
+  o.object('z_rearlight_body.003');
+  o.both((s) => o.box(X0 - 0.015, X0, 0.84, 0.92, s > 0 ? 0.27 : -0.85, s > 0 ? 0.85 : -0.27, UV.white, ['px']));
+  o.object('z_redlight_body.004');
+  o.box(X0 - 0.015, X0, 0.84, 0.92, -0.25, 0.25, UV.white, ['px']);
+
+  // ---- cabin interior (inward faces) ---------------------------------------
+  o.object('z_interior_Cube.008');
+  const wi = W - I;
+  plan(YF, 1, UV.white, I);
+  plan(YR - I, -1, UV.white, I);
+  for (const s of [1, -1]) {
+    side(s, wi, X0 + C, X1 - C, YF, YS, UV.white, true);
+    side(s, wi, X0 + C, X1 - C, YH, YR, UV.white, true);
+    for (const [a, b] of [[X0 + C, X0 + C + 0.06], [0.55, 0.65], [2.25, 2.35], [X1 - C - 0.06, X1 - C]]) {
+      side(s, wi, a, b, YS, YH, UV.white, true);
+    }
+    for (const sx of [1, -1]) {
+      corner(sx, s, wi, YF, YS, UV.white, true);
+      corner(sx, s, wi, YH, YR, UV.white, true);
+    }
+    // Wheel-arch housings on the floor.
+    for (const [a, b] of ARCH) {
+      o.box(a, b, YF, YA + 0.04, s > 0 ? W - AD - 0.02 : -wi, s > 0 ? wi : -(W - AD - 0.02), UV.white, [s > 0 ? 'pz' : 'nz', 'ny']);
+    }
+  }
+  end(X1 - I, 1, ZE, YF, YS, UV.white, true);
+  end(X1 - I, 1, ZE, YH, YR, UV.white, true);
+  end(X0 + I, -1, ZE, YF, 1.05, UV.white, true);
+  end(X0 + I, -1, ZE, YH, YR, UV.white, true);
+
+  // ---- benches (rear bench faces forward, front bench faces back) ---------
+  o.object('z_grey_seats');
+  const BZ = 0.85;
+  o.box(-0.88, -0.4, YF, 0.88, -BZ, BZ, UV.white, ['ny']);
+  o.box(X0 + 0.02, -0.78, 0.88, 1.55, -BZ, BZ, UV.white, ['ny']);
+  o.box(3.3, 3.78, YF, 0.88, -BZ, BZ, UV.white, ['ny']);
+  o.box(3.66, X1 - 0.02, 0.88, 1.5, -BZ, BZ, UV.white, ['ny']);
+
+  // ---- poles and ceiling rails --------------------------------------------
+  o.object('z_metal_rails');
+  const P = 0.018;
+  for (const x of [0.7, 2.2]) for (const z of [0.45, -0.45]) o.box(x - P, x + P, YF, YR - I, z - P, z + P, UV.white, ['ny', 'py']);
+  for (const z of [0.45, -0.45]) o.box(-0.3, 3.2, 2.3, 2.3 + 2 * P, z - P, z + P, UV.white);
+
+  o.write('shuttle-01.obj');
+}
+
+// Wheel: tyre radius R, width W, steel rim (radius RR) with lug holes so
+// rotation reads. Axle along +Z from 0 (inboard) to W (outboard); the engine
+// shifts it by -tyreWidth (W/2) so the tyre is centred on the track line.
+// Truck: R 0.5, RR 0.31, W 0.3. Shuttle: R 0.38, RR 0.24, W 0.24.
+function makeWheel(file, header, { R, RR, W }) {
+  const o = new Obj(header);
   const N = 28;
-  const R = 0.5;
-  const RR = 0.31; // rim radius
-  const W = 0.3;
+  const k6 = RR / 0.31; // lug/hub scale relative to the truck rim
   const ang = (k) => (k / N) * Math.PI * 2;
   const pt = (r, a, z) => [Math.cos(a) * r, Math.sin(a) * r, z];
 
@@ -293,14 +452,14 @@ function truckWheel() {
   for (let k = 0; k < 6; k++) {
     // Six lug holes + a hub cap.
     const a = (k / 6) * Math.PI * 2;
-    const c = pt(0.2, a, ZR + 0.004);
-    const h = 0.035;
+    const c = pt(0.2 * k6, a, ZR + 0.004);
+    const h = 0.035 * k6;
     o.face([[c[0] - h, c[1] - h, c[2]], [c[0] + h, c[1] - h, c[2]], [c[0] + h, c[1] + h, c[2]], [c[0] - h, c[1] + h, c[2]]], UV.black);
   }
   for (let k = 0; k < 8; k++) {
     const a0 = (k / 8) * Math.PI * 2;
     const a1 = ((k + 1) / 8) * Math.PI * 2;
-    o.face([[0, 0, ZR + 0.02], pt(0.09, a0, ZR + 0.004), pt(0.09, a1, ZR + 0.004)], UV.black);
+    o.face([[0, 0, ZR + 0.02], pt(0.09 * k6, a0, ZR + 0.004), pt(0.09 * k6, a1, ZR + 0.004)], UV.black);
   }
   o.object('twheel_shadow_disc');
   for (let k = 0; k < 12; k++) {
@@ -308,8 +467,10 @@ function truckWheel() {
     const a1 = ((k + 1) / 12) * Math.PI * 2;
     o.face([[0, 0, W / 2], pt(R, a0, W / 2), pt(R, a1, W / 2)], UV.black);
   }
-  o.write('truck_wheel-01.obj');
+  o.write(file);
 }
 
 truckBody();
-truckWheel();
+makeWheel('truck_wheel-01.obj', 'Prompt Drive truck wheel', { R: 0.5, RR: 0.31, W: 0.3 });
+shuttleBody();
+makeWheel('shuttle_wheel-01.obj', 'Prompt Drive shuttle wheel', { R: 0.38, RR: 0.24, W: 0.24 });

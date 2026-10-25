@@ -1099,5 +1099,299 @@ src = replaceOnce(
   'scene panel three-axis rebuild',
 );
 
+// ---------------------------------------------------------------------------
+// Shuttle — driverless people-mover (vehicles-plan.md §4).
+// ---------------------------------------------------------------------------
+
+// --- Patch: Shuttle vehicle definition ---
+// No steering wheel / binnacle (driverless). `seats` are the passenger camera
+// positions selected by the `passengerSeat` setting (vehicle coords: x
+// lateral, y up, z forward from the rear axle; yaw PI = facing backwards).
+// `infoDisplay` places the passenger screen on the front header (body-OBJ
+// frame, x forward) and `consoleMount: null` hides the center console.
+// `bendSpeed` lowers the autopilot's bend target (default 15 m/s) to suit a
+// 12 m/s vehicle; `driverless` turns the autopilot on whenever it loads.
+src = replaceOnce(
+  src,
+  `    Rover: {
+      enabled: false,
+      name: "Rover",`,
+  `    Shuttle: {
+      enabled: true,
+      name: "Shuttle",
+      driverless: true,
+      bodyObj: { default: i.p + "static/media/shuttle-01.obj" },
+      wheelObj: { default: i.p + "static/media/shuttle_wheel-01.obj" },
+      map: Ce,
+      icon: i.p + "static/media/veh_shuttle.svg",
+      audio: {
+        roll: ye,
+        engine: Ie
+      },
+      wheels: {
+        tyreWidth: 0.12,
+        width: 1.75,
+        widthHalf: 0.875,
+        length: 2.9,
+        radius: 0.38,
+        circumference: 2.3876,
+        travel: 0.1
+      },
+      skins: {
+        basic: {
+          body: 16316664
+        }
+      },
+      metrics: {
+        shadowMapSize: 8,
+        steerSpeed: 0.5,
+        accel: 6,
+        reverse: 2,
+        jerk: 6,
+        brake: 3,
+        mass: 2500,
+        steerAccel: 5,
+        maxSteer: 0.62,
+        axleHeight: 0.38,
+        dampening: 0.07,
+        rockFactor: 4,
+        drag: 0.003,
+        topSpeed: 12,
+        bendSpeed: 5,
+        rollResistance: 0.04,
+        steerInterval: 2,
+        slipBase: 1,
+        slipMod: 0.25,
+        aeroFactor: 0,
+        headlightPos: {
+          x: 0.6,
+          y: 0.88,
+          z: 3.9
+        },
+        seats: [{
+          name: "Rear bench, window",
+          pos: [0.6, 1.6, -0.6],
+          yaw: 0
+        }, {
+          name: "Rear bench, centre",
+          pos: [0, 1.6, -0.6],
+          yaw: 0
+        }, {
+          name: "Front bench, facing back",
+          pos: [0.6, 1.6, 3.5],
+          yaw: Math.PI
+        }, {
+          name: "Standing, by the door",
+          pos: [-0.55, 2.05, 1.45],
+          yaw: 0
+        }],
+        infoDisplay: {
+          x: 3.79,
+          y: 2.2,
+          z: 0,
+          width: 1.2,
+          height: 0.37
+        },
+        consoleMount: null,
+        dims: {
+          front: 3.85,
+          rear: 0.95,
+          width: 2.1
+        }
+      },
+      cameras: {
+        Chase: {
+          pitch: {
+            near: 0.3,
+            far: 0.25
+          },
+          yOffset: {
+            near: 1.6,
+            far: 2.2
+          },
+          posOffset: [0, 0, 1.45],
+          range: {
+            near: 7,
+            far: 8
+          },
+          farSpeed: 12,
+          smoothFactor: 1.4
+        },
+        ChaseFar: {
+          pitch: {
+            near: 0.35,
+            far: 0.28
+          },
+          yOffset: {
+            near: 2.5,
+            far: 3.5
+          },
+          posOffset: [0, 0, 1.45],
+          range: {
+            near: 11,
+            far: 13
+          },
+          farSpeed: 12,
+          smoothFactor: 1.2
+        },
+        FirstPerson: {
+          isFirstPerson: true,
+          nearPlane: 0.05,
+          pitch: {
+            near: 0.03,
+            far: 0.03
+          },
+          yOffset: {
+            near: 0.7,
+            far: 0.7
+          },
+          posOffset: [0.6, 1.6, -0.6],
+          range: {
+            near: 0.75,
+            far: 0.75
+          },
+          farSpeed: 12,
+          smoothFactor: 0
+        },
+        Hood: {
+          pitch: {
+            near: 0.05,
+            far: 0.05
+          },
+          yOffset: {
+            near: 0.4,
+            far: 0.4
+          },
+          posOffset: [0, 0.8, 4],
+          range: {
+            near: 0,
+            far: 0
+          },
+          farSpeed: 12,
+          smoothFactor: 0.3,
+          hideVehicle: true
+        }
+      }
+    },
+    Rover: {
+      enabled: false,
+      name: "Rover",`,
+  'Shuttle vehicle definition',
+);
+
+src = replaceOnce(
+  src,
+  `    Truck: Ne.Truck,
+    Debug: Ne.Debug
+  };
+  const ze = ["Roadster", "Truck"];`,
+  `    Truck: Ne.Truck,
+    Shuttle: Ne.Shuttle,
+    Debug: Ne.Debug
+  };
+  const ze = ["Roadster", "Truck", "Shuttle"];`,
+  'vehicle menu adds Shuttle',
+);
+
+// --- Patch: `passengerSeat` VehicleConfig field — which of the vehicle's
+// `metrics.seats` the first-person camera uses (shuttle). Same triplet as
+// showConsole: storage key (Pe), default (Ge), settings descriptor (Be). ---
+src = replaceOnce(
+  src,
+  '    showConsole: "config-vehicle-show-console",\n',
+  '    showConsole: "config-vehicle-show-console",\n    passengerSeat: "config-vehicle-passenger-seat",\n',
+  'VehicleConfig passengerSeat storage key',
+);
+
+src = replaceOnce(
+  src,
+  '    showConsole: true,\n',
+  '    showConsole: true,\n    passengerSeat: 0,\n',
+  'VehicleConfig passengerSeat default',
+);
+
+src = replaceOnce(
+  src,
+  `      onSet: e => We.set("showConsole", e)
+    },`,
+  `      onSet: e => We.set("showConsole", e)
+    },
+    passengerSeat: {
+      readable: "Shuttle: Passenger seat",
+      desc: "Where the in-cabin camera sits in the driverless shuttle",
+      type: u.Enum,
+      default: 0,
+      labels: ["Rear bench, window", "Rear bench, centre", "Front bench, facing back", "Standing, by the door"],
+      onSet: e => We.set("passengerSeat", e)
+    },`,
+  'VehicleConfig passengerSeat descriptor',
+);
+
+// --- Patch: first-person camera on a passenger seat. Vehicles with
+// `metrics.seats` place the camera at the selected seat (not mirrored by the
+// driver-side setting) and add the seat's yaw, so a rear-facing bench looks
+// backwards. Seat height / adjustment still apply. ---
+src = replaceOnce(
+  src,
+  `    updateFirstPerson(e) {
+      this.camera.position.set(this.mode.posOffset.x * this.posOffsetX, this.mode.posOffset.y + Fe.value.seatHeight, this.mode.posOffset.z + Fe.value.seatAdjustment).applyQuaternion(Ae.quaternion).add(Ae.position);
+      let t = Ae.heading - Math.PI;`,
+  `    updateFirstPerson(e) {
+      const pdSeats = Ae.metrics && Ae.metrics.seats;
+      const pdSeat = pdSeats && pdSeats.length ? pdSeats[Math.max(0, Math.min(pdSeats.length - 1, Fe.value.passengerSeat | 0))] : null;
+      if (pdSeat) {
+        const pdFwd = Math.cos(pdSeat.yaw || 0);
+        this.camera.position.set(pdSeat.pos[0], pdSeat.pos[1] + Fe.value.seatHeight, pdSeat.pos[2] + Fe.value.seatAdjustment * pdFwd).applyQuaternion(Ae.quaternion).add(Ae.position);
+      } else {
+        this.camera.position.set(this.mode.posOffset.x * this.posOffsetX, this.mode.posOffset.y + Fe.value.seatHeight, this.mode.posOffset.z + Fe.value.seatAdjustment).applyQuaternion(Ae.quaternion).add(Ae.position);
+      }
+      let t = Ae.heading - Math.PI + (pdSeat ? pdSeat.yaw || 0 : 0);
+      if (t > Math.PI) {
+        t -= Math.PI * 2;
+      }`,
+  'first-person passenger seat',
+);
+
+// --- Patch: per-vehicle autopilot bend speed. The bend target was a fixed
+// 15 m/s blended toward topSpeed·k on straights — above a slow vehicle's top
+// speed, so it would corner faster than it cruises. `metrics.bendSpeed`
+// (default 15, i.e. unchanged for Roadster/Truck) caps it. ---
+src = replaceOnce(
+  src,
+  `      if (Fe.value.autodriveSide == 0) {
+        this.lookahead = 15 + this.bendinessVal * (Ae.metrics.topSpeed * 0.8 - 15);`,
+  `      const pdBend = Ae.metrics.bendSpeed || 15;
+      if (Fe.value.autodriveSide == 0) {
+        this.lookahead = pdBend + this.bendinessVal * (Ae.metrics.topSpeed * 0.8 - pdBend);`,
+  'autopilot bend speed (centre)',
+);
+
+src = replaceOnce(
+  src,
+  `        this.lookahead = 15 + this.bendinessVal * (Ae.metrics.topSpeed * 0.6 - 15);`,
+  `        this.lookahead = pdBend + this.bendinessVal * (Ae.metrics.topSpeed * 0.6 - pdBend);`,
+  'autopilot bend speed (lane)',
+);
+
+// --- Patch: driverless vehicles start on autopilot. Switching it off hands
+// control to a "safety operator" (normal manual input). ---
+src = replaceOnce(
+  src,
+  `        this.resetToNode(si.vehicleNode);
+        this.update = this.updateStationed;
+        hd.pause();
+      });`,
+  `        this.resetToNode(si.vehicleNode);
+        this.update = this.updateStationed;
+        hd.pause();
+        if (e.driverless && !ce.value) {
+          try {
+            ce.set(true);
+          } catch (pdAutoErr) {}
+        }
+      });`,
+  'driverless autopilot on load',
+);
+
 fs.writeFileSync(outPath, src);
 console.log('Wrote patched main bundle to', outPath);

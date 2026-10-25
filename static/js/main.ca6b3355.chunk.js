@@ -2658,6 +2658,163 @@
         }
       }
     },
+    Shuttle: {
+      enabled: true,
+      name: "Shuttle",
+      driverless: true,
+      bodyObj: { default: i.p + "static/media/shuttle-01.obj" },
+      wheelObj: { default: i.p + "static/media/shuttle_wheel-01.obj" },
+      map: Ce,
+      icon: i.p + "static/media/veh_shuttle.svg",
+      audio: {
+        roll: ye,
+        engine: Ie
+      },
+      wheels: {
+        tyreWidth: 0.12,
+        width: 1.75,
+        widthHalf: 0.875,
+        length: 2.9,
+        radius: 0.38,
+        circumference: 2.3876,
+        travel: 0.1
+      },
+      skins: {
+        basic: {
+          body: 16316664
+        }
+      },
+      metrics: {
+        shadowMapSize: 8,
+        steerSpeed: 0.5,
+        accel: 6,
+        reverse: 2,
+        jerk: 6,
+        brake: 3,
+        mass: 2500,
+        steerAccel: 5,
+        maxSteer: 0.62,
+        axleHeight: 0.38,
+        dampening: 0.07,
+        rockFactor: 4,
+        drag: 0.003,
+        topSpeed: 12,
+        bendSpeed: 5,
+        rollResistance: 0.04,
+        steerInterval: 2,
+        slipBase: 1,
+        slipMod: 0.25,
+        aeroFactor: 0,
+        headlightPos: {
+          x: 0.6,
+          y: 0.88,
+          z: 3.9
+        },
+        seats: [{
+          name: "Rear bench, window",
+          pos: [0.6, 1.6, -0.6],
+          yaw: 0
+        }, {
+          name: "Rear bench, centre",
+          pos: [0, 1.6, -0.6],
+          yaw: 0
+        }, {
+          name: "Front bench, facing back",
+          pos: [0.6, 1.6, 3.5],
+          yaw: Math.PI
+        }, {
+          name: "Standing, by the door",
+          pos: [-0.55, 2.05, 1.45],
+          yaw: 0
+        }],
+        infoDisplay: {
+          x: 3.79,
+          y: 2.2,
+          z: 0,
+          width: 1.2,
+          height: 0.37
+        },
+        consoleMount: null,
+        dims: {
+          front: 3.85,
+          rear: 0.95,
+          width: 2.1
+        }
+      },
+      cameras: {
+        Chase: {
+          pitch: {
+            near: 0.3,
+            far: 0.25
+          },
+          yOffset: {
+            near: 1.6,
+            far: 2.2
+          },
+          posOffset: [0, 0, 1.45],
+          range: {
+            near: 7,
+            far: 8
+          },
+          farSpeed: 12,
+          smoothFactor: 1.4
+        },
+        ChaseFar: {
+          pitch: {
+            near: 0.35,
+            far: 0.28
+          },
+          yOffset: {
+            near: 2.5,
+            far: 3.5
+          },
+          posOffset: [0, 0, 1.45],
+          range: {
+            near: 11,
+            far: 13
+          },
+          farSpeed: 12,
+          smoothFactor: 1.2
+        },
+        FirstPerson: {
+          isFirstPerson: true,
+          nearPlane: 0.05,
+          pitch: {
+            near: 0.03,
+            far: 0.03
+          },
+          yOffset: {
+            near: 0.7,
+            far: 0.7
+          },
+          posOffset: [0.6, 1.6, -0.6],
+          range: {
+            near: 0.75,
+            far: 0.75
+          },
+          farSpeed: 12,
+          smoothFactor: 0
+        },
+        Hood: {
+          pitch: {
+            near: 0.05,
+            far: 0.05
+          },
+          yOffset: {
+            near: 0.4,
+            far: 0.4
+          },
+          posOffset: [0, 0.8, 4],
+          range: {
+            near: 0,
+            far: 0
+          },
+          farSpeed: 12,
+          smoothFactor: 0.3,
+          hideVehicle: true
+        }
+      }
+    },
     Rover: {
       enabled: false,
       name: "Rover",
@@ -2711,9 +2868,10 @@
   const je = {
     Roadster: Ne.Roadster,
     Truck: Ne.Truck,
+    Shuttle: Ne.Shuttle,
     Debug: Ne.Debug
   };
-  const ze = ["Roadster", "Truck"];
+  const ze = ["Roadster", "Truck", "Shuttle"];
   const Oe = 0;
   const Le = 1;
   const Re = 2;
@@ -2732,6 +2890,7 @@
     seatHeight: "config-vehicle-seat-height",
     showWheel: "config-vehicle-show-wheel",
     showConsole: "config-vehicle-show-console",
+    passengerSeat: "config-vehicle-passenger-seat",
     autodriveSide: "config-autodrive-side",
     autodriveSideIndex: "config-autodrive-side-index"
   };
@@ -2747,6 +2906,7 @@
     speedFactor: 1,
     showWheel: true,
     showConsole: true,
+    passengerSeat: 0,
     seatAdjustment: 0,
     seatHeight: 0,
     autodriveSide: -1,
@@ -2818,6 +2978,14 @@
       type: u.Boolean,
       default: true,
       onSet: e => We.set("showConsole", e)
+    },
+    passengerSeat: {
+      readable: "Shuttle: Passenger seat",
+      desc: "Where the in-cabin camera sits in the driverless shuttle",
+      type: u.Enum,
+      default: 0,
+      labels: ["Rear bench, window", "Rear bench, centre", "Front bench, facing back", "Standing, by the door"],
+      onSet: e => We.set("passengerSeat", e)
     },
     steerRotationIndex: {
       readable: "Interior: Max wheel rotation",
@@ -16860,8 +17028,18 @@
       this.onViewChange();
     }
     updateFirstPerson(e) {
-      this.camera.position.set(this.mode.posOffset.x * this.posOffsetX, this.mode.posOffset.y + Fe.value.seatHeight, this.mode.posOffset.z + Fe.value.seatAdjustment).applyQuaternion(Ae.quaternion).add(Ae.position);
-      let t = Ae.heading - Math.PI;
+      const pdSeats = Ae.metrics && Ae.metrics.seats;
+      const pdSeat = pdSeats && pdSeats.length ? pdSeats[Math.max(0, Math.min(pdSeats.length - 1, Fe.value.passengerSeat | 0))] : null;
+      if (pdSeat) {
+        const pdFwd = Math.cos(pdSeat.yaw || 0);
+        this.camera.position.set(pdSeat.pos[0], pdSeat.pos[1] + Fe.value.seatHeight, pdSeat.pos[2] + Fe.value.seatAdjustment * pdFwd).applyQuaternion(Ae.quaternion).add(Ae.position);
+      } else {
+        this.camera.position.set(this.mode.posOffset.x * this.posOffsetX, this.mode.posOffset.y + Fe.value.seatHeight, this.mode.posOffset.z + Fe.value.seatAdjustment).applyQuaternion(Ae.quaternion).add(Ae.position);
+      }
+      let t = Ae.heading - Math.PI + (pdSeat ? pdSeat.yaw || 0 : 0);
+      if (t > Math.PI) {
+        t -= Math.PI * 2;
+      }
       if (w.mouseAxis.y > 0 && D.value != 1 && ie.value.MouseLook) {
         if (Math.sign(this.posOffsetX) == Math.sign(w.mouseScreen.x)) {
           t -= w.mouseScreen.x * 0.8;
@@ -18609,11 +18787,12 @@
       this.pSteer = this.inputs.steer;
     }
     updateTarget() {
+      const pdBend = Ae.metrics.bendSpeed || 15;
       if (Fe.value.autodriveSide == 0) {
-        this.lookahead = 15 + this.bendinessVal * (Ae.metrics.topSpeed * 0.8 - 15);
+        this.lookahead = pdBend + this.bendinessVal * (Ae.metrics.topSpeed * 0.8 - pdBend);
         this.maxTargetDist = 10 + Math.max(0, Math.min(this.lookahead, Ae.speed) - 10);
       } else {
-        this.lookahead = 15 + this.bendinessVal * (Ae.metrics.topSpeed * 0.6 - 15);
+        this.lookahead = pdBend + this.bendinessVal * (Ae.metrics.topSpeed * 0.6 - pdBend);
         this.maxTargetDist = Ae.wheels.length + 2 + Ae.speed / 4;
       }
       if (this.targetPos.distanceTo(Ae.position) < this.maxTargetDist) {
@@ -19182,6 +19361,11 @@
         this.resetToNode(si.vehicleNode);
         this.update = this.updateStationed;
         hd.pause();
+        if (e.driverless && !ce.value) {
+          try {
+            ce.set(true);
+          } catch (pdAutoErr) {}
+        }
       });
       if (n) {
         o.load(n.default, e => {

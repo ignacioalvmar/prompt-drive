@@ -1,6 +1,6 @@
 # Vehicles plan — Truck and self-driving Shuttle
 
-Status: **Phase 1 (Truck) implemented**, Phase 2 (Shuttle) planned.
+Status: **Phase 1 (Truck) and Phase 2 (Shuttle) implemented.**
 
 ## 0. Why Bike and Coach show no vehicle
 
@@ -133,46 +133,78 @@ autopilot's corner speed target (`topSpeed · 0.6–0.8`) and brake threshold
 Follow-ups (not in Phase 1): a tandem rear axle (needs `initWheels` to accept
 N axles — engine patch), truck in the traffic mix, a truck engine sound.
 
-## 4. Phase 2 — Self-driving Shuttle (planned)
+## 4. Phase 2 — Self-driving Shuttle (implemented)
 
 A 6–12 seat autonomous people-mover (EasyMile / Navya / Holon class): a
 symmetric "bread-box" body, large glass area, no driver's cab.
 
-**Geometry** — wheelbase ~2.9 m, track ~1.75 m, radius ~0.38 m, length ~4.8 m,
-width ~2.1 m, height ~2.7 m. Same atlas: white body, big glass panels
-(stretched window region), black lower skirt, light bars front and rear
-(emissive `headlight` / `rearlight` strips), sliding-door seam on one side, no
-steering wheel or dashboard.
+| | Truck | Shuttle |
+| --- | --- | --- |
+| Wheelbase / track / wheel radius | 4.2 / 2.0 / 0.5 m | **2.9 / 1.75 / 0.38 m** |
+| Length / width / height | ~7.7 / 2.5 / 3.6 m | **4.8 / 2.1 / 2.55 m** |
+| Top speed | 25 m/s | **12 m/s**; autopilot cruises 7 m/s, **5 m/s in bends** (`bendSpeed`) |
+| Accel / jerk / brake | 7 / 16 / 5 | **6 / 6 / 3** (gentle ramps for standing passengers; 6 still climbs the steep grades) |
+| Steering | wheel + binnacle | **none** (`driverless: true`) |
 
-**Interior and passenger view** — the defining difference: the camera is
-**not on a driver seat**.
+**Exterior** (`shuttle-01.obj`, generated) — chamfered corners with
+wrap-around glass, a window band of glass panes between white pillars, black
+skirt, wheel-arch cut-outs with black liners, sliding-door seams on the +Z
+side, the Roadster nose fascia on the lower front, emissive light bars front
+and rear (tail + brake). Same atlas and lamp materials as the other vehicles.
 
-- Seats: two facing benches (front-facing and rear-facing) along the ends plus
-  a standing area, generated as `interior` meshes; a ceiling with handrails.
-- Def flag `driverless: true` → no `steerObj` / `dashObj`; the steering wheel
-  toggle is hidden for this vehicle.
-- `FirstPerson` becomes a **passenger seat**, e.g. a rear-bench window seat at
-  `(0.55, 1.35, 0.6)` facing forward. A new `metrics.seats` list
-  (`[{ name, pos, yaw }]`) lets the existing `seat` setting (and the API's
-  `vehicle.seat`) choose between several passenger positions instead of the
-  driver/passenger toggle; a rear-facing seat needs `yaw: π`, which requires a
-  small camera patch (`updateFirstPerson` adds the seat yaw to the heading).
-- The instrument cluster is not driver-facing: show a **passenger info
-  display** instead (route, next stop, speed) mounted on the front bulkhead —
-  reuse the cluster's canvas renderer with a shuttle layout, anchored via a
-  `metrics.infoDisplay` placement rather than `z_dashboard_Cube.009`.
-- The center console is hidden (`consoleMount: null`).
+**Interior** — inward-facing shell, floor and ceiling; wheel-arch housings;
+a forward-facing rear bench and a rear-facing front bench (`grey` material);
+four vertical poles and two ceiling rails (`metal`).
 
-**Dynamics** — low top speed (~7–12 m/s, 25–40 km/h), gentle `accel` / `jerk`
-/ `brake` for standing passengers, and autopilot **always on** for this vehicle
-(manual input disabled or behind a "safety operator" toggle). The autopilot's
-comfort comes from the metrics: lower `jerk`, `steerSpeed` and `topSpeed`
-reduce lateral and longitudinal acceleration. Metrics (`src/metrics`) already
-report jerk and lateral acceleration, which become the shuttle's comfort KPIs.
+**Passenger seats** — `metrics.seats` lists camera positions, chosen by the
+new `passengerSeat` VehicleConfig field (settings panel "Shuttle: Passenger
+seat", API `vehicle.passengerSeat`, live or static):
 
-**Engine patches needed** — `seats` selection + seat yaw in the first-person
-camera; hide the steering-wheel setting when `driverless`; force autodrive on
-when the def says so.
+| # | Seat | Position (x, y, z) | Facing |
+| --- | --- | --- | --- |
+| 0 | Rear bench, window | (0.6, 1.6, −0.6) | forward |
+| 1 | Rear bench, centre | (0, 1.6, −0.6) | forward |
+| 2 | Front bench, facing back | (0.6, 1.6, 3.5) | backward (yaw π) |
+| 3 | Standing, by the door | (−0.55, 2.05, 1.45) | forward |
+
+The `updateFirstPerson` patch places the camera at the seat (not mirrored by
+the driver-side setting) and adds the seat yaw to the view heading; seat
+height / adjustment still apply.
+
+**Passenger info display** — the instrument cluster gains an `info` anchor
+mode: when the vehicle publishes `metrics.infoDisplay` (body-OBJ placement,
+1.2 × 0.37 m under the front header) it mounts there and draws a passenger
+layout (`src/cluster/passenger.js`): line name, next stop with distance bar
+and ETA, the stop after, speed, clock, and the driving mode —
+**AUTOMATED DRIVING** or **SAFETY OPERATOR IN CONTROL**. Stops are simulated
+(a 7-stop loop, 700 m apart, advanced by integrating speed); the shuttle does
+not halt at them yet. `consoleMount: null` hides the center console.
+
+**Driverless behaviour** — the autopilot switches on whenever the shuttle
+finishes loading. Turning it off (F / API) hands control to a "safety
+operator": normal manual driving, reflected on the info display.
+
+**Autopilot bend speed** — the engine's bend target was a fixed 15 m/s blended
+toward `topSpeed · 0.6–0.8` on straights. For a 12 m/s vehicle that made the
+target *higher* in bends than on straights. `metrics.bendSpeed` (default 15,
+so Roadster and Truck are unchanged) replaces the constant.
+
+Verification (browser, sim-time clock):
+
+- [x] Renders in chase view; exterior 3/4 view checked.
+- [x] Autopilot: 227 m winding road, 0 resets, 0 off-road, lane offset
+      1.34–1.55 m, 6.6–10.2 m/s.
+- [x] All four seats, including rear-facing; live switch via
+      `PromptDrive.dynamic.set({ 'vehicle.passengerSeat': n })`.
+- [x] Info display mounted and legible from the rear bench; console hidden.
+- [x] Roadster ↔ Shuttle swap: autopilot turns on for the shuttle, cluster
+      and console return to driver mode for the Roadster.
+- [ ] Night lighting of the light bars by eye; menu selection by click.
+
+Follow-ups: real stops (decelerate, dwell with door "open", depart) driven by
+the same route model; a second info display facing the front bench; hide the
+steering-wheel setting for driverless vehicles; comfort KPIs (jerk, lateral
+acceleration) surfaced per vehicle in `src/metrics`.
 
 ## 5. Work packages
 
@@ -185,5 +217,5 @@ when the def says so.
 | V4 | API enum + docs (`API.md`, `README.md`) | 1 |
 | V5 | Shuttle OBJs (body with passenger interior, wheels) | 2 |
 | V6 | `Ne.Shuttle` def, `driverless`, `seats` + seat yaw camera patch | 2 |
-| V7 | Passenger info display; hide console/wheel settings for driverless | 2 |
-| V8 | Shuttle autopilot defaults + comfort metrics; API/docs | 2 |
+| V7 | Passenger info display; hide console for driverless (wheel setting: follow-up) | 2 |
+| V8 | Shuttle autopilot defaults (`bendSpeed`, auto-on); API/docs (comfort KPIs: follow-up) | 2 |

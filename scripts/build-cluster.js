@@ -10,6 +10,7 @@ const root = path.join(__dirname, '..');
 const readLf = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
 const layout = readLf(path.join(root, 'src/cluster/layout.js'));
 const icons = readLf(path.join(root, 'src/cluster/icons.js'));
+const passenger = readLf(path.join(root, 'src/cluster/passenger.js'));
 const cluster = readLf(path.join(root, 'src/cluster/InstrumentCluster.js'));
 
 function stripModuleSyntax(src) {
@@ -22,6 +23,7 @@ const bundle = `/* Instrument cluster — built from src/cluster/ */
 (function () {
 ${stripModuleSyntax(layout)}
 ${stripModuleSyntax(icons)}
+${stripModuleSyntax(passenger)}
 ${stripModuleSyntax(cluster)}
   if (typeof window !== 'undefined') {
     window.InstrumentCluster = InstrumentCluster;

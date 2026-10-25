@@ -31,7 +31,7 @@ const SCENES = ['Hills', 'Planet'];
 const TOPOGRAPHIES = ['straight', 'casual', 'easy', 'normal', 'hard'];
 const DRIVE_MODES = ['AWD', 'FWD', 'RWD'];
 const INPUT_MODES = ['keyboard', 'mouse', 'gamepad'];
-const VEHICLES = ['Roadster', 'Truck'];
+const VEHICLES = ['Roadster', 'Truck', 'Shuttle'];
 const DAY_NIGHT_SECONDS = [0, 180, 480, 900]; // qs (deobfuscated.js, day-night cycle)
 
 // --- Season / Time of day / Weather (prompt-drive-weather-season) -------------
@@ -106,6 +106,7 @@ const FIELDS = [
   { path: 'vehicle.showConsole', type: FieldType.Boolean, cls: 'both', desc: 'Center-console (center-stack touchscreen) visibility; when off the console API is disabled.' },
   { path: 'vehicle.side', type: FieldType.Enum, cls: 'both', values: [0, 1], labels: ['right', 'left'], desc: 'Driver side.' },
   { path: 'vehicle.seat', type: FieldType.Enum, cls: 'both', values: [0, 1], labels: ['driver', 'passenger'], desc: 'Interior camera anchor.' },
+  { path: 'vehicle.passengerSeat', type: FieldType.Enum, cls: 'both', values: [0, 1, 2, 3], labels: ['rear bench window', 'rear bench centre', 'front bench facing back', 'standing by the door'], desc: 'Shuttle in-cabin camera seat (driverless vehicles only).' },
   { path: 'vehicle.seatAdjustment', type: FieldType.Float, cls: 'both', min: -0.25, max: 0.25, step: 0.01, desc: 'First-person camera fwd/back.' },
   { path: 'vehicle.seatHeight', type: FieldType.Float, cls: 'both', min: -0.05, max: 0.05, step: 0.01, desc: 'First-person camera up/down.' },
 
