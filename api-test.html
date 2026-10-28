@@ -332,6 +332,8 @@
             <button data-call="wheelState" class="sec" data-live>State</button>
             <button data-call="wheelUnbindAll" class="sec" data-live>Clear bindings</button>
           </div>
+          <div class="row"><label>Push to talk <span id="w-ptt-s" style="font:11px var(--mono);color:var(--dim)">idle</span></label>
+            <div class="setrow"><select id="w-ptt-mode"><option value="hold">hold</option><option value="toggle">toggle</option></select><input type="number" id="w-ptt-btn" min="0" max="63" placeholder="btn #" style="flex:0 0 70px" /><button data-call="wheelPtt" data-live>Set</button></div></div>
           <div id="w-bindings" class="hint"></div>
           <p class="hint">Calibration runs in the <b>sim tab</b> (its window reads the wheel): start it here, then
             actuate the control on the rig; completion arrives as a <code>wheelCalibrated</code> event. Enabling wheel
@@ -584,6 +586,7 @@
   function handleEvent(event, payload) {
     if (event === 'tick') { lastTickAt = Date.now(); renderTelem(payload); setLive(true); return; }
     if (event === 'ready' && !connected) waitForReady();
+    if (event === 'pushToTalk') document.getElementById('w-ptt-s').textContent = payload && payload.active ? 'TALKING (btn ' + payload.button + ')' : 'idle';
     if (event === 'wheelCalibrated' || event === 'wheelBinding' || event === 'wheelConnected' || event === 'wheelDisconnected') renderWheel();
     const cls = event === 'applied' || event === 'ended' ? 'applied' : (payload && payload.ok === false ? 'err' : '');
     log(event, payload, cls);
@@ -762,6 +765,8 @@
     const rows = Object.keys(c.bindings).map((b) => `Btn ${b} → ${label(c.bindings[b])}`);
     document.getElementById('w-bindings').innerHTML = rows.length
       ? '<b>Bindings:</b> ' + rows.join(' · ') : 'no buttons bound';
+    const modeEl = document.getElementById('w-ptt-mode');
+    if (c.pushToTalk && document.activeElement !== modeEl) modeEl.value = c.pushToTalk.mode;
   }
   function fillSelect(id, opts, selected) {
     const el = document.getElementById(id);
@@ -878,6 +883,13 @@
       return r;
     },
     wheelCapture: () => op('wheel.captureButton', val('w-action')),
+    wheelPtt: async () => {
+      const opts = { mode: val('w-ptt-mode') };
+      if (val('w-ptt-btn') !== '') opts.button = num('w-ptt-btn');
+      const r = await op('wheel.setPushToTalk', opts);
+      renderWheel();
+      return r;
+    },
     wheelState: async () => { const r = await op('wheel.state'); showOut('wheel-out', r); return r; },
     wheelUnbindAll: async () => {
       const g = await op('wheel.get');

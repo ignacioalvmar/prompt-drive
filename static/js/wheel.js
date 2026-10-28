@@ -60,7 +60,15 @@ const WHEEL_DEFAULTS = {
     8: 'mute',
     9: 'pause',
   },
+  // Push-to-talk for an external voice agent. Bind it like any other action
+  // (bindings[btn] = 'pushToTalk'); it is unbound by default.
+  pushToTalk: {
+    mode: 'hold', // 'hold' = talk while held; 'toggle' = press to start / press to stop
+    indicator: true, // mirror PTT onto CabinFeedback's agent state ('listening')
+  },
 };
+
+const WHEEL_PTT_MODES = ['hold', 'toggle'];
 
 const WHEEL_LIMITS = {
   rangeDeg: { min: 90, max: 1080 },
@@ -79,6 +87,8 @@ const WHEEL_LIMITS = {
  *              `setSignal` says whether the engine consumes the signal too
  *              (the stock `W` map) vs. listeners only.
  *   'api'    — dispatched through window.PromptDrive.
+ *   'ptt'    — push-to-talk: WheelInput tracks it and emits `pushToTalk`
+ *              { active } on the API event bus (no engine signal).
  */
 const WHEEL_ACTIONS = [
   { id: 'pause', label: 'Pause game', kind: 'tap', via: 'signal', control: 'Pause', setSignal: true },
@@ -99,6 +109,7 @@ const WHEEL_ACTIONS = [
   { id: 'handbrake', label: 'Handbrake (hold)', kind: 'held', via: 'signal', control: 'Handbrake' },
   { id: 'boost', label: 'Boost (hold)', kind: 'held', via: 'signal', control: 'Boost' },
   { id: 'reverse', label: 'Reverse / brake (hold)', kind: 'held', via: 'signal', control: 'Backward' },
+  { id: 'pushToTalk', label: 'Push to talk (voice agent)', kind: 'held', via: 'ptt' },
 ];
 
 const WHEEL_ACTION_BY_ID = {};
@@ -137,6 +148,7 @@ function wheelSanitise(cfg) {
   const axes = cfg.axes || {};
   const steering = cfg.steering || {};
   const pedals = cfg.pedals || {};
+  const ptt = cfg.pushToTalk || {};
   const out = {
     enabled: !!cfg.enabled,
     deviceId: cfg.deviceId == null ? null : String(cfg.deviceId),
@@ -154,6 +166,10 @@ function wheelSanitise(cfg) {
     },
     pedals: {
       deadzone: wheelClampNum(pedals.deadzone, WHEEL_LIMITS.pedalDeadzone.min, WHEEL_LIMITS.pedalDeadzone.max, d.pedals.deadzone),
+    },
+    pushToTalk: {
+      mode: WHEEL_PTT_MODES.indexOf(ptt.mode) >= 0 ? ptt.mode : d.pushToTalk.mode,
+      indicator: ptt.indicator == null ? d.pushToTalk.indicator : !!ptt.indicator,
     },
     bindings: {},
   };
@@ -284,6 +300,11 @@ class WheelInput {
       // (API set / calibration / panel), so stale ranges never shadow it.
       if (JSON.stringify(cfg.axes) !== JSON.stringify(this.cfg.axes)) this._range = {};
       this.cfg = cfg;
+      // Never leave the mic open behind a config change that removes the
+      // button (unbind, wheel disabled) or switches hold <-> toggle.
+      if (this.ptt.active && (!cfg.enabled || !this._pttButtons().length || cfg.pushToTalk.mode !== this.ptt.mode)) {
+        this.setPushToTalk(false, { reason: 'config' });
+      }
     });
 
     this.padIndex = null; // resolved gamepad index, re-scanned on (dis)connect
@@ -295,6 +316,10 @@ class WheelInput {
 
     this.capture = null; // live calibration / button-capture state
 
+    // Push-to-talk: `active` is the published level; `mode` is the mode it was
+    // engaged under, so a mode switch mid-press releases cleanly.
+    this.ptt = { active: false, button: null, source: null, since: 0, mode: this.cfg.pushToTalk.mode };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('gamepadconnected', (e) => {
         this.padIndex = null;
@@ -303,6 +328,7 @@ class WheelInput {
       window.addEventListener('gamepaddisconnected', () => {
         this.padIndex = null;
         this.active = false;
+        if (this.ptt.active) this.setPushToTalk(false, { reason: 'disconnected' });
         try { this.emit('wheelDisconnected', {}); } catch (_e) {}
       });
     }
@@ -497,6 +523,7 @@ class WheelInput {
     // Button bindings: held actions level-trigger a signal; tap actions fire
     // once per rising edge, mirroring the stock getGamepadValue behaviour.
     const bindings = this.cfg.bindings;
+    let pttHeld = null; // first held PTT button this frame (hold mode)
     for (const btnKey in bindings) {
       const idx = +btnKey;
       const b = pad.buttons[idx];
@@ -504,7 +531,16 @@ class WheelInput {
       const pressed = b.pressed || b.value > 0.5;
       const action = WHEEL_ACTION_BY_ID[bindings[btnKey]];
       if (!action) continue;
-      if (action.kind === 'held') {
+      if (action.via === 'ptt') {
+        if (this.cfg.pushToTalk.mode === 'toggle') {
+          if (pressed && !this._didPress[idx]) {
+            this._didPress[idx] = true;
+            this.setPushToTalk(!this.ptt.active, { button: idx, source: 'wheel' });
+          }
+        } else if (pressed && pttHeld == null) {
+          pttHeld = idx;
+        }
+      } else if (action.kind === 'held') {
         if (pressed) {
           if (action.control === 'Backward') Y.controllerSignal.Backward = 1;
           else Y.signal[action.control] = 1;
@@ -517,7 +553,72 @@ class WheelInput {
       }
       if (!pressed) this._didPress[idx] = false;
     }
+    // Hold mode only releases wheel-engaged talk, so an API-opened session
+    // isn't closed by an idle button.
+    if (this.cfg.pushToTalk.mode === 'hold') {
+      if (pttHeld != null && !this.ptt.active) this.setPushToTalk(true, { button: pttHeld, source: 'wheel' });
+      else if (pttHeld == null && this.ptt.active && this.ptt.source === 'wheel') this.setPushToTalk(false, { reason: 'released' });
+    }
     return true;
+  }
+
+  // --- push-to-talk ----------------------------------------------------------------
+
+  _pttButtons() {
+    const out = [];
+    for (const k in this.cfg.bindings) if (this.cfg.bindings[k] === 'pushToTalk') out.push(+k);
+    return out.sort((a, b) => a - b);
+  }
+
+  /**
+   * Open/close the talk window. Emits `pushToTalk` on the API event bus on
+   * every change and, when `pushToTalk.indicator` is on, mirrors it onto
+   * CabinFeedback's agent state (release only clears 'listening', so an agent
+   * that already moved on to 'thinking' is left alone).
+   */
+  setPushToTalk(active, opts) {
+    active = !!active;
+    opts = opts || {};
+    if (active === this.ptt.active) return this.pushToTalkState();
+    const now = Date.now();
+    const heldMs = active ? 0 : now - this.ptt.since;
+    const button = active ? (opts.button == null ? null : opts.button) : this.ptt.button;
+    const source = active ? opts.source || 'api' : this.ptt.source;
+    this.ptt = {
+      active,
+      button: active ? button : null,
+      source: active ? source : null,
+      since: active ? now : 0,
+      mode: this.cfg.pushToTalk.mode,
+    };
+    const payload = { active, button, source, mode: this.ptt.mode };
+    if (!active) {
+      payload.durationMs = heldMs;
+      if (opts.reason) payload.reason = opts.reason;
+    }
+    try { this.emit('pushToTalk', payload); } catch (_e) {}
+    if (this.cfg.pushToTalk.indicator) {
+      try {
+        const fb = typeof window !== 'undefined' ? window.CabinFeedback : null;
+        if (fb && typeof fb.agent === 'function') {
+          if (active) fb.agent('listening', { source: 'pushToTalk' });
+          else if (fb.agentState && fb.agentState().state === 'listening') fb.agent('idle', { source: 'pushToTalk' });
+        }
+      } catch (_e) {}
+    }
+    return this.pushToTalkState();
+  }
+
+  pushToTalkState() {
+    return {
+      active: this.ptt.active,
+      button: this.ptt.button,
+      source: this.ptt.source,
+      since: this.ptt.since || null,
+      mode: this.cfg.pushToTalk.mode,
+      indicator: this.cfg.pushToTalk.indicator,
+      buttons: this._pttButtons(),
+    };
   }
 
   _dispatchTap(Y, action) {
@@ -674,6 +775,7 @@ class WheelInput {
       buttons: pad ? pad.buttons.map((b) => ({ pressed: b.pressed, value: Math.round(b.value * 100) / 100 })) : [],
       signals: Object.assign({}, this.signals),
       active: this.active,
+      pushToTalk: this.pushToTalkState(),
       capturing: this.capture ? (typeof this.capture.target === 'string' ? this.capture.target : 'button') : null,
     };
   }
@@ -735,6 +837,9 @@ const WP_CSS = `
 #${WP_CONTENT_ID} .pd-bind .rm{flex:0 0 auto;width:22px;height:22px;background:#2a2a2a;
   color:#cfe9e6;border:1px solid #3a3a3a;border-radius:5px;cursor:pointer}
 #${WP_CONTENT_ID} .pd-bind .rm:hover{border-color:#c65a3e;color:#ffb8a6}
+#${WP_CONTENT_ID} .pd-ptt-dot{display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:#333;margin-right:6px;vertical-align:middle}
+#${WP_CONTENT_ID} .pd-ptt-dot.on{background:#3ec6e0;box-shadow:0 0 6px #3ec6e0}
 #${WP_CONTENT_ID} .pd-note{font-size:11px;color:#8aa0a0;margin-top:10px;line-height:1.4}
 #${WP_CONTENT_ID} .pd-note b{color:#cfe9e6}
 `;
@@ -817,6 +922,32 @@ class WheelPanel {
     this.brakeRow = this._barRow('Brake', 'brake');
     this.clutchRow = this._barRow('Clutch', 'clutch');
     this.content.append(this.throttleRow.row, this.brakeRow.row, this.clutchRow.row);
+
+    // --- push to talk ---
+    this.content.appendChild(wpEl('div', 'pd-fam', 'push to talk'));
+    this.pttRow = wpEl('div', 'pd-wrow');
+    this.pttStatus = wpEl('span');
+    this.pttCapture = wpEl('button', 'pd-cal', 'Set button…');
+    this.pttCapture.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._capturePtt();
+    });
+    this.pttRow.append(this.pttStatus, this.pttCapture);
+    this.content.appendChild(this.pttRow);
+    const pttToggles = wpEl('div', 'pd-actions');
+    this.pttModeBtn = wpEl('button');
+    this.pttModeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = this.store.get().pushToTalk.mode === 'hold' ? 'toggle' : 'hold';
+      this.getFacade().setPushToTalk({ mode });
+    });
+    this.pttIndicatorBtn = wpEl('button');
+    this.pttIndicatorBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.getFacade().setPushToTalk({ indicator: !this.store.get().pushToTalk.indicator });
+    });
+    pttToggles.append(this.pttModeBtn, this.pttIndicatorBtn);
+    this.content.appendChild(pttToggles);
 
     // --- bindings ---
     this.content.appendChild(wpEl('div', 'pd-fam', 'button bindings'));
@@ -928,6 +1059,29 @@ class WheelPanel {
       : (setTimeout(done, 4200), () => {});
   }
 
+  // Capture the next pressed button as the (single) PTT button.
+  _capturePtt() {
+    const facade = this.getFacade();
+    const r = facade.captureButton('pushToTalk');
+    if (!r.ok) {
+      this.pttCapture.textContent = 'No device';
+      setTimeout(() => { this.pttCapture.textContent = 'Set button…'; }, 1500);
+      return;
+    }
+    this.pttCapture.classList.add('capturing');
+    this.pttCapture.textContent = 'Press the wheel button now…';
+    const done = (res) => {
+      this.pttCapture.classList.remove('capturing');
+      this.pttCapture.textContent = 'Set button…';
+      off();
+      // captureButton adds a binding; keep PTT on just the new button.
+      if (res && res.kind === 'button' && res.action === 'pushToTalk') facade.setPushToTalk({ button: res.button });
+    };
+    const off = facade.onEvent
+      ? facade.onEvent('wheelCalibrated', done)
+      : (setTimeout(done, 4200), () => {});
+  }
+
   _toggle() {
     this.expanded = !this.expanded;
     this._applyExpanded();
@@ -963,6 +1117,11 @@ class WheelPanel {
       ? `<b>${wpEsc(st.device.id)}</b> — ${st.device.axes} axes, ${st.device.buttons} buttons` +
         (st.active ? ' · <b>driving</b>' : '')
       : 'no device detected — press a wheel button or turn the wheel to wake it';
+    const ptt = st.pushToTalk;
+    if (ptt && this._pttLive !== ptt.active) {
+      this._pttLive = ptt.active;
+      this._renderPtt();
+    }
     const rows = [this.steerBarRow, this.throttleRow, this.brakeRow, this.clutchRow];
     for (const r of rows) {
       const v = st.signals ? st.signals[r.role] || 0 : 0;
@@ -984,6 +1143,7 @@ class WheelPanel {
     this.enabledBtn.textContent = cfg.enabled ? 'Wheel on' : 'Wheel off';
     this.enabledBtn.classList.toggle('on', cfg.enabled);
     this.rangeRow.val.textContent = cfg.steering.rangeDeg + '°';
+    this._renderPtt();
 
     // bindings list
     this.bindList.innerHTML = '';
@@ -1022,6 +1182,18 @@ class WheelPanel {
       'Pedals self-calibrate after a full press; use <b>Calibrate</b> if an axis ' +
       'is mis-assigned. Steering reaches full lock at ±<b>' +
       Math.round(cfg.steering.rangeDeg / 2) + '°</b> of physical rotation.';
+  }
+
+  _renderPtt() {
+    if (!this.pttStatus) return;
+    const cfg = this.store.get();
+    const btns = Object.keys(cfg.bindings).filter((k) => cfg.bindings[k] === 'pushToTalk');
+    this.pttStatus.innerHTML = '<i class="pd-ptt-dot' + (this._pttLive ? ' on' : '') + '"></i>' +
+      (btns.length ? 'Btn ' + wpEsc(btns.join(', ')) + (this._pttLive ? ' · <b>talking</b>' : '') : 'not bound');
+    const hold = cfg.pushToTalk.mode === 'hold';
+    this.pttModeBtn.textContent = hold ? 'Hold to talk' : 'Press to toggle';
+    this.pttIndicatorBtn.textContent = cfg.pushToTalk.indicator ? 'Cabin indicator on' : 'Cabin indicator off';
+    this.pttIndicatorBtn.classList.toggle('on', cfg.pushToTalk.indicator);
   }
 
   dispose() {
@@ -1066,6 +1238,12 @@ function wpEsc(s) {
  *                                          'brake'|'clutch')
  *   WheelControls.captureButton(action) -> bind the next pressed button
  *   WheelControls.subscribe(fn)         -> fn(cfg) on config change
+ *   WheelControls.pushToTalk()          -> { active, button, source, since,
+ *                                            mode, indicator, buttons }
+ *   WheelControls.setPushToTalk(opts)   -> { button?, mode?, indicator?,
+ *                                            active? } — (re)bind the PTT
+ *                                          button, set hold|toggle, or open /
+ *                                          close the talk window directly
  *
  * Engine-facing seam (called by the patched main bundle, not by users):
  *   WheelControls.enabled()             cheap per-frame gate
@@ -1139,6 +1317,37 @@ const WheelControls = {
     wheelStore.setBindings(bindings);
     wheelEmit('wheelBinding', { button: btn, action: null });
     return { ok: true, value: { button: btn, action: null } };
+  },
+
+  pushToTalk: () => wheelInput.pushToTalkState(),
+  /**
+   * One-call PTT setup. `button`: index to bind (replaces any previous PTT
+   * button; null unbinds PTT). `mode`: 'hold' | 'toggle'. `indicator`: mirror
+   * onto the cabin agent indicator. `active`: open/close the talk window
+   * without the wheel (source 'api'), e.g. for tests or an on-screen button.
+   */
+  setPushToTalk: (opts) => {
+    opts = opts || {};
+    if (opts.mode != null && WHEEL_PTT_MODES.indexOf(opts.mode) < 0) {
+      return { ok: false, error: 'bad_value', message: 'mode must be hold|toggle', options: WHEEL_PTT_MODES };
+    }
+    if ('button' in opts) {
+      const btn = opts.button == null ? null : Math.round(Number(opts.button));
+      if (btn != null && (!Number.isFinite(btn) || btn < 0 || btn > 63)) {
+        return { ok: false, error: 'bad_value', message: 'button must be 0..63 or null' };
+      }
+      const bindings = wheelStore.get().bindings;
+      for (const k in bindings) if (bindings[k] === 'pushToTalk') delete bindings[k];
+      if (btn != null) bindings[btn] = 'pushToTalk';
+      wheelStore.setBindings(bindings);
+      wheelEmit('wheelBinding', { button: btn, action: btn == null ? null : 'pushToTalk' });
+    }
+    const patch = {};
+    if (opts.mode != null) patch.mode = opts.mode;
+    if (opts.indicator != null) patch.indicator = !!opts.indicator;
+    if (Object.keys(patch).length) wheelStore.set({ pushToTalk: patch });
+    if (opts.active != null) wheelInput.setPushToTalk(!!opts.active, { source: 'api' });
+    return { ok: true, value: wheelInput.pushToTalkState() };
   },
 
   calibrate: (target, opts) => {

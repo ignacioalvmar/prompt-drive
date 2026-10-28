@@ -18,6 +18,12 @@
  *                                          'brake'|'clutch')
  *   WheelControls.captureButton(action) -> bind the next pressed button
  *   WheelControls.subscribe(fn)         -> fn(cfg) on config change
+ *   WheelControls.pushToTalk()          -> { active, button, source, since,
+ *                                            mode, indicator, buttons }
+ *   WheelControls.setPushToTalk(opts)   -> { button?, mode?, indicator?,
+ *                                            active? } — (re)bind the PTT
+ *                                          button, set hold|toggle, or open /
+ *                                          close the talk window directly
  *
  * Engine-facing seam (called by the patched main bundle, not by users):
  *   WheelControls.enabled()             cheap per-frame gate
@@ -91,6 +97,37 @@ const WheelControls = {
     wheelStore.setBindings(bindings);
     wheelEmit('wheelBinding', { button: btn, action: null });
     return { ok: true, value: { button: btn, action: null } };
+  },
+
+  pushToTalk: () => wheelInput.pushToTalkState(),
+  /**
+   * One-call PTT setup. `button`: index to bind (replaces any previous PTT
+   * button; null unbinds PTT). `mode`: 'hold' | 'toggle'. `indicator`: mirror
+   * onto the cabin agent indicator. `active`: open/close the talk window
+   * without the wheel (source 'api'), e.g. for tests or an on-screen button.
+   */
+  setPushToTalk: (opts) => {
+    opts = opts || {};
+    if (opts.mode != null && WHEEL_PTT_MODES.indexOf(opts.mode) < 0) {
+      return { ok: false, error: 'bad_value', message: 'mode must be hold|toggle', options: WHEEL_PTT_MODES };
+    }
+    if ('button' in opts) {
+      const btn = opts.button == null ? null : Math.round(Number(opts.button));
+      if (btn != null && (!Number.isFinite(btn) || btn < 0 || btn > 63)) {
+        return { ok: false, error: 'bad_value', message: 'button must be 0..63 or null' };
+      }
+      const bindings = wheelStore.get().bindings;
+      for (const k in bindings) if (bindings[k] === 'pushToTalk') delete bindings[k];
+      if (btn != null) bindings[btn] = 'pushToTalk';
+      wheelStore.setBindings(bindings);
+      wheelEmit('wheelBinding', { button: btn, action: btn == null ? null : 'pushToTalk' });
+    }
+    const patch = {};
+    if (opts.mode != null) patch.mode = opts.mode;
+    if (opts.indicator != null) patch.indicator = !!opts.indicator;
+    if (Object.keys(patch).length) wheelStore.set({ pushToTalk: patch });
+    if (opts.active != null) wheelInput.setPushToTalk(!!opts.active, { source: 'api' });
+    return { ok: true, value: wheelInput.pushToTalkState() };
   },
 
   calibrate: (target, opts) => {

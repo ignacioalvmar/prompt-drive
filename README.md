@@ -230,6 +230,13 @@ map: [`wheel-controls-plan.md`](wheel-controls-plan.md).
   reset vehicle, mute, toggle HUD. Defaults cover the common G923 face
   buttons; rebind from the settings section (*press a button* capture), the
   API test console, or `PromptDrive.wheel.bind()`.
+- **Push to talk** — bind a wheel button to *Push to talk* (settings section →
+  *push to talk* → *Set button…*, or `PromptDrive.wheel.setPushToTalk({ button: 19 })`)
+  to drive an external voice agent. *Hold to talk* (default) keeps the mic
+  open while the button is held; *Press to toggle* opens/closes it per press.
+  Each change is published as a `pushToTalk` `{ active, … }` event on every
+  transport, and (unless turned off) lights the cabin agent indicator as
+  *listening*. Unbound by default; works while the sim is running.
 - **Programmatic API** — `PromptDrive.wheel.*`: `get`/`set`, `state()` (device,
   raw axes/buttons, computed signals), `devices()`, `actions()`,
   `bind`/`unbind`, `calibrate(target)`, `captureButton(action)` — see

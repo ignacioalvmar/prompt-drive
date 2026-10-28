@@ -57,7 +57,15 @@ const WHEEL_DEFAULTS = {
     8: 'mute',
     9: 'pause',
   },
+  // Push-to-talk for an external voice agent. Bind it like any other action
+  // (bindings[btn] = 'pushToTalk'); it is unbound by default.
+  pushToTalk: {
+    mode: 'hold', // 'hold' = talk while held; 'toggle' = press to start / press to stop
+    indicator: true, // mirror PTT onto CabinFeedback's agent state ('listening')
+  },
 };
+
+const WHEEL_PTT_MODES = ['hold', 'toggle'];
 
 const WHEEL_LIMITS = {
   rangeDeg: { min: 90, max: 1080 },
@@ -76,6 +84,8 @@ const WHEEL_LIMITS = {
  *              `setSignal` says whether the engine consumes the signal too
  *              (the stock `W` map) vs. listeners only.
  *   'api'    — dispatched through window.PromptDrive.
+ *   'ptt'    — push-to-talk: WheelInput tracks it and emits `pushToTalk`
+ *              { active } on the API event bus (no engine signal).
  */
 const WHEEL_ACTIONS = [
   { id: 'pause', label: 'Pause game', kind: 'tap', via: 'signal', control: 'Pause', setSignal: true },
@@ -96,6 +106,7 @@ const WHEEL_ACTIONS = [
   { id: 'handbrake', label: 'Handbrake (hold)', kind: 'held', via: 'signal', control: 'Handbrake' },
   { id: 'boost', label: 'Boost (hold)', kind: 'held', via: 'signal', control: 'Boost' },
   { id: 'reverse', label: 'Reverse / brake (hold)', kind: 'held', via: 'signal', control: 'Backward' },
+  { id: 'pushToTalk', label: 'Push to talk (voice agent)', kind: 'held', via: 'ptt' },
 ];
 
 const WHEEL_ACTION_BY_ID = {};
@@ -134,6 +145,7 @@ function wheelSanitise(cfg) {
   const axes = cfg.axes || {};
   const steering = cfg.steering || {};
   const pedals = cfg.pedals || {};
+  const ptt = cfg.pushToTalk || {};
   const out = {
     enabled: !!cfg.enabled,
     deviceId: cfg.deviceId == null ? null : String(cfg.deviceId),
@@ -151,6 +163,10 @@ function wheelSanitise(cfg) {
     },
     pedals: {
       deadzone: wheelClampNum(pedals.deadzone, WHEEL_LIMITS.pedalDeadzone.min, WHEEL_LIMITS.pedalDeadzone.max, d.pedals.deadzone),
+    },
+    pushToTalk: {
+      mode: WHEEL_PTT_MODES.indexOf(ptt.mode) >= 0 ? ptt.mode : d.pushToTalk.mode,
+      indicator: ptt.indicator == null ? d.pushToTalk.indicator : !!ptt.indicator,
     },
     bindings: {},
   };

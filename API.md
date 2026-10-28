@@ -145,6 +145,8 @@ wheel.bind(btn, action)  wheel.unbind(btn)
 wheel.calibrate(target)       // guided capture: 'steer'|'throttle'|'brake'|'clutch'
 wheel.captureButton(action)   // bind the next pressed wheel button
 wheel.cancelCapture()  wheel.resetCalibration(target?)
+wheel.pushToTalk()            // PTT state { active, button, mode, buttons, … }
+wheel.setPushToTalk(opts)     // { button?, mode?:'hold'|'toggle', indicator?, active? }
 
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
@@ -400,18 +402,20 @@ PromptDrive.wheel.get();
 //      axes:{ steer:{index,min,max,center},
 //             throttle:{index,rest,full}, brake:{…}, clutch:{…} },
 //      steering:{ rangeDeg, wheelDeg, deadzone, compensateLinearity },
-//      pedals:{ deadzone }, bindings:{ "0":"cameraNext", … } } }
+//      pedals:{ deadzone }, pushToTalk:{ mode, indicator },
+//      bindings:{ "0":"cameraNext", … } } }
 
 PromptDrive.wheel.set({ enabled: true, steering: { rangeDeg: 360 } });
 PromptDrive.wheel.state();
 // → { ok:true, value:{ supported, connected, device:{index,id,axes,buttons},
 //      axes:[…raw], buttons:[{pressed,value}…],
-//      signals:{ steer, throttle, brake, clutch }, active, capturing } }
+//      signals:{ steer, throttle, brake, clutch }, active, pushToTalk, capturing } }
 
 PromptDrive.wheel.actions();    // bindable actions: pause, cameraNext,
                                 // weatherNext/Prev, skinNext/Prev, headlights,
                                 // autodrive, cruiseToggle/Up/Down, handbrake,
-                                // handbrakeToggle, boost, reverse, reset, mute, toggleUI
+                                // handbrakeToggle, boost, reverse, reset, mute, toggleUI,
+                                // pushToTalk
 PromptDrive.wheel.bind(9, 'pause');
 PromptDrive.wheel.calibrate('brake');        // guided capture — press the pedal
 PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
@@ -427,6 +431,41 @@ PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
   capture reads the gamepad in the **sim's window**.
 - Config is also settable via `dynamic.set({ wheel: {…} })` and stageable via
   `config.set` (it commits through the same owner).
+
+#### Push to talk
+
+Any wheel button can act as a push-to-talk (PTT) key for an external voice
+agent. The sim does not capture audio itself: it publishes the talk window on
+the event stream so the agent (over postMessage / BroadcastChannel /
+WebSocket) opens and closes its microphone.
+
+```js
+PromptDrive.wheel.setPushToTalk({ button: 19 });        // bind (replaces any previous PTT button)
+PromptDrive.wheel.setPushToTalk({ mode: 'toggle' });    // 'hold' (default) | 'toggle'
+PromptDrive.wheel.setPushToTalk({ indicator: false });  // don't drive the cabin agent indicator
+PromptDrive.wheel.setPushToTalk({ button: null });      // unbind PTT
+PromptDrive.wheel.setPushToTalk({ active: true });      // open the window without the wheel (source 'api')
+PromptDrive.wheel.pushToTalk();
+// → { ok:true, value:{ active, button, source:'wheel'|'api'|null, since,
+//      mode, indicator, buttons:[19] } }
+
+// Event stream:
+// pushToTalk { active:true,  button:19, source:'wheel', mode:'hold' }
+// pushToTalk { active:false, button:19, source:'wheel', mode:'hold', durationMs:1840, reason?:'released' }
+```
+
+- Config lives in the wheel config as `pushToTalk: { mode, indicator }`; the
+  button is an ordinary binding (`bindings[btn] = 'pushToTalk'`), so
+  `wheel.bind(btn, 'pushToTalk')`, `captureButton('pushToTalk')` and
+  `wheel.set({ pushToTalk: { mode: 'toggle' } })` work too.
+- **hold**: open while the button is down. **toggle**: each press flips it.
+- With `indicator` on (default), opening sets `feedback.agent('listening')`
+  and closing returns it to `idle` — only if the agent hasn't already moved
+  on (e.g. to `thinking`).
+- The window is force-closed (`reason`: `config` / `disconnected`) when the
+  PTT button is unbound, the wheel is disabled, the mode changes, or the
+  device disconnects. The button is read by the engine's per-frame input, so
+  wheel PTT works once the sim is running (also while paused).
 
 ### Center console — `console.*`
 
@@ -629,6 +668,7 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `wheelCalibrated` | `{ kind, axis?, config?, button?, action?, error? }` | Wheel — a calibration / button capture finished. |
 | `wheelBinding` | `{ button, action }` | Wheel — a button binding changed (`action:null` = unbound). |
 | `wheelAction` | `{ action }` | Wheel — a bound button fired its action. |
+| `pushToTalk` | `{ active, button, source, mode, durationMs?, reason? }` | Wheel — push-to-talk window opened/closed. |
 | `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
 | `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |
 | `vehicleController` | `{ distance, speed, … }` | Engine (periodic) |
@@ -662,7 +702,7 @@ Every field addressable via `get`/`set`, with its class. **S** = static (needs
 | `scene.antialias` | boolean | **S** | renderer init flag |
 | `lanes` | object | **S+D** | `{ forward 1–5, backward 0–5, width 2.4–3.75|null }`; live ±1/direction |
 | `traffic` | object | **S** | `{ enabled, density 0–16, speed 2–45 m/s, oncoming, seed }`; the stopped-vehicle event is live via [`traffic.spawnStopped`](#traffic--traffic) |
-| `wheel` | object | **D** | Steering-wheel rig `{ enabled, deviceId, axes, steering, pedals, bindings }` — applies live; see [`wheel.*`](#steering-wheel--wheel) |
+| `wheel` | object | **D** | Steering-wheel rig `{ enabled, deviceId, axes, steering, pedals, pushToTalk, bindings }` — applies live; see [`wheel.*`](#steering-wheel--wheel) |
 
 ### Vehicle
 
