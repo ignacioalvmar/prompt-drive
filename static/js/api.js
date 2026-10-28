@@ -1143,6 +1143,9 @@ const PromptDrive = {
     captureButton: (action, opts) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.captureButton(action, opts) : err('unavailable')),
     cancelCapture: () => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.cancelCapture() : err('unavailable')),
     resetCalibration: (target) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.resetCalibration(target) : err('unavailable')),
+    // Push-to-talk on a wheel button; press/release arrives as 'pushToTalk' events.
+    pushToTalk: () => (typeof window !== 'undefined' && window.WheelControls ? ok(window.WheelControls.pushToTalk()) : err('unavailable')),
+    setPushToTalk: (opts) => (typeof window !== 'undefined' && window.WheelControls ? window.WheelControls.setPushToTalk(opts) : err('unavailable')),
   },
 
   // In-cabin center console (window.CenterConsole, src/console/): the 16:9

@@ -24,6 +24,11 @@ class WheelInput {
       // (API set / calibration / panel), so stale ranges never shadow it.
       if (JSON.stringify(cfg.axes) !== JSON.stringify(this.cfg.axes)) this._range = {};
       this.cfg = cfg;
+      // Never leave the mic open behind a config change that removes the
+      // button (unbind, wheel disabled) or switches hold <-> toggle.
+      if (this.ptt.active && (!cfg.enabled || !this._pttButtons().length || cfg.pushToTalk.mode !== this.ptt.mode)) {
+        this.setPushToTalk(false, { reason: 'config' });
+      }
     });
 
     this.padIndex = null; // resolved gamepad index, re-scanned on (dis)connect
@@ -35,6 +40,10 @@ class WheelInput {
 
     this.capture = null; // live calibration / button-capture state
 
+    // Push-to-talk: `active` is the published level; `mode` is the mode it was
+    // engaged under, so a mode switch mid-press releases cleanly.
+    this.ptt = { active: false, button: null, source: null, since: 0, mode: this.cfg.pushToTalk.mode };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('gamepadconnected', (e) => {
         this.padIndex = null;
@@ -43,6 +52,7 @@ class WheelInput {
       window.addEventListener('gamepaddisconnected', () => {
         this.padIndex = null;
         this.active = false;
+        if (this.ptt.active) this.setPushToTalk(false, { reason: 'disconnected' });
         try { this.emit('wheelDisconnected', {}); } catch (_e) {}
       });
     }
@@ -237,6 +247,7 @@ class WheelInput {
     // Button bindings: held actions level-trigger a signal; tap actions fire
     // once per rising edge, mirroring the stock getGamepadValue behaviour.
     const bindings = this.cfg.bindings;
+    let pttHeld = null; // first held PTT button this frame (hold mode)
     for (const btnKey in bindings) {
       const idx = +btnKey;
       const b = pad.buttons[idx];
@@ -244,7 +255,16 @@ class WheelInput {
       const pressed = b.pressed || b.value > 0.5;
       const action = WHEEL_ACTION_BY_ID[bindings[btnKey]];
       if (!action) continue;
-      if (action.kind === 'held') {
+      if (action.via === 'ptt') {
+        if (this.cfg.pushToTalk.mode === 'toggle') {
+          if (pressed && !this._didPress[idx]) {
+            this._didPress[idx] = true;
+            this.setPushToTalk(!this.ptt.active, { button: idx, source: 'wheel' });
+          }
+        } else if (pressed && pttHeld == null) {
+          pttHeld = idx;
+        }
+      } else if (action.kind === 'held') {
         if (pressed) {
           if (action.control === 'Backward') Y.controllerSignal.Backward = 1;
           else Y.signal[action.control] = 1;
@@ -257,7 +277,72 @@ class WheelInput {
       }
       if (!pressed) this._didPress[idx] = false;
     }
+    // Hold mode only releases wheel-engaged talk, so an API-opened session
+    // isn't closed by an idle button.
+    if (this.cfg.pushToTalk.mode === 'hold') {
+      if (pttHeld != null && !this.ptt.active) this.setPushToTalk(true, { button: pttHeld, source: 'wheel' });
+      else if (pttHeld == null && this.ptt.active && this.ptt.source === 'wheel') this.setPushToTalk(false, { reason: 'released' });
+    }
     return true;
+  }
+
+  // --- push-to-talk ----------------------------------------------------------------
+
+  _pttButtons() {
+    const out = [];
+    for (const k in this.cfg.bindings) if (this.cfg.bindings[k] === 'pushToTalk') out.push(+k);
+    return out.sort((a, b) => a - b);
+  }
+
+  /**
+   * Open/close the talk window. Emits `pushToTalk` on the API event bus on
+   * every change and, when `pushToTalk.indicator` is on, mirrors it onto
+   * CabinFeedback's agent state (release only clears 'listening', so an agent
+   * that already moved on to 'thinking' is left alone).
+   */
+  setPushToTalk(active, opts) {
+    active = !!active;
+    opts = opts || {};
+    if (active === this.ptt.active) return this.pushToTalkState();
+    const now = Date.now();
+    const heldMs = active ? 0 : now - this.ptt.since;
+    const button = active ? (opts.button == null ? null : opts.button) : this.ptt.button;
+    const source = active ? opts.source || 'api' : this.ptt.source;
+    this.ptt = {
+      active,
+      button: active ? button : null,
+      source: active ? source : null,
+      since: active ? now : 0,
+      mode: this.cfg.pushToTalk.mode,
+    };
+    const payload = { active, button, source, mode: this.ptt.mode };
+    if (!active) {
+      payload.durationMs = heldMs;
+      if (opts.reason) payload.reason = opts.reason;
+    }
+    try { this.emit('pushToTalk', payload); } catch (_e) {}
+    if (this.cfg.pushToTalk.indicator) {
+      try {
+        const fb = typeof window !== 'undefined' ? window.CabinFeedback : null;
+        if (fb && typeof fb.agent === 'function') {
+          if (active) fb.agent('listening', { source: 'pushToTalk' });
+          else if (fb.agentState && fb.agentState().state === 'listening') fb.agent('idle', { source: 'pushToTalk' });
+        }
+      } catch (_e) {}
+    }
+    return this.pushToTalkState();
+  }
+
+  pushToTalkState() {
+    return {
+      active: this.ptt.active,
+      button: this.ptt.button,
+      source: this.ptt.source,
+      since: this.ptt.since || null,
+      mode: this.cfg.pushToTalk.mode,
+      indicator: this.cfg.pushToTalk.indicator,
+      buttons: this._pttButtons(),
+    };
   }
 
   _dispatchTap(Y, action) {
@@ -414,6 +499,7 @@ class WheelInput {
       buttons: pad ? pad.buttons.map((b) => ({ pressed: b.pressed, value: Math.round(b.value * 100) / 100 })) : [],
       signals: Object.assign({}, this.signals),
       active: this.active,
+      pushToTalk: this.pushToTalkState(),
       capturing: this.capture ? (typeof this.capture.target === 'string' ? this.capture.target : 'button') : null,
     };
   }

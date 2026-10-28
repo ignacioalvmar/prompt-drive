@@ -52,6 +52,9 @@ const WP_CSS = `
 #${WP_CONTENT_ID} .pd-bind .rm{flex:0 0 auto;width:22px;height:22px;background:#2a2a2a;
   color:#cfe9e6;border:1px solid #3a3a3a;border-radius:5px;cursor:pointer}
 #${WP_CONTENT_ID} .pd-bind .rm:hover{border-color:#c65a3e;color:#ffb8a6}
+#${WP_CONTENT_ID} .pd-ptt-dot{display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:#333;margin-right:6px;vertical-align:middle}
+#${WP_CONTENT_ID} .pd-ptt-dot.on{background:#3ec6e0;box-shadow:0 0 6px #3ec6e0}
 #${WP_CONTENT_ID} .pd-note{font-size:11px;color:#8aa0a0;margin-top:10px;line-height:1.4}
 #${WP_CONTENT_ID} .pd-note b{color:#cfe9e6}
 `;
@@ -134,6 +137,32 @@ class WheelPanel {
     this.brakeRow = this._barRow('Brake', 'brake');
     this.clutchRow = this._barRow('Clutch', 'clutch');
     this.content.append(this.throttleRow.row, this.brakeRow.row, this.clutchRow.row);
+
+    // --- push to talk ---
+    this.content.appendChild(wpEl('div', 'pd-fam', 'push to talk'));
+    this.pttRow = wpEl('div', 'pd-wrow');
+    this.pttStatus = wpEl('span');
+    this.pttCapture = wpEl('button', 'pd-cal', 'Set button…');
+    this.pttCapture.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._capturePtt();
+    });
+    this.pttRow.append(this.pttStatus, this.pttCapture);
+    this.content.appendChild(this.pttRow);
+    const pttToggles = wpEl('div', 'pd-actions');
+    this.pttModeBtn = wpEl('button');
+    this.pttModeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = this.store.get().pushToTalk.mode === 'hold' ? 'toggle' : 'hold';
+      this.getFacade().setPushToTalk({ mode });
+    });
+    this.pttIndicatorBtn = wpEl('button');
+    this.pttIndicatorBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.getFacade().setPushToTalk({ indicator: !this.store.get().pushToTalk.indicator });
+    });
+    pttToggles.append(this.pttModeBtn, this.pttIndicatorBtn);
+    this.content.appendChild(pttToggles);
 
     // --- bindings ---
     this.content.appendChild(wpEl('div', 'pd-fam', 'button bindings'));
@@ -245,6 +274,29 @@ class WheelPanel {
       : (setTimeout(done, 4200), () => {});
   }
 
+  // Capture the next pressed button as the (single) PTT button.
+  _capturePtt() {
+    const facade = this.getFacade();
+    const r = facade.captureButton('pushToTalk');
+    if (!r.ok) {
+      this.pttCapture.textContent = 'No device';
+      setTimeout(() => { this.pttCapture.textContent = 'Set button…'; }, 1500);
+      return;
+    }
+    this.pttCapture.classList.add('capturing');
+    this.pttCapture.textContent = 'Press the wheel button now…';
+    const done = (res) => {
+      this.pttCapture.classList.remove('capturing');
+      this.pttCapture.textContent = 'Set button…';
+      off();
+      // captureButton adds a binding; keep PTT on just the new button.
+      if (res && res.kind === 'button' && res.action === 'pushToTalk') facade.setPushToTalk({ button: res.button });
+    };
+    const off = facade.onEvent
+      ? facade.onEvent('wheelCalibrated', done)
+      : (setTimeout(done, 4200), () => {});
+  }
+
   _toggle() {
     this.expanded = !this.expanded;
     this._applyExpanded();
@@ -280,6 +332,11 @@ class WheelPanel {
       ? `<b>${wpEsc(st.device.id)}</b> — ${st.device.axes} axes, ${st.device.buttons} buttons` +
         (st.active ? ' · <b>driving</b>' : '')
       : 'no device detected — press a wheel button or turn the wheel to wake it';
+    const ptt = st.pushToTalk;
+    if (ptt && this._pttLive !== ptt.active) {
+      this._pttLive = ptt.active;
+      this._renderPtt();
+    }
     const rows = [this.steerBarRow, this.throttleRow, this.brakeRow, this.clutchRow];
     for (const r of rows) {
       const v = st.signals ? st.signals[r.role] || 0 : 0;
@@ -301,6 +358,7 @@ class WheelPanel {
     this.enabledBtn.textContent = cfg.enabled ? 'Wheel on' : 'Wheel off';
     this.enabledBtn.classList.toggle('on', cfg.enabled);
     this.rangeRow.val.textContent = cfg.steering.rangeDeg + '°';
+    this._renderPtt();
 
     // bindings list
     this.bindList.innerHTML = '';
@@ -339,6 +397,18 @@ class WheelPanel {
       'Pedals self-calibrate after a full press; use <b>Calibrate</b> if an axis ' +
       'is mis-assigned. Steering reaches full lock at ±<b>' +
       Math.round(cfg.steering.rangeDeg / 2) + '°</b> of physical rotation.';
+  }
+
+  _renderPtt() {
+    if (!this.pttStatus) return;
+    const cfg = this.store.get();
+    const btns = Object.keys(cfg.bindings).filter((k) => cfg.bindings[k] === 'pushToTalk');
+    this.pttStatus.innerHTML = '<i class="pd-ptt-dot' + (this._pttLive ? ' on' : '') + '"></i>' +
+      (btns.length ? 'Btn ' + wpEsc(btns.join(', ')) + (this._pttLive ? ' · <b>talking</b>' : '') : 'not bound');
+    const hold = cfg.pushToTalk.mode === 'hold';
+    this.pttModeBtn.textContent = hold ? 'Hold to talk' : 'Press to toggle';
+    this.pttIndicatorBtn.textContent = cfg.pushToTalk.indicator ? 'Cabin indicator on' : 'Cabin indicator off';
+    this.pttIndicatorBtn.classList.toggle('on', cfg.pushToTalk.indicator);
   }
 
   dispose() {
