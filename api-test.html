@@ -72,6 +72,17 @@
     border-radius: 8px; padding: 10px 12px; font-size: 12px; }
   body:not(.is-live) #tab-dynamic .gate, body:not(.is-live) #tab-metrics .gate, body:not(.is-live) #tab-console .gate { display: block; }
   body:not(.is-live) #tab-dynamic .group:not(.gate), body:not(.is-live) #tab-metrics .needslive, body:not(.is-live) #tab-console .needslive { opacity: .45; pointer-events: none; }
+  body:not(.is-connected) #tab-agent .gate { display: block; }
+  body:not(.is-connected) #tab-agent .needslive { opacity: .45; pointer-events: none; }
+  .agentstates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .agentstates button { background: #2b313d; color: var(--txt); font-weight: 500; font-size: 12px; padding: 7px 6px; border: 1px solid transparent; }
+  .agentstates button.cur { border-color: var(--accent); color: var(--accent); }
+  .agentstates button i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .btnchips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .btnchips span { font: 10.5px var(--mono); padding: 2px 6px; border-radius: 4px; background: #11141a; border: 1px solid var(--line); color: var(--dim); }
+  .btnchips span.on { background: var(--ok); color: #03210f; border-color: var(--ok); }
+  .btnchips span.bound { border-color: #3a4252; color: var(--txt); }
+  .na { opacity: .45; }
   .foot { border-top: 1px solid var(--line); background: var(--panel); }
   .foot .cols { display: grid; grid-template-columns: 1fr 1fr; max-width: 1100px; margin: 0 auto; }
   .foot .telem { font: 11px var(--mono); padding: 8px 12px; border-right: 1px solid var(--line); max-height: 150px; overflow-y: auto; }
@@ -110,6 +121,7 @@
     <button data-tab="metrics">③ Metrics &amp; logs</button>
     <button data-tab="console">④ Center console</button>
     <button data-tab="vehicle">⑤ Vehicle state</button>
+    <button data-tab="agent">⑥ Agent &amp; cabin feedback</button>
   </div></div>
 
   <div class="tabwrap">
@@ -128,7 +140,7 @@
           <div class="row"><label>Topography</label>
             <select id="s-topo"><option value="">(keep)</option><option>straight</option><option>casual</option><option>easy</option><option>normal</option><option>hard</option></select></div>
           <div class="row"><label>Vehicle</label>
-            <select id="s-veh"><option value="">(keep)</option><option>Roadster</option><option>Coach</option></select></div>
+            <select id="s-veh"><option value="">(keep)</option><option>Roadster</option><option>Truck</option><option>Shuttle</option></select></div>
           <div class="row"><label>Antialias</label>
             <select id="s-aa"><option value="">(keep)</option><option value="true">on</option><option value="false">off</option></select></div>
         </div>
@@ -166,6 +178,8 @@
           <div class="row"><label>Season</label><select id="s-season"><option value="">(keep)</option></select></div>
           <div class="row"><label>Time of day</label><select id="s-time"><option value="">(keep)</option></select></div>
           <div class="row"><label>Weather</label><select id="s-weather"><option value="">(keep)</option></select></div>
+          <p class="hint">Three independent axes. Time of day and weather apply to the <b>Hills</b> scene only;
+            Planet takes a season (raw skin) alone.</p>
         </div>
       </div>
 
@@ -182,6 +196,8 @@
             <select id="s-side"><option value="0">right</option><option value="1">left</option></select></div>
           <div class="row"><label>Interior: seat</label>
             <select id="s-seat"><option value="0">driver</option><option value="1">passenger</option></select></div>
+          <div class="row"><label>Passenger seat (Shuttle)</label>
+            <select id="s-pseat"><option value="0">rear bench window</option><option value="1">rear bench centre</option><option value="2">front bench facing back</option><option value="3">standing by the door</option></select></div>
           <div class="row"><label>Interior: show wheel</label>
             <select id="s-wheel"><option value="true">shown</option><option value="false">hidden</option></select></div>
           <div class="row"><label>Interior: show center console</label>
@@ -191,6 +207,8 @@
           <div class="row"><label>Camera (initial)</label><select id="s-camera"></select></div>
           <div class="row"><label>Seat adjustment</label><input type="number" id="s-seatadj" step="0.01" min="-0.25" max="0.25" value="0" /></div>
           <div class="row"><label>Seat height</label><input type="number" id="s-seath" step="0.01" min="-0.05" max="0.05" value="0" /></div>
+          <p class="hint">The Shuttle is driverless: it loads with autodrive on, an info-display cluster, no
+            center console, and a first-person camera on the chosen passenger seat.</p>
         </div>
       </div>
 
@@ -252,16 +270,21 @@
         <h3>Atmosphere &amp; world</h3>
         <div class="body">
           <div class="row"><label>Season</label><select id="d-season" data-dyn="season" data-live></select></div>
-          <div class="row"><label>Time of day</label><select id="d-time" data-dyn="timeOfDay" data-live></select></div>
-          <div class="row"><label>Weather</label><select id="d-weather" data-dyn="weather" data-live></select></div>
+          <div class="row" id="d-time-row"><label>Time of day</label><select id="d-time" data-dyn="timeOfDay" data-live></select></div>
+          <div class="row" id="d-weather-row"><label>Weather</label><select id="d-weather" data-dyn="weather" data-live></select></div>
           <div class="row"><label>Day-night cycle</label>
             <select id="d-cycle" data-dyn="cycle" data-live><option value="0">off</option><option value="1">180s</option><option value="2">480s</option><option value="3">900s</option></select></div>
+          <p class="hint" id="d-atmo-hint">Each axis changes independently. The day-night cycle auto-advances
+            the time of day.</p>
         </div>
       </div>
 
       <div class="group">
         <h3>Vehicle &amp; autopilot</h3>
         <div class="body">
+          <div class="row"><label>Vehicle</label><span id="d-veh" style="font:12px var(--mono);color:var(--accent)">—</span></div>
+          <div class="row" id="d-pseat-row"><label>Passenger seat</label>
+            <select id="d-pseat" data-dyn="passengerSeat" data-live><option value="0">rear bench window</option><option value="1">rear bench centre</option><option value="2">front bench facing back</option><option value="3">standing by the door</option></select></div>
           <div class="row"><label>Drive mode</label>
             <select id="d-mode" data-dyn="driveMode" data-live><option>AWD</option><option>FWD</option><option>RWD</option></select></div>
           <div class="row"><label>Grip factor</label>
@@ -276,6 +299,8 @@
             <div class="switchwrap"><label class="switch"><input type="checkbox" id="d-lights" data-dyn="headlights" data-live /><span class="track"></span></label><span class="state" id="d-lights-s">off</span></div></div>
           <div class="row"><label>Camera</label>
             <select id="d-camera" data-dyn="camera" data-live></select></div>
+          <p class="hint">Changing the vehicle type rebuilds the world: set it on the Static tab and apply.
+            Passenger seat applies to the driverless Shuttle only.</p>
         </div>
       </div>
 
@@ -334,10 +359,14 @@
           </div>
           <div class="row"><label>Push to talk <span id="w-ptt-s" style="font:11px var(--mono);color:var(--dim)">idle</span></label>
             <div class="setrow"><select id="w-ptt-mode"><option value="hold">hold</option><option value="toggle">toggle</option></select><input type="number" id="w-ptt-btn" min="0" max="63" placeholder="btn #" style="flex:0 0 70px" /><button data-call="wheelPtt" data-live>Set</button></div></div>
+          <div class="row"><label>PTT drives agent indicator</label>
+            <label style="display:flex;gap:8px;align-items:center;color:var(--txt)"><input type="checkbox" id="w-ptt-ind" checked data-live /> show the talk window as <code>listening</code></label></div>
+          <div class="row"><label>Buttons (live)</label><div class="btnchips" id="w-buttons"><span>—</span></div></div>
           <div id="w-bindings" class="hint"></div>
           <p class="hint">Calibration runs in the <b>sim tab</b> (its window reads the wheel): start it here, then
             actuate the control on the rig; completion arrives as a <code>wheelCalibrated</code> event. Enabling wheel
-            input switches the sim to gamepad input mode.</p>
+            input switches the sim to gamepad input mode. Live buttons: green = pressed, outlined = bound;
+            each bound press is logged as a <code>wheelAction</code> event.</p>
           <pre class="out" id="wheel-out" style="display:none"></pre>
         </div>
       </div>
@@ -537,6 +566,65 @@
         </div>
       </div>
     </div>
+    <!-- ============ AGENT & CABIN FEEDBACK ============ -->
+    <div class="tab-panel" id="tab-agent">
+      <div class="gate full">⚠ The agent indicator and the cabin feedback layer live in the <b>sim tab</b>
+        (<code>window.CabinFeedback</code>, exposed as <code>PromptDrive.feedback</code>). Open and start a simulation.
+        The indicator is drawn on the center console's status strip, so it shows in the first-person camera
+        with the console enabled (the Shuttle has no console).</div>
+      <div class="group needslive">
+        <h3>Agent interaction state</h3>
+        <div class="body">
+          <div class="row"><label>Current</label><span id="ag-cur" style="font:12px var(--mono);color:var(--accent)">—</span></div>
+          <div class="agentstates" id="ag-states">
+            <button data-agent="idle"><i style="background:#5b6270"></i>idle</button>
+            <button data-agent="listening"><i style="background:#40E0D0"></i>listening</button>
+            <button data-agent="thinking"><i style="background:#f5a623"></i>thinking</button>
+            <button data-agent="speaking"><i style="background:#f4f6f8"></i>speaking</button>
+            <button data-agent="confirm"><i style="background:#f5a623"></i>confirm</button>
+            <button data-agent="action"><i style="background:#3ddc84"></i>action</button>
+            <button data-agent="error"><i style="background:#e5484d"></i>error</button>
+            <button data-call="agentDemo" class="sec">▶ demo turn</button>
+          </div>
+          <div class="row"><label>Detail: text / tool</label>
+            <div class="setrow"><input type="text" id="ag-text" placeholder="e.g. Listo, 22 grados." /><input type="text" id="ag-tool" placeholder="e.g. set_fan_speed" /></div></div>
+          <p class="hint">Calls <code>feedback.agent(state, detail)</code>; the detail fields are optional. Each state is a
+            distinct color and motion on the console strip: listening = cyan breathing bars, thinking = amber sweep,
+            speaking = white fast bars, confirm = amber blink, action = green check, error = red cross (the last two fade
+            back on their own). Every change is published as an <code>agentState</code> event and in the
+            telemetry <code>agent</code> field. <b>Demo turn</b> plays listening → thinking → speaking → action → idle.</p>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Push to talk (voice agent)</h3>
+        <div class="body">
+          <div class="row"><label>Talk window</label><span id="ag-ptt" style="font:12px var(--mono);color:var(--dim)">idle</span></div>
+          <div class="btnrow">
+            <button data-call="pttOpen">Open (API)</button>
+            <button data-call="pttClose" class="sec">Close</button>
+            <button data-call="pttState" class="sec">State</button>
+          </div>
+          <p class="hint">Opens and closes the talk window without the wheel (<code>source: 'api'</code>). Bind a wheel button
+            and choose hold/toggle on the <b>Dynamic → Steering wheel</b> card. The sim captures no audio: your agent
+            listens for <code>pushToTalk</code> events and opens its microphone.</p>
+          <pre class="out" id="ptt-out" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Cabin feedback layer</h3>
+        <div class="body">
+          <div class="row"><label>Feedback layer</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="fb-enabled" checked /><span class="track"></span></label><span class="state" id="fb-enabled-s">on</span></div></div>
+          <div class="btnrow">
+            <button data-call="fbList" class="sec">List features</button>
+            <button data-call="fbState" class="sec">Agent state</button>
+          </div>
+          <p class="hint">Features render vehicle-state changes (e.g. the reading light) and agent states in the cabin.
+            Turning the layer off hides every feature overlay (persisted in the sim's <code>localStorage</code>).</p>
+          <pre class="out" id="fb-out" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ PERSISTENT FOOTER: live feed ============ -->
@@ -586,7 +674,8 @@
   function handleEvent(event, payload) {
     if (event === 'tick') { lastTickAt = Date.now(); renderTelem(payload); setLive(true); return; }
     if (event === 'ready' && !connected) waitForReady();
-    if (event === 'pushToTalk') document.getElementById('w-ptt-s').textContent = payload && payload.active ? 'TALKING (btn ' + payload.button + ')' : 'idle';
+    if (event === 'pushToTalk') renderPtt(payload);
+    if (event === 'agentState') renderAgent(payload);
     if (event === 'wheelCalibrated' || event === 'wheelBinding' || event === 'wheelConnected' || event === 'wheelDisconnected') renderWheel();
     const cls = event === 'applied' || event === 'ended' ? 'applied' : (payload && payload.ok === false ? 'err' : '');
     log(event, payload, cls);
@@ -594,6 +683,7 @@
 
   // --- connection / live-feed state ------------------------------------------
   function setBadge() {
+    document.body.classList.toggle('is-connected', connected);
     if (live) { badge.textContent = 'live feed ✓'; badge.className = 'badge live'; }
     else if (connected) { badge.textContent = 'connected (paused)'; badge.className = 'badge ready'; }
     else { badge.textContent = 'waiting for sim…'; badge.className = 'badge waiting'; }
@@ -642,10 +732,49 @@
       ['speed (m/s)', fmt(s.speed)], ['heading', fmt(s.heading)], ['steer (rad)', fmt(s.steerRad)],
       ['pos x', fmt(s.posX)], ['pos z', fmt(s.posZ)], ['onRoad', s.onRoad], ['wrongWay', s.wrongWay],
       ['autodrive', s.autodrive], ['headlights', s.headlights], ['driveMode', s.driveMode], ['units', s.units],
+      ['vehicle', s.vehicle], ['season', s.season], ['timeOfDay', s.timeOfDay], ['weather', s.weather],
+      ['agent', s.agent == null ? '—' : s.agent],
     ];
     telemEl.innerHTML = rows.map(([k, v]) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
     syncSwitch('d-autodrive', s.autodrive);
     syncSwitch('d-lights', s.headlights);
+    if (s.vehicle) renderVehicle(s.vehicle);
+    if (s.season !== undefined) renderAtmosphereScope(s.timeOfDay != null);
+    if (s.agent && s.agent !== agentState) renderAgent({ state: s.agent });
+  }
+
+  // Shuttle-only rows and the live vehicle readout.
+  function renderVehicle(type) {
+    document.getElementById('d-veh').textContent = type;
+    document.getElementById('d-pseat-row').classList.toggle('na', type !== 'Shuttle');
+  }
+  // Time of day / weather exist only on the gridded Hills scene.
+  function renderAtmosphereScope(grid) {
+    ['d-time', 'd-weather'].forEach((id) => {
+      document.getElementById(id).disabled = !grid;
+      document.getElementById(id + '-row').classList.toggle('na', !grid);
+    });
+    document.getElementById('d-atmo-hint').textContent = grid
+      ? 'Each axis changes independently. The day-night cycle auto-advances the time of day.'
+      : 'This scene has no time-of-day / weather grid (Hills only); season maps to the raw skin.';
+  }
+
+  // --- agent interaction state + push to talk ----------------------------------
+  let agentState = null;
+  function renderAgent(p) {
+    if (!p || !p.state) return;
+    agentState = p.state;
+    const d = p.detail ? ' · ' + JSON.stringify(p.detail) : '';
+    document.getElementById('ag-cur').textContent = p.state + d;
+    document.querySelectorAll('#ag-states [data-agent]').forEach((b) => b.classList.toggle('cur', b.getAttribute('data-agent') === p.state));
+  }
+  function renderPtt(p) {
+    const txt = p && p.active
+      ? 'TALKING (' + (p.source === 'api' ? 'api' : 'btn ' + p.button) + ', ' + p.mode + ')'
+      : 'idle' + (p && p.durationMs != null ? ' · last ' + (p.durationMs / 1000).toFixed(1) + ' s' : '');
+    document.getElementById('w-ptt-s').textContent = txt;
+    document.getElementById('ag-ptt').textContent = txt;
+    document.getElementById('ag-ptt').style.color = p && p.active ? 'var(--ok)' : 'var(--dim)';
   }
   function syncSwitch(id, on) {
     const el = document.getElementById(id);
@@ -687,6 +816,7 @@
     else if (kind === 'season') { r = await op('dynamic.season', el.value); setTimeout(populateLive, 400); }
     else if (kind === 'timeOfDay') r = await op('dynamic.timeOfDay', el.value);
     else if (kind === 'weather') r = await op('dynamic.weather', el.value);
+    else if (kind === 'passengerSeat') r = await op('dynamic.set', { 'vehicle.passengerSeat': Number(el.value) });
     else if (kind === 'units') { r = await op('dynamic.set', { units: Number(el.value) }); setTimeout(populateLive, 200); }
     log(kind, r, r && r.ok === false ? 'err' : 'applied');
   }));
@@ -698,6 +828,31 @@
     log('wheel.enabled', r, r && r.ok === false ? 'err' : 'applied');
     renderWheel();
   });
+
+  // Push-to-talk indicator mirror (applies live).
+  document.getElementById('w-ptt-ind').addEventListener('change', async (e) => {
+    const r = await op('wheel.setPushToTalk', { indicator: e.target.checked });
+    log('wheel.pushToTalk.indicator', r, r && r.ok === false ? 'err' : 'applied');
+  });
+
+  // Cabin feedback layer on/off.
+  document.getElementById('fb-enabled').addEventListener('change', async (e) => {
+    document.getElementById('fb-enabled-s').textContent = e.target.checked ? 'on' : 'off';
+    const r = await op('feedback.enable', e.target.checked);
+    log('feedback.enable', r, r && r.ok === false ? 'err' : 'applied');
+  });
+
+  // Agent state buttons -> feedback.agent(state, detail).
+  function agentDetail() {
+    const d = {};
+    if (val('ag-text')) d.text = val('ag-text');
+    if (val('ag-tool')) d.tool = val('ag-tool');
+    return Object.keys(d).length ? d : undefined;
+  }
+  document.querySelectorAll('#ag-states [data-agent]').forEach((b) => b.addEventListener('click', async () => {
+    const r = await op('feedback.agent', b.getAttribute('data-agent'), agentDetail());
+    log('feedback.agent', r, r && r.ok === false ? 'err' : 'applied');
+  }));
 
   // Static hide-menu switch just reflects its own label; it is committed on Stage/Apply.
   document.getElementById('s-hidemenu').addEventListener('change', (e) => {
@@ -735,6 +890,16 @@
       fillSelect('d-weather', opts, g.scene.weather);
       fillSelect('s-weather', [{ v: '', t: '(keep)' }].concat(opts), g.scene.weather);
     }
+    renderVehicle(g.vehicle.type);
+    const ps = document.getElementById('d-pseat');
+    if (document.activeElement !== ps) ps.value = String(g.vehicle.passengerSeat || 0);
+    renderAtmosphereScope(g.scene.timeOfDay != null);
+    const fb = await op('feedback.state');
+    if (fb && fb.ok) renderAgent(fb.value);
+    const fbOn = await op('feedback.enabled');
+    if (fbOn && fbOn.ok) { const el = document.getElementById('fb-enabled'); el.checked = !!fbOn.value; document.getElementById('fb-enabled-s').textContent = fbOn.value ? 'on' : 'off'; }
+    const ptt = await op('wheel.pushToTalk');
+    if (ptt && ptt.ok) renderPtt(ptt.value);
     await renderWheel();
   }
 
@@ -751,6 +916,7 @@
       }
     }
     const c = cfg.value;
+    wheelCfg = c;
     syncSwitch('w-enabled', c.enabled);
     const rangeEl = document.getElementById('w-range');
     if (document.activeElement !== rangeEl) rangeEl.value = c.steering.rangeDeg;
@@ -767,7 +933,27 @@
       ? '<b>Bindings:</b> ' + rows.join(' · ') : 'no buttons bound';
     const modeEl = document.getElementById('w-ptt-mode');
     if (c.pushToTalk && document.activeElement !== modeEl) modeEl.value = c.pushToTalk.mode;
+    if (c.pushToTalk) document.getElementById('w-ptt-ind').checked = c.pushToTalk.indicator !== false;
+    const pttBtnEl = document.getElementById('w-ptt-btn');
+    const pttBtn = Object.keys(c.bindings).find((b) => c.bindings[b] === 'pushToTalk');
+    if (document.activeElement !== pttBtnEl) pttBtnEl.value = pttBtn == null ? '' : pttBtn;
   }
+
+  // Live wheel buttons: polled while the Dynamic tab is visible and the feed is live.
+  let wheelCfg = null;
+  async function pollWheelButtons() {
+    const box = document.getElementById('w-buttons');
+    if (!live || !document.getElementById('tab-dynamic').classList.contains('active')) return;
+    const st = await op('wheel.state');
+    if (!st || !st.ok || !st.value || !st.value.connected) { box.innerHTML = '<span>no device</span>'; return; }
+    const bound = (wheelCfg && wheelCfg.bindings) || {};
+    box.innerHTML = (st.value.buttons || []).map((b, i) => {
+      const cls = (b && b.pressed ? 'on ' : '') + (bound[i] ? 'bound' : '');
+      const title = bound[i] ? ' title="' + bound[i] + '"' : '';
+      return `<span class="${cls}"${title}>${i}</span>`;
+    }).join('') || '<span>no buttons</span>';
+  }
+  setInterval(pollWheelButtons, 250);
   function fillSelect(id, opts, selected) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -800,6 +986,7 @@
     p['vehicle.speedFactor'] = num('s-speed');
     p['vehicle.side'] = num('s-side');
     p['vehicle.seat'] = num('s-seat');
+    p['vehicle.passengerSeat'] = num('s-pseat');
     p['vehicle.showWheel'] = val('s-wheel') === 'true';
     p['vehicle.showConsole'] = val('s-console') === 'true';
     p['vehicle.steerRotationIndex'] = num('s-steer');
@@ -822,6 +1009,7 @@
     if (!g || g.ok === false || !g.scene) { log('loadCurrent', g, 'err'); return; }
     const set = (id, v) => { const el = document.getElementById(id); if (el != null && v != null) el.value = v; };
     set('s-seed', g.scene.seed); set('s-scene', g.scene.sceneName); set('s-topo', g.scene.topography);
+    set('s-veh', g.vehicle.type); set('s-pseat', g.vehicle.passengerSeat || 0);
     set('s-aa', String(g.scene.antialias));
     set('s-units', g.units); if (g.general) { set('s-worm', g.general.showWorm); set('s-barriers', String(!!g.general.barriers)); }
     if (g.ui) { const hm = document.getElementById('s-hidemenu'); if (hm) { hm.checked = !!g.ui.hideMenu; document.getElementById('s-hidemenu-s').textContent = g.ui.hideMenu ? 'on' : 'off'; } }
@@ -889,6 +1077,21 @@
       const r = await op('wheel.setPushToTalk', opts);
       renderWheel();
       return r;
+    },
+    pttOpen: () => op('wheel.setPushToTalk', { active: true }),
+    pttClose: () => op('wheel.setPushToTalk', { active: false }),
+    pttState: async () => { const r = await op('wheel.pushToTalk'); showOut('ptt-out', r); return r; },
+    fbList: async () => { const r = await op('feedback.list'); showOut('fb-out', r); return r; },
+    fbState: async () => { const r = await op('feedback.state'); showOut('fb-out', r); return r; },
+    // One scripted voice-agent turn, so every indicator state can be eyeballed in order.
+    agentDemo: async () => {
+      const steps = [['listening', 1800], ['thinking', 1600], ['speaking', 2600, { text: 'Listo, 22 grados.' }],
+        ['action', 1600, { tool: 'set_climate_temperature' }], ['idle', 0]];
+      for (const [state, ms, detail] of steps) {
+        await op('feedback.agent', state, detail);
+        if (ms) await new Promise((res) => setTimeout(res, ms));
+      }
+      return { ok: true, value: 'demo turn done' };
     },
     wheelState: async () => { const r = await op('wheel.state'); showOut('wheel-out', r); return r; },
     wheelUnbindAll: async () => {

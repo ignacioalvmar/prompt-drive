@@ -4,15 +4,19 @@ The integration API lets an external service **read** the full simulation
 configuration and **submit** two kinds of change:
 
 - **Static config** — setup baked at world/vehicle generation (seed, scene,
-  topography, vehicle type, initial weather/lanes, antialias). Applying it
-  reloads the sim so the engine regenerates the world.
+  topography, vehicle type — Roadster / Truck / driverless Shuttle — initial
+  season / time of day / weather, lanes, antialias). Applying it reloads the
+  sim so the engine regenerates the world.
 - **Dynamic config** — live changes a running sim applies without a restart
-  (weather, skin, day-night, lanes ±1, drive mode, grip/speed, autodrive,
-  headlights, camera, cruise, FOV, units, menu lockdown) plus programmatic
-  **drive inputs**.
+  (season, time of day, weather, day-night cycle, lanes ±1, drive mode,
+  grip/speed, autodrive, headlights, camera, cruise, FOV, units, Shuttle
+  passenger seat, menu lockdown) plus programmatic **drive inputs**.
 
 It also exposes a **telemetry + event stream** so the caller can observe the
-result of its changes and the ego vehicle's state.
+result of its changes and the ego vehicle's state, and in-cabin channels for an
+AI agent: the steering-wheel rig with **push to talk**, the center console, the
+CAR-bench vehicle-state store, and the **cabin feedback** layer that renders the
+agent's interaction state (listening / thinking / speaking / …).
 
 The design follows the project's extension pattern (an IIFE bundle exposed as a
 `window.*` global, wired to the engine by `scripts/build-main.js`) — the same
@@ -37,6 +41,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Steering wheel — `wheel.*`](#steering-wheel--wheel)
   - [Center console — `console.*`](#center-console--console)
   - [Vehicle state — `vehicle.*`](#vehicle-state--vehicle)
+  - [Cabin feedback & agent states — `feedback.*`](#cabin-feedback--agent-states--feedback)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -148,6 +153,18 @@ wheel.cancelCapture()  wheel.resetCalibration(target?)
 wheel.pushToTalk()            // PTT state { active, button, mode, buttons, … }
 wheel.setPushToTalk(opts)     // { button?, mode?:'hold'|'toggle', indicator?, active? }
 
+console.state()               // center stack: apps, layout, audio/phone/comfort (see below)
+console.open(id)  console.layout(mode)  console.swap()  console.tap(u, v)
+console.audio.*  console.phone.*  console.comfort.*
+
+vehicle.get(keys?)  vehicle.set(partial)  // CAR-bench ContextState (31 fields)
+vehicle.snapshot()  vehicle.reset(cfg, opts)  vehicle.benchmark(on)  vehicle.fixed.get()
+
+feedback.agent(state, detail?) // agent interaction state: idle|listening|thinking|speaking|confirm|action|error
+feedback.state()              // current { state, detail, at }
+feedback.list()               // registered cabin feedback features
+feedback.enable(bool)  feedback.enabled()  // show/hide the whole feedback layer
+
 metrics.families()            // metric families (lane keeping, speed, …) + member ids
 metrics.selection()           // which metric ids are currently on
 metrics.select(id, on)        // toggle one metric
@@ -163,6 +180,7 @@ run.downloadLogs()            // JSON + CSV logs download
 run.end()                     // alias of end()
 
 end({ download })             // finalize run, auto-export report + logs, halt sim
+pause()  resume()             // halt / resume the engine ticker
 
 on(event, fn)   off(event, fn)   subscribe(fn)   // event stream
 ```
@@ -338,6 +356,11 @@ they are applied live before the reload so they also persist.
   autodrive,    // bool
   driveMode,    // "AWD" | "FWD" | "RWD"
   units,        // 0 | 1
+  vehicle,      // "Roadster" | "Truck" | "Shuttle"
+  season,       // "spring" | "summer" | "fall" | "winter" (raw skin off the Hills grid)
+  timeOfDay,    // "morning" | "midday" | "dusk" | "night" (null off the Hills grid)
+  weather,      // "clear" | "rain" | "snow" | "fog" (null off the Hills grid)
+  agent,        // voice-agent interaction state (see feedback.*), when the feedback layer is loaded
   lane,         // { forward, backward } under the car, when multi-lane roads are active
   traffic       // { count, lead: { gap, speed, lane, id } | null } when traffic is active —
                 // the ego's lead vehicle (bumper gap in m, speed m/s), for THW/TTC measures
@@ -412,7 +435,8 @@ PromptDrive.wheel.state();
 //      signals:{ steer, throttle, brake, clutch }, active, pushToTalk, capturing } }
 
 PromptDrive.wheel.actions();    // bindable actions: pause, cameraNext,
-                                // weatherNext/Prev, skinNext/Prev, headlights,
+                                // weatherNext/Prev, timeNext/Prev,
+                                // skinNext/Prev (season), headlights,
                                 // autodrive, cruiseToggle/Up/Down, handbrake,
                                 // handbrakeToggle, boost, reverse, reset, mute, toggleUI,
                                 // pushToTalk
@@ -431,6 +455,14 @@ PromptDrive.wheel.captureButton('weatherNext'); // bind the next pressed button
   capture reads the gamepad in the **sim's window**.
 - Config is also settable via `dynamic.set({ wheel: {…} })` and stageable via
   `config.set` (it commits through the same owner).
+- **Atmosphere buttons**: `weatherNext/Prev` and `timeNext/Prev` step one axis
+  by name (clear → rain → snow → fog, morning → midday → dusk → night,
+  wrapping) through `dynamic.weather` / `dynamic.timeOfDay`, leaving the other
+  axes untouched. They act on the Hills scene only (no-op on Planet).
+  `skinNext/Prev` cycle the season.
+- **Live buttons**: `wheel.state().value.buttons[i].pressed` is the raw
+  per-button state (the test console shows it as a live chip row); every bound
+  press also emits `wheelAction { action }`.
 
 #### Push to talk
 
@@ -580,6 +612,49 @@ clamping, so a write-through mirror can't silently mask an adapter bug. Emits
 (see [Events](#events)). `benchmark`, `reset`-time linked projection, and
 `ambience` are fully wired once the in-cabin linkage bundle is present.
 
+### Cabin feedback & agent states — `feedback.*`
+
+The in-cabin feedback layer (`window.CabinFeedback`, `src/feedback/`, bundle
+`static/js/feedback.js`) renders agent activity and vehicle-state changes the
+driver would otherwise not notice. Its transport facade is attached to
+`PromptDrive.feedback` when the bundle boots, so it works over every transport.
+It is engine-independent (works before *begin*), but the reference
+**agent indicator** draws on the center console's status strip, so it is only
+visible in the first-person camera with the console shown (not on the Shuttle,
+which has no console).
+
+```js
+PromptDrive.feedback.agent('listening');                   // mic open
+PromptDrive.feedback.agent('thinking', { tool: 'set_fan_speed' });
+PromptDrive.feedback.agent('speaking', { text: 'Listo, 22 grados.' });
+PromptDrive.feedback.agent('action');                      // tool call succeeded
+// → { ok:true, value:{ state, detail, at } }
+PromptDrive.feedback.state();      // → { ok:true, value:{ state:'action', detail:null, at } }
+PromptDrive.feedback.list();       // → { ok:true, value:[{ id, title, fields, inited }, …] }
+PromptDrive.feedback.enable(false); PromptDrive.feedback.enabled(); // hide / query the layer
+```
+
+| State | Reference indicator (console strip) |
+| --- | --- |
+| `idle` | dark band, faint centre line |
+| `listening` | cyan level bars breathing from the centre (rising chime) |
+| `thinking` | amber light sweeping left ↔ right |
+| `speaking` | white, fast dense level bars |
+| `confirm` | amber band blinking ~1 Hz (waiting for the driver's yes/no) |
+| `action` | green flash + check mark, fades after ~1.5 s |
+| `error` | red flash + cross, fades after ~2 s |
+
+- `detail` is a free object passed to features (e.g. `{ text }`, `{ tool }`).
+- Every change emits `agentState { state, detail, at }` and is reflected in the
+  telemetry tick's `agent` field.
+- Wheel **push to talk** mirrors onto this channel: opening the talk window
+  sets `listening`, closing it returns to `idle` (unless the agent already moved
+  on); turn that off with `wheel.setPushToTalk({ indicator:false })`.
+- `enable(false)` hides every feature overlay (persisted as
+  `cabin-feedback-enabled` in the sim's `localStorage`).
+- New features (one file per feature in `src/feedback/features/`) are covered
+  in the README's *Cabin feedback layer* section.
+
 ### Metrics run & export — `run.*`
 
 Controls the driving-metrics run lifecycle and downloads. Recording auto-starts
@@ -669,6 +744,9 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `wheelBinding` | `{ button, action }` | Wheel — a button binding changed (`action:null` = unbound). |
 | `wheelAction` | `{ action }` | Wheel — a bound button fired its action. |
 | `pushToTalk` | `{ active, button, source, mode, durationMs?, reason? }` | Wheel — push-to-talk window opened/closed. |
+| `agentState` | `{ state, detail, at }` | Feedback — `feedback.agent()` changed the agent interaction state. |
+| `consoleApp` / `consoleLayout` / `consoleAudio` / `consolePhone` / `consoleComfort` | app / layout / player / call / comfort state | Console — center-stack state changes (see [`console.*`](#center-console--console)). |
+| `vehicleNavDisplay` | `{ meta }` | Vehicle — `vehicle.navDisplay()` route metadata for the Nav card. |
 | `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
 | `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |
 | `vehicleController` | `{ distance, speed, … }` | Engine (periodic) |
@@ -960,36 +1038,48 @@ telemetry/event streams, no game rendering.
    [http://localhost:3000/api-test.html](http://localhost:3000/api-test.html).
    Its badge turns green (`live feed ✓`) once the sim's telemetry is flowing.
 
-It is organised into three tabs plus a persistent live-feed footer:
+It is organised into six tabs plus a persistent live-feed footer:
 
 - **① Static config** — grouped to mirror the in-game settings: *World & launch*
-  (seed, node, scene, topography, vehicle, antialias, and the **Auto-start /
-  bypass “begin”** toggle), *General settings* (units, road worm, barriers, and
-  the **Hide menu icons** participant-lockdown switch),
-  *Graphics* (view distance, detail, render scale), *Weather*, *Vehicle* (drive
-  mode, autodrive lane, grip/speed, interior side/seat/wheel/rotation/adjustment/
-  height), *Road lanes* (forward/oncoming/width), and *Driving metrics to
-  collect* (the five families). *Load current values*, *Stage*, *Show pending*,
-  and *Apply & (re)launch*.
-- **② Dynamic config** — weather/skin/cycle, drive mode, grip/speed (inline
-  **Set** buttons), cruise (On/Off), autodrive and headlights (**toggle
-  switches**), camera (**labeled dropdown**), lanes (±1), FOV, units, the
-  **Hide menu icons** lockdown switch, the **Steering wheel** card (enable,
-  device state, rotation range, calibration, button→action bindings), and
-  press-and-hold drive inputs. Dropdowns and switches apply on change; numeric
-  fields apply on their Set button.
+  (seed, node, scene, topography, **vehicle type** Roadster / Truck / Shuttle,
+  antialias, and the **Auto-start / bypass “begin”** toggle), *General
+  settings* (units, road worm, barriers, and the **Hide menu icons**
+  participant-lockdown switch), *Graphics* (view distance, detail, render
+  scale), *Atmosphere* (initial **season / time of day / weather**), *Vehicle*
+  (drive mode, autodrive lane, grip/speed, interior side/seat/**Shuttle
+  passenger seat**/wheel/console/rotation/camera/adjustment/height), *Road
+  lanes*, *Traffic vehicles*, and *Driving metrics to collect*. *Load current
+  values*, *Stage*, *Show pending*, and *Apply & (re)launch*.
+- **② Dynamic config** — season / time of day / weather (time and weather are
+  greyed out off the Hills grid) and the day-night cycle; the current vehicle,
+  Shuttle passenger seat, drive mode, grip/speed (inline **Set** buttons),
+  cruise, autodrive and headlights (**toggle switches**), camera; lanes (±1),
+  FOV, units, the **Hide menu icons** lockdown switch; traffic events; the
+  **Steering wheel** card (enable, device, rotation range, calibration,
+  button→action bindings, push-to-talk button/mode/indicator, and a **live
+  button row**: pressed buttons light green, bound ones are outlined); and
+  press-and-hold drive inputs.
 - **③ Metrics & logs** — run *Start/Stop/Reset/Status*, *Get report (JSON)*,
-  *Download report / logs*, and **End simulation & export** (finalize + auto
-  report/logs + halt).
-- **Footer** — a live telemetry readout and a scrolling event/response log.
+  *Download report / logs*, and **End simulation & export**.
+- **④ Center console** — apps & split layout, audio player, phone, comfort,
+  synthetic touch.
+- **⑤ Vehicle state** — CAR-bench benchmark mode, snapshot, quick setters,
+  per-task reset.
+- **⑥ Agent & cabin feedback** — buttons for every agent interaction state
+  (with optional `text` / `tool` detail) and a scripted **demo turn**
+  (listening → thinking → speaking → action → idle); push-to-talk status with
+  API *Open* / *Close*; the feedback-layer switch and feature list.
+- **Footer** — a live telemetry readout (incl. vehicle, season / time of day /
+  weather and agent state) and a scrolling event/response log.
 
 Groups are **draggable** — grab a group's header (⠿) and drop it to reorder the
 cards within a tab; each drop snaps to the nearest grid position and the layout
 is remembered per tab in `localStorage`.
 
-**Live-feed gating.** The Dynamic and Metrics tabs require a running sim: the
-badge turns green (`live feed ✓`) only while the `tick` stream is flowing, and
-those controls are disabled with a banner until then. Static config works at any
+**Live-feed gating.** The Dynamic, Metrics and Center console tabs require a
+running sim: the badge turns green (`live feed ✓`) only while the `tick` stream
+is flowing, and those controls are disabled with a banner until then. The Agent
+tab only needs a connected sim (it keeps working while the sim is paused). Static config works at any
 time (it stages and reloads). Enable **Auto-start** on the Static tab to launch
 straight into a live sim.
 
@@ -1009,6 +1099,8 @@ straight into a live sim.
 | `src/api/hidemenu.js` | Participant lockdown — hides the bottom-bar menu icons (`ui.hideMenu` / `?hideMenu=1`). |
 | `src/vehicle/` | CAR-bench-shaped vehicle-state store (`window.VehicleState`) behind `vehicle.*`. |
 | `src/wheel/` | Steering-wheel & pedal subsystem (`window.WheelControls`) behind `wheel.*`. |
+| `src/console/` | In-cabin center stack (`window.CenterConsole`) behind `console.*`. |
+| `src/feedback/` | Cabin feedback layer (`window.CabinFeedback`) behind `feedback.*`. |
 | `scripts/build-api.js` | Bundles `src/api/` → `static/js/api.js`. |
 | `scripts/build-vehicle.js` | Bundles `src/vehicle/` → `static/js/vehicle.js`. |
 | `scripts/test_socket.py`, `scripts/test-socket-sim.js` | WebSocket transport integration test. |

@@ -259,7 +259,7 @@ const CabinFeedback = {
       console.warn('[CabinFeedback] VehicleState not found; load feedback.js after vehicle.js');
     }
 
-    // Facade for the transports: PromptDrive.feedback.agent(...) / list() / enable()
+    // Facade for the transports: PromptDrive.feedback.agent(...) / state() / list() / enable() / enabled()
     const pd = window.PromptDrive;
     if (pd && !pd.feedback) {
       pd.feedback = {
@@ -267,6 +267,7 @@ const CabinFeedback = {
         state: () => ({ ok: true, value: this._agentState }),
         list: () => ({ ok: true, value: this.list() }),
         enable: (on) => ({ ok: true, value: this.enable(on) }),
+        enabled: () => ({ ok: true, value: this._enabled }),
       };
     }
   },
