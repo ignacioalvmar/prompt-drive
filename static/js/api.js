@@ -898,7 +898,17 @@ function telemetryState() {
     autodrive: h.autodrive.value,
     driveMode: ['AWD', 'FWD', 'RWD'][h.vehicleConfig.value.mode] || 'AWD',
     units: h.units.Units,
+    vehicle: h.vehicleConfig.value.type,
   };
+  // Atmosphere axes (timeOfDay/weather are null off the Hills grid).
+  try {
+    const s = h.sceneConfig.value;
+    Object.assign(out, decodeAtmosphere(s.sceneName, s.skin, s.weatherIndex));
+  } catch (_e) {}
+  // Voice-agent interaction state, when the cabin feedback layer is loaded.
+  try {
+    if (typeof window !== 'undefined' && window.CabinFeedback) out.agent = window.CabinFeedback.agentState().state;
+  } catch (_e) {}
   // Lane geometry the engine resolved, if multi-lane roads are active.
   try {
     if (typeof window !== 'undefined' && window.LaneRoads && window.LaneRoads._resolved) {

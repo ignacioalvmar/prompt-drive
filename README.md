@@ -225,7 +225,8 @@ map: [`wheel-controls-plan.md`](wheel-controls-plan.md).
   buttons run a guided capture (press the pedal / sweep the wheel) if an axis
   is mis-assigned on your browser/OS.
 - **Button → action bindings** — bind any wheel button to: pause, next camera
-  view, next/previous weather, next/previous season, headlights, autodrive,
+  view, next/previous weather, next/previous time of day, next/previous
+  season, headlights, autodrive,
   cruise on/off / faster / slower, handbrake (hold or toggle), boost, reverse,
   reset vehicle, mute, toggle HUD. Defaults cover the common G923 face
   buttons; rebind from the settings section (*press a button* capture), the
@@ -308,9 +309,14 @@ same extension pattern as the subsystems above: an IIFE bundle (`src/api/` →
 - **Test console** — [`api-test.html`](api-test.html): a **standalone** page
   (configuration + telemetry only, no game rendering) that drives a simulation
   running normally at `localhost:3000` over the `BroadcastChannel` transport.
-  Separate **static** and **dynamic** areas, a metrics/logs panel, and a live
-  telemetry + event feed; dynamic controls activate only while a live feed is
-  running. Run the sim, then open the console — it connects automatically.
+  Six tabs: **static** config (incl. vehicle type Roadster/Truck/Shuttle,
+  passenger seat, initial season/time of day/weather), **dynamic** config
+  (atmosphere axes, steering-wheel card with live button view and push to
+  talk), metrics & logs, center console, vehicle state, and **agent & cabin
+  feedback** (set the agent's interaction state, open/close the talk window,
+  toggle the feedback layer). A live telemetry + event feed runs underneath;
+  live-only controls activate once the sim is running. Run the sim, then open
+  the console — it connects automatically.
 
 **Full reference: [`API.md`](API.md).** Design rationale and the phased roadmap
 are in [`prompt-drive-api-plan.md`](prompt-drive-api-plan.md).
@@ -326,7 +332,7 @@ Before publishing, update social meta tags in `index.html` (`og:url`, `twitter:u
 The checked-in `static/media/` set is incomplete relative to the full game bundle. Summer/spring gameplay works. The upstream Bike / Coach / Debug vehicle meshes are missing, so those vehicles are not offered.
 ## Cabin feedback layer (`src/feedback/`)
 
-Agent tool calls land in `VehicleState`, but most of the 31 fields have no visible or audible effect in the cabin. `src/feedback/` is the extension point for that feedback: a registry (`CabinFeedback`, `static/js/feedback.js`) plus one file per feature in `src/feedback/features/`. Each feature declares the `VehicleState` fields it listens to and renders them in its own full-screen DOM layer above the canvas, in the center console's status strip (`CenterConsole.registerOverlay`, a band reserved at the top of the screen), or in the 3D scene through `PromptDriveBridge.handles`, with optional sound. Agent interaction states (listening, thinking, speaking, confirm, action, error) reach features through `CabinFeedback.agent(state, detail)`, also exposed to the transports as `PromptDrive.feedback.agent(...)`.
+Agent tool calls land in `VehicleState`, but most of the 31 fields have no visible or audible effect in the cabin. `src/feedback/` is the extension point for that feedback: a registry (`CabinFeedback`, `static/js/feedback.js`) plus one file per feature in `src/feedback/features/`. Each feature declares the `VehicleState` fields it listens to and renders them in its own full-screen DOM layer above the canvas, in the center console's status strip (`CenterConsole.registerOverlay`, a band reserved at the top of the screen), or in the 3D scene through `PromptDriveBridge.handles`, with optional sound. Agent interaction states (idle, listening, thinking, speaking, confirm, action, error) reach features through `CabinFeedback.agent(state, detail)`, also exposed to the transports as `PromptDrive.feedback.agent(...)` (see [`API.md`](API.md#cabin-feedback--agent-states--feedback) and the **Agent & cabin feedback** tab of `api-test.html`).
 
 ```bash
 npm run build:feedback   # src/feedback/ → static/js/feedback.js

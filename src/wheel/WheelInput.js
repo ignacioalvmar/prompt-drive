@@ -358,20 +358,28 @@ class WheelInput {
       return;
     }
     if (action.via === 'api') {
-      if (action.api === 'weatherNext') this._cycleWeather(1);
-      else if (action.api === 'weatherPrev') this._cycleWeather(-1);
+      if (action.api === 'weatherNext') this._cycleAtmosphere('weather', 1);
+      else if (action.api === 'weatherPrev') this._cycleAtmosphere('weather', -1);
+      else if (action.api === 'timeNext') this._cycleAtmosphere('timeOfDay', 1);
+      else if (action.api === 'timePrev') this._cycleAtmosphere('timeOfDay', -1);
     }
   }
 
-  _cycleWeather(dir) {
+  // Step one atmosphere axis ('weather' | 'timeOfDay') by name through the
+  // facade, leaving the other axes untouched. The axes only exist on the
+  // gridded Hills scene; elsewhere the facade rejects it and this is a no-op.
+  _cycleAtmosphere(axis, dir) {
     try {
       const PD = typeof window !== 'undefined' ? window.PromptDrive : null;
       if (!PD) return;
-      const list = PD.weathers();
-      if (!Array.isArray(list) || !list.length) return;
-      const cur = Number(PD.get('scene.weatherIndex')) || 0;
-      const next = ((cur + dir) % list.length + list.length) % list.length;
-      PD.dynamic.weather(next);
+      const list = axis === 'weather'
+        ? (PD.weathers() || []).map((w) => w.name)
+        : (PD.timesOfDay() || []);
+      if (!list.length) return;
+      const cur = list.indexOf(PD.get('scene.' + axis));
+      if (cur < 0) return; // not a gridded scene
+      const next = list[((cur + dir) % list.length + list.length) % list.length];
+      PD.dynamic[axis](next);
     } catch (_e) {
       /* sim not live yet */
     }
