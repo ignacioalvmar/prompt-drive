@@ -652,6 +652,18 @@ PromptDrive.feedback.enable(false); PromptDrive.feedback.enabled(); // hide / qu
   on); turn that off with `wheel.setPushToTalk({ indicator:false })`.
 - `enable(false)` hides every feature overlay (persisted as
   `cabin-feedback-enabled` in the sim's `localStorage`).
+- **IVI request cards** (`ivi_request` feature): every successful agent request
+  that changes an in-vehicle function — `vehicle.set` (CAR-bench fields) or the
+  `console.audio.*` / `console.comfort.*` mutators — shows a short card on the
+  center console listing what changed (`Temp · Driver  20 °C → 22 °C`). The card
+  sits over the right third of the screen without changing the layout, so the
+  open app (e.g. navigation) keeps running underneath, and fades after ~4 s.
+  Requests less than 750 ms apart merge into one card (up to 4 lines, then
+  `+N more`). When the card disappears, the function's app (Comfort for
+  temperature / seat heat / fan, Audio, Nav for route fields) is put in the 1/3
+  pane of the split view unless it is already on screen; the main app stays in
+  the 2/3 pane. Reads (`get`), rejected requests and `vehicle.reset` show no
+  card; phone calls are left out because the Phone app already opens itself.
 - New features (one file per feature in `src/feedback/features/`) are covered
   in the README's *Cabin feedback layer* section.
 
@@ -746,6 +758,7 @@ PromptDrive.subscribe((event, payload) => { … }); // every event
 | `pushToTalk` | `{ active, button, source, mode, durationMs?, reason? }` | Wheel — push-to-talk window opened/closed. |
 | `agentState` | `{ state, detail, at }` | Feedback — `feedback.agent()` changed the agent interaction state. |
 | `consoleApp` / `consoleLayout` / `consoleAudio` / `consolePhone` / `consoleComfort` | app / layout / player / call / comfort state | Console — center-stack state changes (see [`console.*`](#center-console--console)). |
+| `iviRequest` | `{ app, action, before, after }` | Console — a successful API call that changes an IVI function (`console.audio.play/pause/toggle/next/prev/volume`, `console.comfort.set/reset`), with the app state before and after. Drives the IVI request cards. |
 | `vehicleNavDisplay` | `{ meta }` | Vehicle — `vehicle.navDisplay()` route metadata for the Nav card. |
 | `trafficStopped` | `{ id, distance, lane }` | Traffic — stopped-vehicle event placed. |
 | `trafficCollision` | `{ id, with: 'ego'\|id, lane, relativeSpeed }` | Traffic — contact began. |

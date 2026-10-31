@@ -1213,6 +1213,22 @@ const PromptDrive = {
         return err('engine_rejected', { message: String((e && e.message) || e) });
       }
     };
+    // Mutating calls that change an IVI function: snapshot the app state before
+    // and after and announce it as `iviRequest`, so the cabin feedback layer can
+    // show the driver what the agent changed (reads never emit).
+    const SNAP = { audio: (a) => a.status(), comfort: (cf) => cf.get() };
+    const req = (id, action, fn) => {
+      const a = app(id);
+      let before = null;
+      try { if (a && a.controller) before = SNAP[id](a.controller); } catch (_e) {}
+      const r = ctl(id, fn);
+      if (r && r.ok) {
+        let after = null;
+        try { after = SNAP[id](app(id).controller); } catch (_e) {}
+        try { if (window.PromptDriveBridge) window.PromptDriveBridge.emit('iviRequest', { app: id, action, before, after }); } catch (_e) {}
+      }
+      return r;
+    };
     const finite = (v) => typeof v === 'number' && isFinite(v);
     return {
       // Read-only: always available so callers can discover enabled:false.
@@ -1230,16 +1246,16 @@ const PromptDrive = {
         ? call((c) => c.tap(Number(u), Number(v)))
         : err('bad_value', { message: 'u and v must be numbers in 0..1' })),
       audio: {
-        play: (track) => ctl('audio', (a) => a.play(track)),
-        pause: () => ctl('audio', (a) => a.pause()),
-        toggle: () => ctl('audio', (a) => a.toggle()),
-        next: () => ctl('audio', (a) => a.next()),
-        prev: () => ctl('audio', (a) => a.prev()),
+        play: (track) => req('audio', 'play', (a) => a.play(track)),
+        pause: () => req('audio', 'pause', (a) => a.pause()),
+        toggle: () => req('audio', 'toggle', (a) => a.toggle()),
+        next: () => req('audio', 'next', (a) => a.next()),
+        prev: () => req('audio', 'prev', (a) => a.prev()),
         seek: (frac) => (finite(frac)
           ? ctl('audio', (a) => a.seek(Number(frac)))
           : err('bad_value', { message: 'seek expects a number in 0..1' })),
         volume: (v) => (finite(v)
-          ? ctl('audio', (a) => a.volume(Number(v)))
+          ? req('audio', 'volume', (a) => a.volume(Number(v)))
           : err('bad_value', { message: 'volume expects a number in 0..1' })),
         status: () => ctl('audio', (a) => a.status()),
       },
@@ -1254,8 +1270,8 @@ const PromptDrive = {
       },
       comfort: {
         get: () => ctl('comfort', (cf) => cf.get()),
-        set: (partial) => ctl('comfort', (cf) => cf.set(partial)),
-        reset: () => ctl('comfort', (cf) => cf.reset()),
+        set: (partial) => req('comfort', 'set', (cf) => cf.set(partial)),
+        reset: () => req('comfort', 'reset', (cf) => cf.reset()),
       },
     };
   })(),
