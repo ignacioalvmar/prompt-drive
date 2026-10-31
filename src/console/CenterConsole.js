@@ -394,15 +394,19 @@ export class CenterConsole {
   /**
    * Register a drawer for the status strip at the top of the screen.
    * spec: { id: string, height: number (px, canvas space, default 56),
-   *         draw(ctx, rect, now, data) } — `rect` is { x, y, w, h } in canvas
-   * coordinates (not translated); `data` is the console's refreshed data.
+   *         layer?: 'strip' | 'content', draw(ctx, rect, now, data) } —
+   * `rect` is { x, y, w, h } in canvas coordinates (not translated); `data` is
+   * the console's refreshed data. A 'content' overlay reserves no space: it
+   * draws on top of the app panes (rect = the area between strip and dock),
+   * for transient cards that must not disturb the open app.
    * Returns an unregister function. Overlays only draw; they never receive
    * pointer events (taps on the strip are swallowed like empty screen).
    */
   registerOverlay(spec) {
     if (!spec || typeof spec.id !== 'string' || typeof spec.draw !== 'function') return () => {};
     this.unregisterOverlay(spec.id);
-    this._overlays.push({ id: spec.id, height: Math.max(0, spec.height || 56), draw: spec.draw });
+    const layer = spec.layer === 'content' ? 'content' : 'strip';
+    this._overlays.push({ id: spec.id, layer, height: layer === 'content' ? 0 : Math.max(0, spec.height || 56), draw: spec.draw });
     this._requestDraw();
     return () => this.unregisterOverlay(spec.id);
   }
@@ -420,10 +424,12 @@ export class CenterConsole {
 
   _drawOverlays(now) {
     const h = this._overlayHeight();
-    if (!h) return;
     const ctx = this.ctx;
-    const rect = { x: 0, y: 0, w: this.canvas.width, h };
+    const strip = { x: 0, y: 0, w: this.canvas.width, h };
+    const content = { x: 0, y: h, w: this.canvas.width, h: this.canvas.height - DOCK.height - h };
     for (const o of this._overlays) {
+      const rect = o.layer === 'content' ? content : strip;
+      if (!rect.h) continue;
       ctx.save();
       ctx.beginPath();
       ctx.rect(rect.x, rect.y, rect.w, rect.h);
