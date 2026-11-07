@@ -12,6 +12,7 @@
 
 import { CONSOLE_COLORS, PHONE_CONTACTS, PHONE_RINGTONE } from '../config.js';
 import { clamp, font, formatTime, drawText, fillRoundRect, drawAvatar, iconPhone, iconPhoneUp, iconPhoneDown } from '../ui.js';
+import { contentLive, ContentPhone } from './ContentScreens.js';
 
 const PHONE_RING_TIMEOUT_MS = 30000;
 const PHONE_TAP_SLOP_PX = 8;
@@ -28,6 +29,7 @@ const phoneStore = {
   ringRetryArmed: false,
   missTimer: null,
   gain: 1, // engine master gain (AudioLevel × pause-mute), set by the core
+  contentCall: false, // active call placed through the content layer
 };
 
 const PHONE_RING_VOLUME = 0.35;
@@ -230,6 +232,12 @@ const phoneController = {
 
   /** End works for both phases: reject while ringing, hang up while active. */
   end() {
+    // Content-layer calls are owned by the runtime service (it logs the
+    // hang-up and calls contentEnd() back through the effects module).
+    if (phoneStore.phase === 'active' && phoneStore.contentCall && typeof window !== 'undefined' && window.VehicleContent) {
+      window.VehicleContent.hangUp();
+      return phoneStatus();
+    }
     if (phoneStore.phase === 'incoming') return phoneController.reject();
     if (phoneStore.phase !== 'active') return phoneStatus();
     phoneStopRingtone();
@@ -254,6 +262,31 @@ const phoneController = {
   },
 
   status() {
+    return phoneStatus();
+  },
+
+  /** Content layer: show the call screen for a call_contact effect. */
+  contentCall(caller) {
+    phoneClearMissTimer();
+    phoneStopRingtone();
+    phoneStore.caller = { name: caller.name, phone: caller.label, hue: caller.hue };
+    phoneStore.phase = 'active';
+    phoneStore.contentCall = true;
+    phoneStore.callStartMs = phoneNow();
+    phoneOpenSelf();
+    phoneEmit();
+    return phoneStatus();
+  },
+
+  /** Content layer: the service ended the call (hang-up or 20 s limit). */
+  contentEnd() {
+    if (!phoneStore.contentCall) return phoneStatus();
+    phoneStore.contentCall = false;
+    if (phoneStore.phase === 'active') {
+      phoneStore.phase = 'idle';
+      phoneStore.caller = null;
+      phoneEmit();
+    }
     return phoneStatus();
   },
 };
@@ -481,12 +514,17 @@ export const PhoneApp = {
   draw(ctx, rect, env) {
     ctx.fillStyle = CONSOLE_COLORS.screenBg;
     ctx.fillRect(0, 0, rect.w, rect.h);
+    if (phoneStore.phase === 'idle' && contentLive()) {
+      ContentPhone.draw(ctx, rect, env);
+      return;
+    }
     if (phoneStore.phase === 'incoming') phoneDrawIncoming(ctx, rect, env);
     else if (phoneStore.phase === 'active') phoneDrawActive(ctx, rect, env);
     else phoneDrawIdle(ctx, rect, env);
   },
 
   onPointer(type, x, y, rect, env) {
+    if (phoneStore.phase === 'idle' && contentLive()) return ContentPhone.onPointer(type, x, y, rect, env);
     if (phoneStore.phase === 'idle') {
       // Touch-list behavior: capture on down, scroll on move, and treat an
       // up with < PHONE_TAP_SLOP_PX total movement as a tap on the row.

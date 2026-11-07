@@ -85,7 +85,11 @@
       } catch (ex) {
         result = { ok: false, error: 'exception', message: String((ex && ex.message) || ex) };
       }
-      send({ ns: NS, kind: 'res', id: d.id, result });
+      // Async ops (e.g. content.load) resolve before replying, like postMessage.
+      Promise.resolve(result).then(
+        (r) => send({ ns: NS, kind: 'res', id: d.id, result: r }),
+        (ex) => send({ ns: NS, kind: 'res', id: d.id, result: { ok: false, error: 'exception', message: String((ex && ex.message) || ex) } }),
+      );
     };
 
     ws.onclose = () => {

@@ -12,6 +12,7 @@
 
 import { CONSOLE_COLORS } from '../config.js';
 import { drawText, fillRoundRect, iconNav, iconChevron } from '../ui.js';
+import { contentLive, ContentNav } from './ContentScreens.js';
 
 const NAV_AHEAD_M = 48; // metres from the ego to the top of the pane
 const NAV_BEHIND_NODES = 2;
@@ -99,6 +100,22 @@ export const NavApp = {
   init(_facade) {},
 
   draw(ctx, rect, env) {
+    // Content layer: place search replaces the bird view while open; the
+    // route banner + search button overlay it otherwise.
+    if (contentLive()) {
+      if (env.state.navSearchOpen) {
+        ContentNav.draw(ctx, rect, env);
+        return;
+      }
+      this._drawBird(ctx, rect, env);
+      ContentNav.drawOverlay(ctx, rect, env);
+      return;
+    }
+    env.state.navSearchOpen = false;
+    this._drawBird(ctx, rect, env);
+  },
+
+  _drawBird(ctx, rect, env) {
     const d = env.data;
     const h = d.handles;
 
@@ -365,7 +382,20 @@ export const NavApp = {
     }
   },
 
-  onPointer(_type, _x, _y, _rect, _env) {
+  onPointer(type, x, y, rect, env) {
+    if (!contentLive()) return false;
+    if (env.state.navSearchOpen) {
+      return ContentNav.onPointer(type, x, y, rect, env, () => { env.state.navSearchOpen = false; });
+    }
+    if (type !== 'down') return false;
+    const hit = env.hits.at(x, y);
+    if (!hit) return false;
+    if (hit.id === 'csNavOpen') {
+      env.state.navSearchOpen = true;
+      env.state.cs = { screen: 'home', query: '', results: null, scroll: 0, scope: 'near_vehicle' };
+    } else if (hit.id === 'csNavCancel') {
+      window.VehicleContent.cancelRoute();
+    }
     return false;
   },
 };

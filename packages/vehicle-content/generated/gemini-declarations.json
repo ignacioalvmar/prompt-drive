@@ -1,0 +1,313 @@
+{
+  "tools_version": "vehicle-tools/1.0",
+  "tools": [
+    {
+      "name": "search_contacts",
+      "description": "Search the driver's phone contacts by name, nickname or relationship (e.g. \"Pipe\", \"my brother\"). Returns candidates with IDs and the number types each contact has. Does not call anyone.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "query": {
+            "type": "STRING",
+            "description": "Name, nickname or relationship as the driver said it."
+          },
+          "filter": {
+            "type": "OBJECT",
+            "description": "Optional filters applied before matching.",
+            "properties": {
+              "relationship": {
+                "type": "STRING",
+                "description": "Relationship, e.g. \"brother\", \"mother\", \"boss\"."
+              },
+              "tag": {
+                "type": "STRING",
+                "description": "Contact tag, e.g. \"family\" or \"work\"."
+              },
+              "favorite": {
+                "type": "BOOLEAN",
+                "description": "Only favorites when true."
+              }
+            }
+          },
+          "limit": {
+            "type": "INTEGER",
+            "description": "Maximum candidates to return (default 5, max 10).",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "get_contact",
+      "description": "Get the full record of one contact by ID, including its phone number types.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "contact_id": {
+            "type": "STRING",
+            "description": "ID of the contact, as returned by a search function."
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      }
+    },
+    {
+      "name": "call_contact",
+      "description": "Start a phone call to a contact by ID. Resolve the contact with search_contacts first. If number_type is omitted the contact's default number is used.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "contact_id": {
+            "type": "STRING",
+            "description": "ID of the contact, as returned by a search function."
+          },
+          "number_type": {
+            "type": "STRING",
+            "description": "Which of the contact's numbers to call.",
+            "enum": [
+              "mobile",
+              "home",
+              "work",
+              "other"
+            ]
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      }
+    },
+    {
+      "name": "send_message",
+      "description": "Send a text message to a contact by ID. Resolve the contact with search_contacts first.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "contact_id": {
+            "type": "STRING",
+            "description": "ID of the contact, as returned by a search function."
+          },
+          "text": {
+            "type": "STRING",
+            "description": "Message text, as dictated by the driver."
+          },
+          "number_type": {
+            "type": "STRING",
+            "description": "Which of the contact's numbers to use (default: mobile, else the default number).",
+            "enum": [
+              "mobile",
+              "home",
+              "work",
+              "other"
+            ]
+          }
+        },
+        "required": [
+          "contact_id",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "search_media",
+      "description": "Search the car's media library (songs, artists, albums, playlists, radio stations, podcasts) by title, name, frequency or genre. Returns candidates with IDs. Does not play anything.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "query": {
+            "type": "STRING",
+            "description": "Title, artist, station name or frequency, or genre as the driver said it."
+          },
+          "types": {
+            "type": "ARRAY",
+            "description": "Restrict to these media types, in order of preference.",
+            "items": {
+              "type": "STRING",
+              "enum": [
+                "track",
+                "artist",
+                "album",
+                "playlist",
+                "station",
+                "podcast"
+              ]
+            }
+          },
+          "limit": {
+            "type": "INTEGER",
+            "description": "Maximum candidates to return (default 5, max 10).",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "play_media",
+      "description": "Play a media item by ID (track, artist, album, playlist, station or podcast). Resolve the item with search_media first.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "item_id": {
+            "type": "STRING",
+            "description": "ID of the media item, as returned by a search function."
+          },
+          "options": {
+            "type": "OBJECT",
+            "properties": {
+              "shuffle": {
+                "type": "BOOLEAN",
+                "description": "Shuffle the items of an artist, album or playlist."
+              }
+            }
+          }
+        },
+        "required": [
+          "item_id"
+        ]
+      }
+    },
+    {
+      "name": "get_playback_state",
+      "description": "Get what is currently playing, if anything."
+    },
+    {
+      "name": "search_poi",
+      "description": "Search points of interest (places) by name, brand or category, near the vehicle, along the active route, or near the destination. Needs at least one of query or category. Returns candidates with IDs, network distance in meters and whether they are open now.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "query": {
+            "type": "STRING",
+            "description": "Place name, brand or kind of place as the driver said it."
+          },
+          "category": {
+            "type": "STRING",
+            "description": "Restrict to one place category.",
+            "enum": [
+              "fuel",
+              "ev_charging",
+              "parking",
+              "restaurant",
+              "cafe",
+              "supermarket",
+              "pharmacy",
+              "hospital",
+              "hotel",
+              "atm",
+              "car_service",
+              "landmark",
+              "home",
+              "work"
+            ]
+          },
+          "scope": {
+            "type": "STRING",
+            "description": "Where to search (default near_vehicle). along_route and near_destination need an active route.",
+            "enum": [
+              "near_vehicle",
+              "along_route",
+              "near_destination"
+            ]
+          },
+          "radius_m": {
+            "type": "NUMBER",
+            "description": "Search radius in meters along the road network (default 3000)."
+          },
+          "open_now": {
+            "type": "BOOLEAN",
+            "description": "Only places that are open now."
+          },
+          "limit": {
+            "type": "INTEGER",
+            "description": "Maximum candidates to return (default 5, max 10).",
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      }
+    },
+    {
+      "name": "get_poi",
+      "description": "Get the full record of one point of interest by ID, including opening hours and attributes.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "poi_id": {
+            "type": "STRING",
+            "description": "ID of the point of interest, as returned by a search function."
+          }
+        },
+        "required": [
+          "poi_id"
+        ]
+      }
+    },
+    {
+      "name": "navigate_to",
+      "description": "Start route guidance to a point of interest by ID, replacing any active route. Resolve the place with search_poi first.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "poi_id": {
+            "type": "STRING",
+            "description": "ID of the point of interest, as returned by a search function."
+          }
+        },
+        "required": [
+          "poi_id"
+        ]
+      }
+    },
+    {
+      "name": "add_waypoint",
+      "description": "Add a stop at a point of interest (by ID) to the active route, before the destination. Fails with no_route when no route is active.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "poi_id": {
+            "type": "STRING",
+            "description": "ID of the point of interest, as returned by a search function."
+          }
+        },
+        "required": [
+          "poi_id"
+        ]
+      }
+    },
+    {
+      "name": "end_task",
+      "description": "End the current task. Use completed when the request was carried out, not_possible when it cannot be fulfilled (for example the contact, item or place does not exist), and needs_user when you hand control back to the driver.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "outcome": {
+            "type": "STRING",
+            "description": "How the task ended.",
+            "enum": [
+              "completed",
+              "not_possible",
+              "needs_user"
+            ]
+          },
+          "reason": {
+            "type": "STRING",
+            "description": "Short reason, e.g. \"No contact named Camila\"."
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      }
+    }
+  ]
+}

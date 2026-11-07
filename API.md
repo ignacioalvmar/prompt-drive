@@ -42,6 +42,7 @@ mechanism as `LaneRoads`, `DrivingMetrics`, and `InstrumentCluster`.
   - [Center console — `console.*`](#center-console--console)
   - [Vehicle state — `vehicle.*`](#vehicle-state--vehicle)
   - [Cabin feedback & agent states — `feedback.*`](#cabin-feedback--agent-states--feedback)
+  - [Content layer & vehicle-tools — `content.*`](#content-layer--vehicle-tools--content)
   - [Metrics run & export — `run.*`](#metrics-run--export--run)
   - [Metric selection — `metrics.*`](#metric-selection--metrics)
   - [Ending the simulation — `end()`](#ending-the-simulation--end)
@@ -666,6 +667,122 @@ PromptDrive.feedback.enable(false); PromptDrive.feedback.enabled(); // hide / qu
   card; phone calls are left out because the Phone app already opens itself.
 - New features (one file per feature in `src/feedback/features/`) are covered
   in the README's *Cabin feedback layer* section.
+
+### Content layer & vehicle-tools — `content.*`
+
+The **only** path by which an agent (or the touch HMI) reads or acts on the
+car's contacts, media and places. Content comes from a frozen, hashed
+**content pack**; lookups go through the shared deterministic resolver in
+[`packages/vehicle-content/`](packages/vehicle-content/) (`@hcis/vehicle-content`,
+the one copy shared with WorlDrive). Contract:
+[`docs/plans/worldrive-spec-content-packs-and-shared-vehicle-tools-v1.0-contract.md`](docs/plans/worldrive-spec-content-packs-and-shared-vehicle-tools-v1.0-contract.md);
+runtime: [`docs/plans/promptdrive-simulator-spec-content-layer-and-vehicle-tools-v1.0.md`](docs/plans/promptdrive-simulator-spec-content-layer-and-vehicle-tools-v1.0.md).
+Global: `window.VehicleContent` (`static/js/content.js`, source `src/content/`).
+
+**Session start (fail closed).**
+
+```js
+await PromptDrive.content.load({
+  session: {
+    session_id: 'S-0042', study_id: 'st-7', condition: 'agent', participant_pseudonym: 'P017',
+    actor: 'agent', model: 'gpt-oss-20b',
+    pack_id: 'es-CO-starter', pack_version: 1,
+    content_hash: 'sha256:ed1475bb…64c1',
+    map_id: 'synth-town-01', map_version: '2026.11',
+    tools_version: 'vehicle-tools/1.0',
+    // optional: pack_url, local_time: 'Fr 10:00', mask_numbers: true
+  },
+  // optional: pack: {…} (inline JSON) — else pack_url, the browser cache, or
+  // ./packages/vehicle-content/packs/<pack_id>.v<version>.json
+});
+// -> { ok:true, header } | { ok:false, error:{ code, message, detail } }
+```
+
+Checks, in order: the pack's id/version, the **recomputed** `content_hash`
+(shared canonicalization), the tools version, the pack's map vs the session's,
+and the **live** map (scene seed/scene/topography + a road-geometry
+fingerprint, then every recorded node against the committed
+`maps/<map>/<version>/road-graph.json`). Any mismatch → `phase:'failed'`, a
+`session_error` log event, the sim pauses behind a full-screen message, and no
+tool or task works. There is no default pack. Error codes: `bad_session_config`,
+`pack_unavailable`, `pack_mismatch`, `hash_mismatch`, `tools_version_unsupported`,
+`map_mismatch`, `map_not_loaded`, `road_graph_missing`. `content.map.apply('synth-town-01')`
+stages the map's scene config (reload). Sessions start at the map's start node.
+
+**Tools.** `content.tools.list(format)` returns the 12 definitions —
+`'openai'` (OpenAI-compatible `tools`, e.g. GPT-oss), `'gemini'` (function
+declarations), or the provider-neutral JSON Schemas (default). The same files
+are committed under `packages/vehicle-content/generated/` and a drift test
+fails the build if they diverge. `content.tools.systemPrompt()` returns the
+versioned prompt block.
+
+```js
+PromptDrive.content.tools.call('search_contacts', { query: 'Pipe' }, { source: 'agent', turn: 1, call_id: 'x' })
+// -> { ok:true, value:{ status:'ok', candidates:[{ id:'c_0012', display_name:'Felipe Rodríguez Gómez',
+//      relationship:'brother', number_types:['mobile','work'], score:1, matched_on:'alias' }], total_matches:1 } }
+PromptDrive.content.tools.call('call_contact', { contact_id: 'c_0012', number_type: 'mobile' }, { source: 'agent', turn: 2 })
+// -> { ok:true, value:{ status:'ok', action_id:'a_0001', state:{ call:'started', … } } }
+PromptDrive.content.tools.callBatch([{ fn, args, call_id }, …], { source: 'agent', turn: 3 }) // parallel calls, in order
+```
+
+| Function | Kind | Notes |
+| --- | --- | --- |
+| `search_contacts(query, filter?, limit?)` | lookup | name, alias, name part, phonetic, relationship ("mi hermano") |
+| `get_contact(contact_id)` | lookup | numbers masked (`+57 300 *** **12`) unless `mask_numbers:false` |
+| `call_contact(contact_id, number_type?)` | action | call screen, ring-back + per-locale voice prompt, ends after 20 s / hang-up; `busy`, `no_number_of_type`, `unknown_id` |
+| `send_message(contact_id, text, number_type?)` | action | 3 s "Mensaje enviado a …" banner |
+| `search_media(query, types?, limit?)` | lookup | title, artist, station frequency, genre |
+| `play_media(item_id, options?)` | action | now-playing + placeholder loop; artist/album/playlist expand to tracks |
+| `get_playback_state()` | lookup | `{ playing, item_id, current_track_id, … }` |
+| `search_poi(query?, category?, scope?, radius_m?, open_now?, limit?)` | lookup | network distance (m), `open_now` at the session's local time; `along_route` / `near_destination` → `invalid_argument` "No route active" without a route |
+| `get_poi(poi_id)` | lookup | full record + distance/open_now |
+| `navigate_to(poi_id)` | action | route on the road graph, ETA/length, arrival detection |
+| `add_waypoint(poi_id)` | action | `no_route` without an active route |
+| `end_task(outcome, reason?)` | session | closes the current task (`completed`/`not_possible`/`needs_user`) |
+
+Invalid arguments never throw: lookups return `status:'invalid_argument'`,
+actions `status:'error', error_code:'invalid_argument'` — both logged. An
+empty `query` is accepted only from `hmi_*` sources (list screens browse).
+
+**Tasks.** `content.task.start({ task_id, prompt_for_driver, condition?, condition_type?, expected?, tolerance?, limits:{ max_turns, max_seconds } })`
+starts a task (closing an open one as `timeout`, `ended_by:'next_task'`);
+`end_task`, `limits`, or `content.task.end({ outcome, reason, ended_by })`
+end it. With `expected`, the `task_end` event carries the automatic failure
+`label` (`success`, `intent_error`, `query_error`, `grounding_error`,
+`content_absence_handled`, `content_absence_mishandled`, `execution_error`,
+`false_completion`, `timeout`). `content.task.current()`.
+
+**Log.** Every call (agent or touch), effect and lifecycle event is logged
+inside the service: `session_header`, `call`, `effect`, `task_start`,
+`task_end`, `driver_utterance` (`content.log.utterance({ text, turn, asr_confidence })`),
+`agent_reply` (`content.log.agentReply({ text, turn, model, tokens })`),
+`session_error` (`content.log.error(code, message)`), `session_end`
+(`content.end()`). `t` = seconds since session start (one monotonic clock,
+continues across reloads); each call has `latency_ms` and `vehicle_state`
+(`speed_kmh`, `driving_mode`, `route_active`, `road_node_id`, `x`, `y`);
+POI calls add `ctx` (vehicle arc, route stops, local time) for replay.
+Participant-entered contact names (`participant_entered:true` or tag
+`participant`) appear only as `[c_id]`. HMI list browsing is flagged `browse:true`.
+
+Transport: events are buffered in `localStorage` (survives reload and network
+loss) and sent in ordered batches as **`contentLogBatch`** events
+(`{ batch_id, session_id, seq_from, seq_to, final, events }`) that the parent
+acknowledges with `content.log.ack(batch_id)`; unacknowledged batches are
+re-sent with the same id. Or `content.log.configure({ endpoint, headers })`
+to POST batches (2xx = ack). The session is complete (`contentSessionComplete`)
+when the final batch is acked. Also `content.log.status()`, `.flush()`,
+`.events({ type, task_id, since })`.
+
+**Other ops.** `content.status()` (phase, pack, map, local time, active call,
+playback, route summary, task, log), `content.hangUp()`, `content.stopPlayback()`,
+`content.cancelRoute()` (driver controls), `content.map.{list,info,check,position,exportGraph,apply}`,
+`content.signs()` (roadside signs currently built), `content.cache.prefetch([url|{pack}])`
+(offline use; the hash check still runs on the cached copy), `content.validatePack(pack, opts)`.
+Events: `contentSession`, `contentState`, `contentCall`, `contentEvent`,
+`contentTaskEnd`, `contentLogBatch`, `contentSessionComplete`.
+
+While a pack is loaded the legacy sample-data ops `console.phone.contacts`,
+`console.phone.call` and `console.audio.play` return `content_layer_active`.
 
 ### Metrics run & export — `run.*`
 

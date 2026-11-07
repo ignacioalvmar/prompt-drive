@@ -15,6 +15,7 @@ const dir = path.join(root, 'src/console');
 const files = [
   'config.js',
   'ui.js',
+  'apps/ContentScreens.js',
   'apps/MapApp.js',
   'apps/NavApp.js',
   'apps/AudioApp.js',
