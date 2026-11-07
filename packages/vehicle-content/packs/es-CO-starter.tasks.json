@@ -1,0 +1,125 @@
+{
+  "pack_id": "es-CO-starter",
+  "pack_version": 1,
+  "content_hash": "sha256:ed1475bb2015ae57b79f021f19ecd3ff8fed63ec562b2f4c6b6e12b1bb8664c1",
+  "tasks": [
+    {
+      "task_id": "call_brother_mobile",
+      "condition_type": "plain",
+      "prompt_for_driver": {
+        "es": "Llama a tu hermano Pipe al celular.",
+        "en": "Call your brother Pipe on his mobile."
+      },
+      "expected": {
+        "actions": [
+          {
+            "fn": "call_contact",
+            "args": {
+              "contact_id": "c_0012",
+              "number_type": "mobile"
+            }
+          }
+        ],
+        "end_outcome": "completed"
+      },
+      "tolerance": {
+        "extra_lookups": "allowed",
+        "extra_actions": "fail"
+      },
+      "limits": {
+        "max_turns": 8,
+        "max_seconds": 90
+      }
+    },
+    {
+      "task_id": "call_valentina_absent",
+      "condition_type": "absent",
+      "prompt_for_driver": {
+        "es": "Llama a Valentina.",
+        "en": "Call Valentina."
+      },
+      "expected": {
+        "actions": [],
+        "end_outcome": "not_possible"
+      },
+      "tolerance": {
+        "extra_lookups": "allowed",
+        "extra_actions": "fail"
+      },
+      "limits": {
+        "max_turns": 6,
+        "max_seconds": 60
+      }
+    },
+    {
+      "task_id": "call_andres_ambiguous",
+      "condition_type": "ambiguous_pair",
+      "prompt_for_driver": {
+        "es": "Llama a Andrés, el del trabajo.",
+        "en": "Call Andrés, the one from work."
+      },
+      "expected": {
+        "actions": [
+          {
+            "fn": "call_contact",
+            "args": {
+              "contact_id": "c_0017"
+            }
+          }
+        ],
+        "end_outcome": "completed"
+      },
+      "tolerance": {
+        "extra_lookups": "allowed",
+        "extra_actions": "fail"
+      },
+      "limits": {
+        "max_turns": 8,
+        "max_seconds": 90
+      }
+    },
+    {
+      "task_id": "call_boss_mobile_missing",
+      "condition_type": "missing_attribute",
+      "prompt_for_driver": {
+        "es": "Llama a mi jefa al celular.",
+        "en": "Call my boss on her mobile."
+      },
+      "expected": {
+        "actions": [],
+        "end_outcome": [
+          "not_possible",
+          "needs_user"
+        ]
+      },
+      "tolerance": {
+        "extra_lookups": "allowed",
+        "extra_actions": "fail"
+      },
+      "limits": {
+        "max_turns": 6,
+        "max_seconds": 60
+      }
+    },
+    {
+      "task_id": "call_camila_near_miss",
+      "condition_type": "near_miss",
+      "prompt_for_driver": {
+        "es": "Llama a Camila.",
+        "en": "Call Camila."
+      },
+      "expected": {
+        "actions": [],
+        "end_outcome": "needs_user"
+      },
+      "tolerance": {
+        "extra_lookups": "allowed",
+        "extra_actions": "fail"
+      },
+      "limits": {
+        "max_turns": 6,
+        "max_seconds": 60
+      }
+    }
+  ]
+}

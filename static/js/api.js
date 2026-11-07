@@ -1230,6 +1230,16 @@ const PromptDrive = {
       return r;
     };
     const finite = (v) => typeof v === 'number' && isFinite(v);
+    // With a content pack loaded, contacts/media/destinations are reachable
+    // only through content.tools.call (logged, same as the HMI). The legacy
+    // sample-data ops that read or act on content are routed away.
+    const contentOwned = (op, fn) => (...args) => {
+      const vc = (typeof window !== 'undefined') ? window.VehicleContent : null;
+      if (vc && vc.active) {
+        return err('content_layer_active', { message: `console.${op} is disabled while a content pack is loaded; use content.tools.call` });
+      }
+      return fn(...args);
+    };
     return {
       // Read-only: always available so callers can discover enabled:false.
       state: () => {
@@ -1246,7 +1256,7 @@ const PromptDrive = {
         ? call((c) => c.tap(Number(u), Number(v)))
         : err('bad_value', { message: 'u and v must be numbers in 0..1' })),
       audio: {
-        play: (track) => req('audio', 'play', (a) => a.play(track)),
+        play: contentOwned('audio.play', (track) => req('audio', 'play', (a) => a.play(track))),
         pause: () => req('audio', 'pause', (a) => a.pause()),
         toggle: () => req('audio', 'toggle', (a) => a.toggle()),
         next: () => req('audio', 'next', (a) => a.next()),
@@ -1260,12 +1270,12 @@ const PromptDrive = {
         status: () => ctl('audio', (a) => a.status()),
       },
       phone: {
-        contacts: () => ctl('phone', (p) => p.contacts()),
+        contacts: contentOwned('phone.contacts', () => ctl('phone', (p) => p.contacts())),
         ring: (who) => ctl('phone', (p) => p.ring(who)),
         accept: () => ctl('phone', (p) => p.accept()),
         reject: () => ctl('phone', (p) => p.reject()),
         end: () => ctl('phone', (p) => p.end()),
-        call: (who) => ctl('phone', (p) => p.call(who)),
+        call: contentOwned('phone.call', (who) => ctl('phone', (p) => p.call(who))),
         status: () => ctl('phone', (p) => p.status()),
       },
       comfort: {
@@ -1313,6 +1323,70 @@ const PromptDrive = {
         get: () => { const v = VS(); return v ? ok(v.fixed.get()) : err('unavailable'); },
         set: (partial) => { const v = VS(); return v ? pass(v.fixed.set(partial)) : err('unavailable'); },
       },
+    };
+  })(),
+
+  // Content layer: vehicle-tools/1.0 over a frozen content pack (src/content,
+  // packages/vehicle-content; window.VehicleContent). The ONLY path by which
+  // an agent reads or acts on contacts, media and places. See API.md
+  // "Content layer". Results keep the contract envelopes (status/candidates/
+  // action_id) inside { ok, value }.
+  content: (() => {
+    const VC = () => (typeof window !== 'undefined' ? window.VehicleContent : null);
+    const wrap = (fn) => (...args) => {
+      const v = VC();
+      if (!v) return err('unavailable', { message: 'content layer not loaded (static/js/content.js)' });
+      try {
+        const r = fn(v, ...args);
+        if (r && typeof r.then === 'function') {
+          return r.then((x) => (x && typeof x.ok === 'boolean' ? x : ok(x)), (e) => err('exception', { message: String((e && e.message) || e) }));
+        }
+        return r && typeof r === 'object' && typeof r.ok === 'boolean' ? r : ok(r);
+      } catch (e) {
+        return err('exception', { message: String((e && e.message) || e) });
+      }
+    };
+    return {
+      load: wrap((v, opts) => v.load(opts)),
+      status: wrap((v) => v.status()),
+      end: wrap((v, opts) => v.end(opts)),
+      tools: {
+        list: wrap((v, format) => v.tools.list(format)),
+        names: wrap((v) => v.tools.names()),
+        systemPrompt: wrap((v) => v.tools.systemPrompt()),
+        // call(name, args, { source:'agent'|'hmi_voice', turn, call_id }) -> { ok:true, value: <contract envelope> }
+        call: wrap((v, name, args, meta) => ok(v.call(name, args, meta))),
+        callBatch: wrap((v, calls, meta) => ok(v.callBatch(calls, meta))),
+      },
+      task: {
+        start: wrap((v, def) => v.task.start(def)),
+        end: wrap((v, opts) => v.task.end(opts)),
+        current: wrap((v) => v.task.current()),
+      },
+      log: {
+        utterance: wrap((v, u) => v.log.utterance(u)),
+        agentReply: wrap((v, r) => v.log.agentReply(r)),
+        error: wrap((v, code, message) => v.log.error(code, message)),
+        ack: wrap((v, batchId) => v.log.ack(batchId)),
+        flush: wrap((v) => v.log.flush()),
+        configure: wrap((v, opts) => v.log.configure(opts)),
+        status: wrap((v) => v.log.status()),
+        events: wrap((v, filter) => v.log.events(filter)),
+      },
+      hangUp: wrap((v) => v.hangUp()),
+      stopPlayback: wrap((v) => v.stopPlayback()),
+      cancelRoute: wrap((v) => v.cancelRoute()),
+      map: {
+        list: wrap((v) => v.map.list()),
+        info: wrap((v) => v.map.info()),
+        check: wrap((v, id, ver) => v.map.check(id, ver)),
+        position: wrap((v) => v.map.position()),
+        exportGraph: wrap((v, meta) => v.map.exportGraph(meta)),
+        apply: wrap((v, id, ver) => v.map.apply(id, ver)),
+      },
+      signs: wrap((v) => v.signs.state()),
+      cache: { prefetch: wrap((v, list) => v.cache.prefetch(list)) },
+      validatePack: wrap((v, pack, opts) => v.validatePack(pack, opts)),
     };
   })(),
 
@@ -1691,7 +1765,11 @@ startPostMessageBridge();
       } catch (ex) {
         result = { ok: false, error: 'exception', message: String((ex && ex.message) || ex) };
       }
-      send({ ns: NS, kind: 'res', id: d.id, result });
+      // Async ops (e.g. content.load) resolve before replying, like postMessage.
+      Promise.resolve(result).then(
+        (r) => send({ ns: NS, kind: 'res', id: d.id, result: r }),
+        (ex) => send({ ns: NS, kind: 'res', id: d.id, result: { ok: false, error: 'exception', message: String((ex && ex.message) || ex) } }),
+      );
     };
 
     ws.onclose = () => {

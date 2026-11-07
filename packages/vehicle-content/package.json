@@ -1,0 +1,19 @@
+{
+  "name": "@hcis/vehicle-content",
+  "version": "1.0.0",
+  "description": "Shared content-pack contract for PromptDrive and WorlDrive: pack schema checks, canonical hashing, the deterministic vehicle-tools/1.0 resolver, tool schemas + provider adapters, and the failure labeler.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./generated/*": "./generated/*"
+  },
+  "files": ["index.js", "src", "generated", "packs", "cli"],
+  "scripts": {
+    "test": "node scripts/gen-provider-tools.js --check && node --test \"test/*.test.js\"",
+    "gen:tools": "node scripts/gen-provider-tools.js",
+    "gen:pack": "node scripts/gen-starter-pack.js",
+    "validate": "node cli/validate-pack.js"
+  },
+  "license": "MIT"
+}

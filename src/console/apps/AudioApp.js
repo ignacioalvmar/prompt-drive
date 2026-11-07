@@ -9,6 +9,7 @@
 
 import { AUDIO_TRACKS, CONSOLE_COLORS, CONSOLE_STORAGE } from '../config.js';
 import { clamp, formatTime, drawText, fillRoundRect, roundRectPath, strokeRoundRect, button, slider, iconAudio, iconPlay, iconPause, iconPrev, iconNext, iconVolume } from '../ui.js';
+import { contentLive, ContentMedia } from './ContentScreens.js';
 
 // Icon ink on the accent play circle (matches the button() 'solid' foreground).
 const audioAccentInk = '#062421';
@@ -644,10 +645,16 @@ export const AudioApp = {
   },
 
   draw(ctx, rect, env) {
+    // Content layer: the media library comes from the pack, not AUDIO_TRACKS.
+    if (contentLive()) {
+      ContentMedia.draw(ctx, rect, env);
+      return;
+    }
     audioDrawApp(ctx, rect, env);
   },
 
   onPointer(type, x, y, rect, env) {
+    if (contentLive()) return ContentMedia.onPointer(type, x, y, rect, env);
     return audioOnPointer(type, x, y, rect, env);
   },
 
@@ -655,6 +662,7 @@ export const AudioApp = {
   onAudioGain(gain) {
     const st = audioPlayerState;
     st.gain = clamp(typeof gain === 'number' && isFinite(gain) ? gain : 1, 0, 1);
+    try { if (typeof window !== 'undefined' && window.VehicleContent) window.VehicleContent.setAudioGain(st.gain); } catch (e) { /* ignore */ }
     if (st.el) {
       try {
         st.el.volume = audioEffectiveVolume();

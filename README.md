@@ -283,6 +283,38 @@ state, and synthesize taps (`console.tap(u, v)`). State changes stream as
 `localStorage`. See [`API.md`](API.md#center-console--console) and the **④
 Center console** tab of the API test console.
 
+## Content layer & vehicle-tools
+
+Contacts, media and places are a controlled, logged study variable: a frozen,
+hashed **content pack** (from WorlDrive) is loaded at session start and both the
+agent and the center-console HMI reach it only through the 12 functions of
+`vehicle-tools/1.0` (`search_contacts`, `call_contact`, `search_poi`,
+`navigate_to`, `end_task`, …). Lookups use one deterministic resolver shared
+with WorlDrive ([`packages/vehicle-content/`](packages/vehicle-content/)), so
+the same query against the same pack always gives the same answer.
+
+- **Fail closed** — a wrong hash, map version, road geometry or tools version
+  stops the session with a message; there is no default pack.
+- **HMI** — Phone, Audio (media library) and Nav (place search, route banner)
+  render only from the pack; every touch is a logged call with
+  `source: "hmi_touch"`, so human and agent runs are directly comparable.
+- **Effects** — call screen + ring-back + voice prompt, message banner,
+  now-playing with a placeholder loop, route drawn on the map with ETA and
+  arrival, and a roadside sign in the 3D world for every POI.
+- **Map** — `synth-town-01@2026.11` (Hills, seed `b4e6eba7`) has stable
+  `road_node_id`s (`n_<i>`), an exported road graph and `slots.json`
+  (`npm run content:slots`) under [`maps/`](maps/).
+- **Logging** — session header, per-call records, effects, task start/end with
+  automatic failure labels, transcripts; buffered across reloads and network
+  loss, delivered in acknowledged batches.
+- **Starter pack** — `es-CO-starter` v1 (60 contacts, 150 tracks, 8 playlists,
+  10 stations, 40 POIs) + five reference tasks in
+  `packages/vehicle-content/packs/`.
+
+API: [`API.md` → `content.*`](API.md#content-layer--vehicle-tools--content).
+Test console: `api-test.html` → **⑦ Content**. Specs: [`docs/plans/`](docs/plans/).
+Tests: `npm run test:content`.
+
 ## Integration API
 
 An external service (an AI-agent harness, an orchestrator, a test rig, or a

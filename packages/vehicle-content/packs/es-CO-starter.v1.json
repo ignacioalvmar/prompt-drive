@@ -1,0 +1,5600 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "es-CO-starter",
+  "pack_version": 1,
+  "content_hash": "sha256:ed1475bb2015ae57b79f021f19ecd3ff8fed63ec562b2f4c6b6e12b1bb8664c1",
+  "locale": "es-CO",
+  "extra_locales": [
+    "en-US"
+  ],
+  "based_on": null,
+  "map": {
+    "map_id": "synth-town-01",
+    "map_version": "2026.11"
+  },
+  "created_by": "promptdrive gen-starter-pack",
+  "created_at": "2026-11-07T08:00:00Z",
+  "generator": {
+    "name": "gen-starter-pack",
+    "version": "1.0.0",
+    "seed": 20261107,
+    "slots": "synth-town-01@2026.11",
+    "placement": [
+      {
+        "id": "p_0127",
+        "slot_id": "s_80_L"
+      },
+      {
+        "id": "p_0101",
+        "slot_id": "s_145_L"
+      },
+      {
+        "id": "p_0137",
+        "slot_id": "s_155_R"
+      },
+      {
+        "id": "p_0116",
+        "slot_id": "s_165_L"
+      },
+      {
+        "id": "p_0128",
+        "slot_id": "s_175_L"
+      },
+      {
+        "id": "p_0106",
+        "slot_id": "s_200_R"
+      },
+      {
+        "id": "p_0131",
+        "slot_id": "s_240_R"
+      },
+      {
+        "id": "p_0135",
+        "slot_id": "s_305_R"
+      },
+      {
+        "id": "p_0108",
+        "slot_id": "s_330_R"
+      },
+      {
+        "id": "p_0120",
+        "slot_id": "s_350_L"
+      },
+      {
+        "id": "p_0136",
+        "slot_id": "s_370_L"
+      },
+      {
+        "id": "p_0121",
+        "slot_id": "s_420_R"
+      },
+      {
+        "id": "p_0103",
+        "slot_id": "s_460_R"
+      },
+      {
+        "id": "p_0124",
+        "slot_id": "s_480_L"
+      },
+      {
+        "id": "p_0134",
+        "slot_id": "s_490_L"
+      },
+      {
+        "id": "p_0139",
+        "slot_id": "s_545_R"
+      },
+      {
+        "id": "p_0132",
+        "slot_id": "s_555_L"
+      },
+      {
+        "id": "p_0112",
+        "slot_id": "s_670_L"
+      },
+      {
+        "id": "p_0125",
+        "slot_id": "s_745_L"
+      },
+      {
+        "id": "p_0114",
+        "slot_id": "s_780_R"
+      },
+      {
+        "id": "p_0109",
+        "slot_id": "s_800_L"
+      },
+      {
+        "id": "p_0133",
+        "slot_id": "s_810_R"
+      },
+      {
+        "id": "p_0111",
+        "slot_id": "s_850_L"
+      },
+      {
+        "id": "p_0117",
+        "slot_id": "s_860_R"
+      },
+      {
+        "id": "p_0122",
+        "slot_id": "s_910_L"
+      },
+      {
+        "id": "p_0118",
+        "slot_id": "s_940_R"
+      },
+      {
+        "id": "p_0110",
+        "slot_id": "s_965_R"
+      },
+      {
+        "id": "p_0104",
+        "slot_id": "s_1045_R"
+      },
+      {
+        "id": "p_0123",
+        "slot_id": "s_1065_L"
+      },
+      {
+        "id": "p_0105",
+        "slot_id": "s_1140_L"
+      },
+      {
+        "id": "p_0119",
+        "slot_id": "s_1160_L"
+      },
+      {
+        "id": "p_0138",
+        "slot_id": "s_1185_R"
+      },
+      {
+        "id": "p_0126",
+        "slot_id": "s_1235_R"
+      },
+      {
+        "id": "p_0140",
+        "slot_id": "s_1255_R"
+      },
+      {
+        "id": "p_0113",
+        "slot_id": "s_1295_R"
+      },
+      {
+        "id": "p_0115",
+        "slot_id": "s_1360_R"
+      },
+      {
+        "id": "p_0130",
+        "slot_id": "s_1405_R"
+      },
+      {
+        "id": "p_0107",
+        "slot_id": "s_1420_L"
+      },
+      {
+        "id": "p_0102",
+        "slot_id": "s_1430_R"
+      },
+      {
+        "id": "p_0129",
+        "slot_id": "s_1485_L"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "id": "c_0012",
+      "display_name": "Felipe Rodríguez Gómez",
+      "given_name": "Felipe",
+      "family_names": [
+        "Rodríguez",
+        "Gómez"
+      ],
+      "aliases": [
+        "Pipe",
+        "Pipe Rodríguez"
+      ],
+      "relationship": "brother",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0012",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0012"
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0013",
+      "display_name": "Luz Marina Gómez Arango",
+      "given_name": "Luz Marina",
+      "family_names": [
+        "Gómez",
+        "Arango"
+      ],
+      "aliases": [
+        "Mamá",
+        "Mami"
+      ],
+      "relationship": "mother",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0013",
+          "default": true
+        },
+        {
+          "type": "home",
+          "value": "+57 601 000 0013"
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0014",
+      "display_name": "Jorge Eliécer Rodríguez Pérez",
+      "given_name": "Jorge Eliécer",
+      "family_names": [
+        "Rodríguez",
+        "Pérez"
+      ],
+      "aliases": [
+        "Papá",
+        "Papi"
+      ],
+      "relationship": "father",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0014",
+          "default": true
+        },
+        {
+          "type": "home",
+          "value": "+57 601 000 0014"
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0015",
+      "display_name": "María Fernanda Rodríguez Gómez",
+      "given_name": "María Fernanda",
+      "family_names": [
+        "Rodríguez",
+        "Gómez"
+      ],
+      "aliases": [
+        "Mafe"
+      ],
+      "relationship": "sister",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0015",
+          "default": true
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0016",
+      "display_name": "Andrés Castro Vélez",
+      "given_name": "Andrés",
+      "family_names": [
+        "Castro",
+        "Vélez"
+      ],
+      "aliases": [
+        "Andrés Castro"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0016",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0017",
+      "display_name": "Andrés Molina Suárez",
+      "given_name": "Andrés",
+      "family_names": [
+        "Molina",
+        "Suárez"
+      ],
+      "aliases": [
+        "Andrés Molina"
+      ],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0017",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0017"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0018",
+      "display_name": "Camilo Ríos Montoya",
+      "given_name": "Camilo",
+      "family_names": [
+        "Ríos",
+        "Montoya"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0018",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0019",
+      "display_name": "Claudia Restrepo Uribe",
+      "given_name": "Claudia",
+      "family_names": [
+        "Restrepo",
+        "Uribe"
+      ],
+      "aliases": [
+        "Jefa",
+        "Doctora Restrepo"
+      ],
+      "relationship": "boss",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0019",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0020",
+      "display_name": "Francisco Londoño Mejía",
+      "given_name": "Francisco",
+      "family_names": [
+        "Londoño",
+        "Mejía"
+      ],
+      "aliases": [
+        "Pacho"
+      ],
+      "relationship": "uncle",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0020",
+          "default": true
+        },
+        {
+          "type": "home",
+          "value": "+57 601 000 0020"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0021",
+      "display_name": "Juan Carlos Zapata Ruiz",
+      "given_name": "Juan Carlos",
+      "family_names": [
+        "Zapata",
+        "Ruiz"
+      ],
+      "aliases": [
+        "Juancho"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0021",
+          "default": true
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0022",
+      "display_name": "Carolina Herrera Mora",
+      "given_name": "Carolina",
+      "family_names": [
+        "Herrera",
+        "Mora"
+      ],
+      "aliases": [
+        "Caro"
+      ],
+      "relationship": "wife",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0022",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0022"
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0023",
+      "display_name": "Santiago Gaviria Ospina",
+      "given_name": "Santiago",
+      "family_names": [
+        "Gaviria",
+        "Ospina"
+      ],
+      "aliases": [
+        "Santi"
+      ],
+      "relationship": "son",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0023",
+          "default": true
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0024",
+      "display_name": "Isabella Rodríguez Herrera",
+      "given_name": "Isabella",
+      "family_names": [
+        "Rodríguez",
+        "Herrera"
+      ],
+      "aliases": [
+        "Isa"
+      ],
+      "relationship": "daughter",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0024",
+          "default": true
+        }
+      ],
+      "favorite": true,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0025",
+      "display_name": "Gloria Arango Toro",
+      "given_name": "Gloria",
+      "family_names": [
+        "Arango",
+        "Toro"
+      ],
+      "aliases": [
+        "Abuela",
+        "Abuelita"
+      ],
+      "relationship": "grandmother",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "home",
+          "value": "+57 601 000 0025",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0026",
+      "display_name": "Hernán Quintero Lopera",
+      "given_name": "Hernán",
+      "family_names": [
+        "Quintero",
+        "Lopera"
+      ],
+      "aliases": [],
+      "relationship": "grandfather",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "home",
+          "value": "+57 601 000 0026",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0027",
+      "display_name": "Natalia Cardona Giraldo",
+      "given_name": "Natalia",
+      "family_names": [
+        "Cardona",
+        "Giraldo"
+      ],
+      "aliases": [
+        "Nata"
+      ],
+      "relationship": "cousin",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0027",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0028",
+      "display_name": "Sebastián Duque Salazar",
+      "given_name": "Sebastián",
+      "family_names": [
+        "Duque",
+        "Salazar"
+      ],
+      "aliases": [
+        "Sebas"
+      ],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0028",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0028"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0029",
+      "display_name": "Laura Patiño Correa",
+      "given_name": "Laura",
+      "family_names": [
+        "Patiño",
+        "Correa"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0029",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0029"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0030",
+      "display_name": "Ricardo Valencia Henao",
+      "given_name": "Ricardo",
+      "family_names": [
+        "Valencia",
+        "Henao"
+      ],
+      "aliases": [],
+      "relationship": "doctor",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0030",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0031",
+      "display_name": "Paola Marín Agudelo",
+      "given_name": "Paola",
+      "family_names": [
+        "Marín",
+        "Agudelo"
+      ],
+      "aliases": [
+        "Pao"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0031",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0032",
+      "display_name": "Alejandro Betancur Rendón",
+      "given_name": "Alejandro",
+      "family_names": [
+        "Betancur",
+        "Rendón"
+      ],
+      "aliases": [
+        "Alejo"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0032",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0033",
+      "display_name": "Diana Escobar Franco",
+      "given_name": "Diana",
+      "family_names": [
+        "Escobar",
+        "Franco"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0033",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0034",
+      "display_name": "Óscar Jaramillo Posada",
+      "given_name": "Óscar",
+      "family_names": [
+        "Jaramillo",
+        "Posada"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0034",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0035",
+      "display_name": "Mónica Sierra Cano",
+      "given_name": "Mónica",
+      "family_names": [
+        "Sierra",
+        "Cano"
+      ],
+      "aliases": [],
+      "relationship": "aunt",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0035",
+          "default": true
+        },
+        {
+          "type": "home",
+          "value": "+57 601 000 0035"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0036",
+      "display_name": "Esteban Vargas Rincón",
+      "given_name": "Esteban",
+      "family_names": [
+        "Vargas",
+        "Rincón"
+      ],
+      "aliases": [
+        "Teban"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0036",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0037",
+      "display_name": "Yésica Muñoz Arias",
+      "given_name": "Yésica",
+      "family_names": [
+        "Muñoz",
+        "Arias"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0037",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0038",
+      "display_name": "Mauricio Ochoa Gil",
+      "given_name": "Mauricio",
+      "family_names": [
+        "Ochoa",
+        "Gil"
+      ],
+      "aliases": [
+        "Mao"
+      ],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0038",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0038"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0039",
+      "display_name": "Lina Bedoya Castaño",
+      "given_name": "Lina",
+      "family_names": [
+        "Bedoya",
+        "Castaño"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0039",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0040",
+      "display_name": "Héctor Álvarez Pineda",
+      "given_name": "Héctor",
+      "family_names": [
+        "Álvarez",
+        "Pineda"
+      ],
+      "aliases": [],
+      "relationship": null,
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0040",
+          "default": true
+        },
+        {
+          "type": "home",
+          "value": "+57 601 000 0040"
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0041",
+      "display_name": "Sandra Tobón Echeverri",
+      "given_name": "Sandra",
+      "family_names": [
+        "Tobón",
+        "Echeverri"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0041",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0042",
+      "display_name": "Daniel Giraldo Mesa",
+      "given_name": "Daniel",
+      "family_names": [
+        "Giraldo",
+        "Mesa"
+      ],
+      "aliases": [
+        "Dani"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0042",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0043",
+      "display_name": "Tatiana Ramírez Soto",
+      "given_name": "Tatiana",
+      "family_names": [
+        "Ramírez",
+        "Soto"
+      ],
+      "aliases": [
+        "Tati"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0043",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0044",
+      "display_name": "Wilson Arboleda Díaz",
+      "given_name": "Wilson",
+      "family_names": [
+        "Arboleda",
+        "Díaz"
+      ],
+      "aliases": [],
+      "relationship": null,
+      "organization": "Taller El Paisa",
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0044",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "services"
+      ]
+    },
+    {
+      "id": "c_0045",
+      "display_name": "Gustavo Peña Lozano",
+      "given_name": "Gustavo",
+      "family_names": [
+        "Peña",
+        "Lozano"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0045",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0046",
+      "display_name": "Adriana Zuluaga Rojas",
+      "given_name": "Adriana",
+      "family_names": [
+        "Zuluaga",
+        "Rojas"
+      ],
+      "aliases": [
+        "Adri"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0046",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0047",
+      "display_name": "Fabián Montes Ibarra",
+      "given_name": "Fabián",
+      "family_names": [
+        "Montes",
+        "Ibarra"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0047",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0048",
+      "display_name": "Viviana Cárdenas Lara",
+      "given_name": "Viviana",
+      "family_names": [
+        "Cárdenas",
+        "Lara"
+      ],
+      "aliases": [
+        "Vivi"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0048",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0049",
+      "display_name": "Germán Hoyos Villa",
+      "given_name": "Germán",
+      "family_names": [
+        "Hoyos",
+        "Villa"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0049",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0049"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0050",
+      "display_name": "Marcela Úsuga Ramos",
+      "given_name": "Marcela",
+      "family_names": [
+        "Úsuga",
+        "Ramos"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0050",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0051",
+      "display_name": "Rodrigo Tamayo Bustamante",
+      "given_name": "Rodrigo",
+      "family_names": [
+        "Tamayo",
+        "Bustamante"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0051",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0052",
+      "display_name": "Ximena Acosta Navarro",
+      "given_name": "Ximena",
+      "family_names": [
+        "Acosta",
+        "Navarro"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0052",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0053",
+      "display_name": "Iván Gutiérrez Silva",
+      "given_name": "Iván",
+      "family_names": [
+        "Gutiérrez",
+        "Silva"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0053",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0054",
+      "display_name": "Beatriz Mejía Arcila",
+      "given_name": "Beatriz",
+      "family_names": [
+        "Mejía",
+        "Arcila"
+      ],
+      "aliases": [
+        "Tía Betty"
+      ],
+      "relationship": "aunt",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "home",
+          "value": "+57 601 000 0054",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0055",
+      "display_name": "Nicolás Builes Torres",
+      "given_name": "Nicolás",
+      "family_names": [
+        "Builes",
+        "Torres"
+      ],
+      "aliases": [
+        "Nico"
+      ],
+      "relationship": "cousin",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0055",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "family"
+      ]
+    },
+    {
+      "id": "c_0056",
+      "display_name": "Juliana Salazar Henao",
+      "given_name": "Juliana",
+      "family_names": [
+        "Salazar",
+        "Henao"
+      ],
+      "aliases": [
+        "Juli"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0056",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0057",
+      "display_name": "Mateo Restrepo Ángel",
+      "given_name": "Mateo",
+      "family_names": [
+        "Restrepo",
+        "Ángel"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0057",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0058",
+      "display_name": "Valeria Ospina Correa",
+      "given_name": "Valeria",
+      "family_names": [
+        "Ospina",
+        "Correa"
+      ],
+      "aliases": [
+        "Vale"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0058",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0059",
+      "display_name": "Cristian Rueda Pabón",
+      "given_name": "Cristian",
+      "family_names": [
+        "Rueda",
+        "Pabón"
+      ],
+      "aliases": [],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0059",
+          "default": true
+        },
+        {
+          "type": "work",
+          "value": "+57 601 000 0059"
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0060",
+      "display_name": "Lorena Castrillón Úribe",
+      "given_name": "Lorena",
+      "family_names": [
+        "Castrillón",
+        "Úribe"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0060",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0061",
+      "display_name": "Emilio Fajardo Quiceno",
+      "given_name": "Emilio",
+      "family_names": [
+        "Fajardo",
+        "Quiceno"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0061",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0062",
+      "display_name": "Teresa Villegas Mora",
+      "given_name": "Teresa",
+      "family_names": [
+        "Villegas",
+        "Mora"
+      ],
+      "aliases": [
+        "Doña Tere"
+      ],
+      "relationship": null,
+      "organization": null,
+      "numbers": [
+        {
+          "type": "home",
+          "value": "+57 601 000 0062",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0063",
+      "display_name": "Simón Echavarría Lalinde",
+      "given_name": "Simón",
+      "family_names": [
+        "Echavarría",
+        "Lalinde"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0063",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0064",
+      "display_name": "Manuela Arbeláez Gallego",
+      "given_name": "Manuela",
+      "family_names": [
+        "Arbeláez",
+        "Gallego"
+      ],
+      "aliases": [
+        "Manu"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0064",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0065",
+      "display_name": "Rafael Hurtado Benítez",
+      "given_name": "Rafael",
+      "family_names": [
+        "Hurtado",
+        "Benítez"
+      ],
+      "aliases": [
+        "Rafa"
+      ],
+      "relationship": "colleague",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0065",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "work"
+      ]
+    },
+    {
+      "id": "c_0066",
+      "display_name": "Pilar Uribe Saldarriaga",
+      "given_name": "Pilar",
+      "family_names": [
+        "Uribe",
+        "Saldarriaga"
+      ],
+      "aliases": [],
+      "relationship": "doctor",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "work",
+          "value": "+57 601 000 0066",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0067",
+      "display_name": "Tomás Cuartas Vélez",
+      "given_name": "Tomás",
+      "family_names": [
+        "Cuartas",
+        "Vélez"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0067",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0068",
+      "display_name": "Elena Pizarro Lema",
+      "given_name": "Elena",
+      "family_names": [
+        "Pizarro",
+        "Lema"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0068",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0069",
+      "display_name": "Kevin Sánchez Orozco",
+      "given_name": "Kevin",
+      "family_names": [
+        "Sánchez",
+        "Orozco"
+      ],
+      "aliases": [],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0069",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": []
+    },
+    {
+      "id": "c_0070",
+      "display_name": "Melissa Vanegas Pulgarín",
+      "given_name": "Melissa",
+      "family_names": [
+        "Vanegas",
+        "Pulgarín"
+      ],
+      "aliases": [
+        "Meli"
+      ],
+      "relationship": "friend",
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0070",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "id": "c_0071",
+      "display_name": "Fredy Holguín Taborda",
+      "given_name": "Fredy",
+      "family_names": [
+        "Holguín",
+        "Taborda"
+      ],
+      "aliases": [],
+      "relationship": null,
+      "organization": null,
+      "numbers": [
+        {
+          "type": "mobile",
+          "value": "+57 300 000 0071",
+          "default": true
+        }
+      ],
+      "favorite": false,
+      "tags": [
+        "services"
+      ]
+    }
+  ],
+  "media": {
+    "tracks": [
+      {
+        "id": "t_0301",
+        "type": "track",
+        "display_name": "Ciudad Eterno",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "album_id": "al_0011",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 261,
+        "lang": "es"
+      },
+      {
+        "id": "t_0302",
+        "type": "track",
+        "display_name": "Sol de Octubre",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "album_id": "al_0011",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 263,
+        "lang": "es"
+      },
+      {
+        "id": "t_0303",
+        "type": "track",
+        "display_name": "Lluvia Sin Final",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "album_id": "al_0011",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 213,
+        "lang": "es"
+      },
+      {
+        "id": "t_0304",
+        "type": "track",
+        "display_name": "Sol del Sur",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "album_id": "al_0011",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 203,
+        "lang": "es"
+      },
+      {
+        "id": "t_0305",
+        "type": "track",
+        "display_name": "Lluvia del Sur",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "album_id": "al_0011",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 191,
+        "lang": "es"
+      },
+      {
+        "id": "t_0306",
+        "type": "track",
+        "display_name": "Noche de Papel",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "album_id": "al_0012",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 241,
+        "lang": "es"
+      },
+      {
+        "id": "t_0307",
+        "type": "track",
+        "display_name": "Sombra Nocturno",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "album_id": "al_0012",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 191,
+        "lang": "es"
+      },
+      {
+        "id": "t_0308",
+        "type": "track",
+        "display_name": "Montaña del Sur",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "album_id": "al_0012",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 236,
+        "lang": "es"
+      },
+      {
+        "id": "t_0309",
+        "type": "track",
+        "display_name": "Ciudad de Octubre",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "album_id": "al_0012",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 177,
+        "lang": "es"
+      },
+      {
+        "id": "t_0310",
+        "type": "track",
+        "display_name": "Corazón de Fuego",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "album_id": "al_0012",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 287,
+        "lang": "es"
+      },
+      {
+        "id": "t_0311",
+        "type": "track",
+        "display_name": "Lluvia Lejano",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "album_id": "al_0013",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 163,
+        "lang": "es"
+      },
+      {
+        "id": "t_0312",
+        "type": "track",
+        "display_name": "Carretera Perdido",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "album_id": "al_0013",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 208,
+        "lang": "es"
+      },
+      {
+        "id": "t_0313",
+        "type": "track",
+        "display_name": "Fuego de Octubre",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "album_id": "al_0013",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 226,
+        "lang": "es"
+      },
+      {
+        "id": "t_0314",
+        "type": "track",
+        "display_name": "Montaña Sin Final",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "album_id": "al_0013",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 214,
+        "lang": "es"
+      },
+      {
+        "id": "t_0315",
+        "type": "track",
+        "display_name": "Montaña en Calma",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "album_id": "al_0013",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 169,
+        "lang": "es"
+      },
+      {
+        "id": "t_0316",
+        "type": "track",
+        "display_name": "Carretera Sin Final",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "album_id": "al_0014",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 283,
+        "lang": "es"
+      },
+      {
+        "id": "t_0317",
+        "type": "track",
+        "display_name": "Sol Nocturno",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "album_id": "al_0014",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 277,
+        "lang": "es"
+      },
+      {
+        "id": "t_0318",
+        "type": "track",
+        "display_name": "Ciudad Dorado",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "album_id": "al_0014",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 168,
+        "lang": "es"
+      },
+      {
+        "id": "t_0319",
+        "type": "track",
+        "display_name": "Ventana Nocturno",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "album_id": "al_0014",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 254,
+        "lang": "es"
+      },
+      {
+        "id": "t_0320",
+        "type": "track",
+        "display_name": "Luna en Calma",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "album_id": "al_0014",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 267,
+        "lang": "es"
+      },
+      {
+        "id": "t_0321",
+        "type": "track",
+        "display_name": "Luna Perdido",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "album_id": "al_0015",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 201,
+        "lang": "es"
+      },
+      {
+        "id": "t_0322",
+        "type": "track",
+        "display_name": "Ciudad Lejano",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "album_id": "al_0015",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 293,
+        "lang": "es"
+      },
+      {
+        "id": "t_0323",
+        "type": "track",
+        "display_name": "Río en Calma",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "album_id": "al_0015",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 218,
+        "lang": "es"
+      },
+      {
+        "id": "t_0324",
+        "type": "track",
+        "display_name": "Camino Perdido",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "album_id": "al_0015",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 249,
+        "lang": "es"
+      },
+      {
+        "id": "t_0325",
+        "type": "track",
+        "display_name": "Noche en Calma",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "album_id": "al_0015",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 243,
+        "lang": "es"
+      },
+      {
+        "id": "t_0326",
+        "type": "track",
+        "display_name": "Camino Nocturno",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "album_id": "al_0016",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 205,
+        "lang": "es"
+      },
+      {
+        "id": "t_0327",
+        "type": "track",
+        "display_name": "Sombra de Papel",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "album_id": "al_0016",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 275,
+        "lang": "es"
+      },
+      {
+        "id": "t_0328",
+        "type": "track",
+        "display_name": "Luna Lejano",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "album_id": "al_0016",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 255,
+        "lang": "es"
+      },
+      {
+        "id": "t_0329",
+        "type": "track",
+        "display_name": "Sombra Sin Final",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "album_id": "al_0016",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 282,
+        "lang": "es"
+      },
+      {
+        "id": "t_0330",
+        "type": "track",
+        "display_name": "Noche de Octubre",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "album_id": "al_0016",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 297,
+        "lang": "es"
+      },
+      {
+        "id": "t_0331",
+        "type": "track",
+        "display_name": "Lluvia Dorado",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "album_id": "al_0017",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 201,
+        "lang": "es"
+      },
+      {
+        "id": "t_0332",
+        "type": "track",
+        "display_name": "Río Dorado",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "album_id": "al_0017",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 176,
+        "lang": "es"
+      },
+      {
+        "id": "t_0333",
+        "type": "track",
+        "display_name": "Corazón Sin Final",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "album_id": "al_0017",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 263,
+        "lang": "es"
+      },
+      {
+        "id": "t_0334",
+        "type": "track",
+        "display_name": "Café Morena",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "album_id": "al_0017",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 249,
+        "lang": "es"
+      },
+      {
+        "id": "t_0335",
+        "type": "track",
+        "display_name": "Ventana de Fuego",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "album_id": "al_0017",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 213,
+        "lang": "es"
+      },
+      {
+        "id": "t_0336",
+        "type": "track",
+        "display_name": "Camino de Octubre",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "album_id": "al_0018",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 177,
+        "lang": "es"
+      },
+      {
+        "id": "t_0337",
+        "type": "track",
+        "display_name": "Carretera Morena",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "album_id": "al_0018",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 248,
+        "lang": "es"
+      },
+      {
+        "id": "t_0338",
+        "type": "track",
+        "display_name": "Río Perdido",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "album_id": "al_0018",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 202,
+        "lang": "es"
+      },
+      {
+        "id": "t_0339",
+        "type": "track",
+        "display_name": "Río Nocturno",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "album_id": "al_0018",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 195,
+        "lang": "es"
+      },
+      {
+        "id": "t_0340",
+        "type": "track",
+        "display_name": "Fuego Dorado",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "album_id": "al_0018",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 197,
+        "lang": "es"
+      },
+      {
+        "id": "t_0341",
+        "type": "track",
+        "display_name": "Fuego Perdido",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "album_id": "al_0019",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 268,
+        "lang": "es"
+      },
+      {
+        "id": "t_0342",
+        "type": "track",
+        "display_name": "Ventana Perdido",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "album_id": "al_0019",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 196,
+        "lang": "es"
+      },
+      {
+        "id": "t_0343",
+        "type": "track",
+        "display_name": "Ciudad en Calma",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "album_id": "al_0019",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 179,
+        "lang": "es"
+      },
+      {
+        "id": "t_0344",
+        "type": "track",
+        "display_name": "Ciudad de Fuego",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "album_id": "al_0019",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 217,
+        "lang": "es"
+      },
+      {
+        "id": "t_0345",
+        "type": "track",
+        "display_name": "Carretera Dorado",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "album_id": "al_0019",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 219,
+        "lang": "es"
+      },
+      {
+        "id": "t_0346",
+        "type": "track",
+        "display_name": "Ventana de Barrio",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "album_id": "al_0020",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 222,
+        "lang": "es"
+      },
+      {
+        "id": "t_0347",
+        "type": "track",
+        "display_name": "Brisa Sin Final",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "album_id": "al_0020",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 271,
+        "lang": "es"
+      },
+      {
+        "id": "t_0348",
+        "type": "track",
+        "display_name": "Sol Morena",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "album_id": "al_0020",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 222,
+        "lang": "es"
+      },
+      {
+        "id": "t_0349",
+        "type": "track",
+        "display_name": "Montaña Eterno",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "album_id": "al_0020",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 182,
+        "lang": "es"
+      },
+      {
+        "id": "t_0350",
+        "type": "track",
+        "display_name": "Corazón Dorado",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "album_id": "al_0020",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 163,
+        "lang": "es"
+      },
+      {
+        "id": "t_0351",
+        "type": "track",
+        "display_name": "Noche Nocturno",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "album_id": "al_0021",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 234,
+        "lang": "es"
+      },
+      {
+        "id": "t_0352",
+        "type": "track",
+        "display_name": "Ventana Dorado",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "album_id": "al_0021",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 284,
+        "lang": "es"
+      },
+      {
+        "id": "t_0353",
+        "type": "track",
+        "display_name": "Camino Encendido",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "album_id": "al_0021",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 230,
+        "lang": "es"
+      },
+      {
+        "id": "t_0354",
+        "type": "track",
+        "display_name": "Brisa de Barrio",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "album_id": "al_0021",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 209,
+        "lang": "es"
+      },
+      {
+        "id": "t_0355",
+        "type": "track",
+        "display_name": "Noche Sin Final",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "album_id": "al_0021",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 188,
+        "lang": "es"
+      },
+      {
+        "id": "t_0356",
+        "type": "track",
+        "display_name": "Lluvia en Calma",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "album_id": "al_0022",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 180,
+        "lang": "es"
+      },
+      {
+        "id": "t_0357",
+        "type": "track",
+        "display_name": "Brisa en Calma",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "album_id": "al_0022",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 214,
+        "lang": "es"
+      },
+      {
+        "id": "t_0358",
+        "type": "track",
+        "display_name": "Brisa Lejano",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "album_id": "al_0022",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 271,
+        "lang": "es"
+      },
+      {
+        "id": "t_0359",
+        "type": "track",
+        "display_name": "Luna Encendido",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "album_id": "al_0022",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 235,
+        "lang": "es"
+      },
+      {
+        "id": "t_0360",
+        "type": "track",
+        "display_name": "Luna de Fuego",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "album_id": "al_0022",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 162,
+        "lang": "es"
+      },
+      {
+        "id": "t_0361",
+        "type": "track",
+        "display_name": "Noche Lejano",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "album_id": "al_0023",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 281,
+        "lang": "es"
+      },
+      {
+        "id": "t_0362",
+        "type": "track",
+        "display_name": "Brisa Nocturno",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "album_id": "al_0023",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 290,
+        "lang": "es"
+      },
+      {
+        "id": "t_0363",
+        "type": "track",
+        "display_name": "Corazón Lejano",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "album_id": "al_0023",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 238,
+        "lang": "es"
+      },
+      {
+        "id": "t_0364",
+        "type": "track",
+        "display_name": "Carretera de Papel",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "album_id": "al_0023",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 207,
+        "lang": "es"
+      },
+      {
+        "id": "t_0365",
+        "type": "track",
+        "display_name": "Carretera del Sur",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "album_id": "al_0023",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 194,
+        "lang": "es"
+      },
+      {
+        "id": "t_0366",
+        "type": "track",
+        "display_name": "Café Eterno",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "album_id": "al_0024",
+        "genre": [
+          "jazz"
+        ],
+        "duration_s": 285,
+        "lang": "es"
+      },
+      {
+        "id": "t_0367",
+        "type": "track",
+        "display_name": "Ventana Sin Final",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "album_id": "al_0024",
+        "genre": [
+          "jazz"
+        ],
+        "duration_s": 205,
+        "lang": "es"
+      },
+      {
+        "id": "t_0368",
+        "type": "track",
+        "display_name": "Ciudad del Valle",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "album_id": "al_0024",
+        "genre": [
+          "jazz"
+        ],
+        "duration_s": 181,
+        "lang": "es"
+      },
+      {
+        "id": "t_0369",
+        "type": "track",
+        "display_name": "Sol en Calma",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "album_id": "al_0024",
+        "genre": [
+          "jazz"
+        ],
+        "duration_s": 248,
+        "lang": "es"
+      },
+      {
+        "id": "t_0370",
+        "type": "track",
+        "display_name": "Corazón de Barrio",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "album_id": "al_0024",
+        "genre": [
+          "jazz"
+        ],
+        "duration_s": 257,
+        "lang": "es"
+      },
+      {
+        "id": "t_0371",
+        "type": "track",
+        "display_name": "Sombra Eterno",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "album_id": "al_0025",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 226,
+        "lang": "es"
+      },
+      {
+        "id": "t_0372",
+        "type": "track",
+        "display_name": "Noche Dorado",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "album_id": "al_0025",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 175,
+        "lang": "es"
+      },
+      {
+        "id": "t_0373",
+        "type": "track",
+        "display_name": "Sombra Dorado",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "album_id": "al_0025",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 167,
+        "lang": "es"
+      },
+      {
+        "id": "t_0374",
+        "type": "track",
+        "display_name": "Corazón del Sur",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "album_id": "al_0025",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 259,
+        "lang": "es"
+      },
+      {
+        "id": "t_0375",
+        "type": "track",
+        "display_name": "Carretera Lejano",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "album_id": "al_0025",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 206,
+        "lang": "es"
+      },
+      {
+        "id": "t_0376",
+        "type": "track",
+        "display_name": "Sol Lejano",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "album_id": "al_0026",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 191,
+        "lang": "es"
+      },
+      {
+        "id": "t_0377",
+        "type": "track",
+        "display_name": "Lluvia de Fuego",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "album_id": "al_0026",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 294,
+        "lang": "es"
+      },
+      {
+        "id": "t_0378",
+        "type": "track",
+        "display_name": "Montaña Nocturno",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "album_id": "al_0026",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 230,
+        "lang": "es"
+      },
+      {
+        "id": "t_0379",
+        "type": "track",
+        "display_name": "Sombra del Sur",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "album_id": "al_0026",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 220,
+        "lang": "es"
+      },
+      {
+        "id": "t_0380",
+        "type": "track",
+        "display_name": "Corazón en Calma",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "album_id": "al_0026",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 299,
+        "lang": "es"
+      },
+      {
+        "id": "t_0381",
+        "type": "track",
+        "display_name": "Lluvia Nocturno",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "album_id": "al_0027",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 163,
+        "lang": "es"
+      },
+      {
+        "id": "t_0382",
+        "type": "track",
+        "display_name": "Ciudad de Barrio",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "album_id": "al_0027",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 256,
+        "lang": "es"
+      },
+      {
+        "id": "t_0383",
+        "type": "track",
+        "display_name": "Corazón del Valle",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "album_id": "al_0027",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 198,
+        "lang": "es"
+      },
+      {
+        "id": "t_0384",
+        "type": "track",
+        "display_name": "Café Nocturno",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "album_id": "al_0027",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 235,
+        "lang": "es"
+      },
+      {
+        "id": "t_0385",
+        "type": "track",
+        "display_name": "Carretera en Calma",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "album_id": "al_0027",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 286,
+        "lang": "es"
+      },
+      {
+        "id": "t_0386",
+        "type": "track",
+        "display_name": "Corazón Perdido",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "album_id": "al_0028",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 299,
+        "lang": "es"
+      },
+      {
+        "id": "t_0387",
+        "type": "track",
+        "display_name": "Fuego del Valle",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "album_id": "al_0028",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 224,
+        "lang": "es"
+      },
+      {
+        "id": "t_0388",
+        "type": "track",
+        "display_name": "Brisa del Sur",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "album_id": "al_0028",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 255,
+        "lang": "es"
+      },
+      {
+        "id": "t_0389",
+        "type": "track",
+        "display_name": "Café del Sur",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "album_id": "al_0028",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 186,
+        "lang": "es"
+      },
+      {
+        "id": "t_0390",
+        "type": "track",
+        "display_name": "Luna de Papel",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "album_id": "al_0028",
+        "genre": [
+          "reggaeton"
+        ],
+        "duration_s": 188,
+        "lang": "es"
+      },
+      {
+        "id": "t_0391",
+        "type": "track",
+        "display_name": "Brisa de Fuego",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "album_id": "al_0029",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 251,
+        "lang": "es"
+      },
+      {
+        "id": "t_0392",
+        "type": "track",
+        "display_name": "Montaña de Octubre",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "album_id": "al_0029",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 286,
+        "lang": "es"
+      },
+      {
+        "id": "t_0393",
+        "type": "track",
+        "display_name": "Lluvia de Papel",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "album_id": "al_0029",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 256,
+        "lang": "es"
+      },
+      {
+        "id": "t_0394",
+        "type": "track",
+        "display_name": "Sol Perdido",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "album_id": "al_0029",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 247,
+        "lang": "es"
+      },
+      {
+        "id": "t_0395",
+        "type": "track",
+        "display_name": "Carretera Nocturno",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "album_id": "al_0029",
+        "genre": [
+          "salsa"
+        ],
+        "duration_s": 275,
+        "lang": "es"
+      },
+      {
+        "id": "t_0396",
+        "type": "track",
+        "display_name": "Brisa de Octubre",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "album_id": "al_0030",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 269,
+        "lang": "es"
+      },
+      {
+        "id": "t_0397",
+        "type": "track",
+        "display_name": "Café de Barrio",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "album_id": "al_0030",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 216,
+        "lang": "es"
+      },
+      {
+        "id": "t_0398",
+        "type": "track",
+        "display_name": "Río Encendido",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "album_id": "al_0030",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 250,
+        "lang": "es"
+      },
+      {
+        "id": "t_0399",
+        "type": "track",
+        "display_name": "Lluvia de Octubre",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "album_id": "al_0030",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 248,
+        "lang": "es"
+      },
+      {
+        "id": "t_0400",
+        "type": "track",
+        "display_name": "Ventana de Papel",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "album_id": "al_0030",
+        "genre": [
+          "vallenato"
+        ],
+        "duration_s": 172,
+        "lang": "es"
+      },
+      {
+        "id": "t_0401",
+        "type": "track",
+        "display_name": "Camino en Calma",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "album_id": "al_0031",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 191,
+        "lang": "es"
+      },
+      {
+        "id": "t_0402",
+        "type": "track",
+        "display_name": "Sol de Papel",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "album_id": "al_0031",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 180,
+        "lang": "es"
+      },
+      {
+        "id": "t_0403",
+        "type": "track",
+        "display_name": "Montaña de Barrio",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "album_id": "al_0031",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 185,
+        "lang": "es"
+      },
+      {
+        "id": "t_0404",
+        "type": "track",
+        "display_name": "Fuego Nocturno",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "album_id": "al_0031",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 222,
+        "lang": "es"
+      },
+      {
+        "id": "t_0405",
+        "type": "track",
+        "display_name": "Luna del Sur",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "album_id": "al_0031",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 243,
+        "lang": "es"
+      },
+      {
+        "id": "t_0406",
+        "type": "track",
+        "display_name": "Fuego de Fuego",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "album_id": "al_0032",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 189,
+        "lang": "es"
+      },
+      {
+        "id": "t_0407",
+        "type": "track",
+        "display_name": "Montaña Perdido",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "album_id": "al_0032",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 208,
+        "lang": "es"
+      },
+      {
+        "id": "t_0408",
+        "type": "track",
+        "display_name": "Montaña del Valle",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "album_id": "al_0032",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 280,
+        "lang": "es"
+      },
+      {
+        "id": "t_0409",
+        "type": "track",
+        "display_name": "Café de Papel",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "album_id": "al_0032",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 285,
+        "lang": "es"
+      },
+      {
+        "id": "t_0410",
+        "type": "track",
+        "display_name": "Camino de Barrio",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "album_id": "al_0032",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 284,
+        "lang": "es"
+      },
+      {
+        "id": "t_0411",
+        "type": "track",
+        "display_name": "Sombra Lejano",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "album_id": "al_0033",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 172,
+        "lang": "es"
+      },
+      {
+        "id": "t_0412",
+        "type": "track",
+        "display_name": "Café de Fuego",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "album_id": "al_0033",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 262,
+        "lang": "es"
+      },
+      {
+        "id": "t_0413",
+        "type": "track",
+        "display_name": "Carretera de Fuego",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "album_id": "al_0033",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 175,
+        "lang": "es"
+      },
+      {
+        "id": "t_0414",
+        "type": "track",
+        "display_name": "Café de Octubre",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "album_id": "al_0033",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 177,
+        "lang": "es"
+      },
+      {
+        "id": "t_0415",
+        "type": "track",
+        "display_name": "Corazón Eterno",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "album_id": "al_0033",
+        "genre": [
+          "cumbia"
+        ],
+        "duration_s": 224,
+        "lang": "es"
+      },
+      {
+        "id": "t_0416",
+        "type": "track",
+        "display_name": "Camino de Fuego",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "album_id": "al_0034",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 276,
+        "lang": "es"
+      },
+      {
+        "id": "t_0417",
+        "type": "track",
+        "display_name": "Ciudad Sin Final",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "album_id": "al_0034",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 295,
+        "lang": "es"
+      },
+      {
+        "id": "t_0418",
+        "type": "track",
+        "display_name": "Luna Morena",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "album_id": "al_0034",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 272,
+        "lang": "es"
+      },
+      {
+        "id": "t_0419",
+        "type": "track",
+        "display_name": "Fuego Sin Final",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "album_id": "al_0034",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 264,
+        "lang": "es"
+      },
+      {
+        "id": "t_0420",
+        "type": "track",
+        "display_name": "Sombra de Fuego",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "album_id": "al_0034",
+        "genre": [
+          "musica popular"
+        ],
+        "duration_s": 248,
+        "lang": "es"
+      },
+      {
+        "id": "t_0421",
+        "type": "track",
+        "display_name": "Camino Sin Final",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "album_id": "al_0035",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 206,
+        "lang": "es"
+      },
+      {
+        "id": "t_0422",
+        "type": "track",
+        "display_name": "Lluvia del Valle",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "album_id": "al_0035",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 228,
+        "lang": "es"
+      },
+      {
+        "id": "t_0423",
+        "type": "track",
+        "display_name": "Río de Octubre",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "album_id": "al_0035",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 178,
+        "lang": "es"
+      },
+      {
+        "id": "t_0424",
+        "type": "track",
+        "display_name": "Noche Morena",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "album_id": "al_0035",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 256,
+        "lang": "es"
+      },
+      {
+        "id": "t_0425",
+        "type": "track",
+        "display_name": "Fuego Eterno",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "album_id": "al_0035",
+        "genre": [
+          "electronica"
+        ],
+        "duration_s": 204,
+        "lang": "es"
+      },
+      {
+        "id": "t_0426",
+        "type": "track",
+        "display_name": "Montaña Lejano",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "album_id": "al_0036",
+        "genre": [
+          "currulao"
+        ],
+        "duration_s": 178,
+        "lang": "es"
+      },
+      {
+        "id": "t_0427",
+        "type": "track",
+        "display_name": "Sombra Encendido",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "album_id": "al_0036",
+        "genre": [
+          "currulao"
+        ],
+        "duration_s": 258,
+        "lang": "es"
+      },
+      {
+        "id": "t_0428",
+        "type": "track",
+        "display_name": "Noche del Sur",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "album_id": "al_0036",
+        "genre": [
+          "currulao"
+        ],
+        "duration_s": 234,
+        "lang": "es"
+      },
+      {
+        "id": "t_0429",
+        "type": "track",
+        "display_name": "Ciudad del Sur",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "album_id": "al_0036",
+        "genre": [
+          "currulao"
+        ],
+        "duration_s": 211,
+        "lang": "es"
+      },
+      {
+        "id": "t_0430",
+        "type": "track",
+        "display_name": "Camino del Valle",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "album_id": "al_0036",
+        "genre": [
+          "currulao"
+        ],
+        "duration_s": 271,
+        "lang": "es"
+      },
+      {
+        "id": "t_0431",
+        "type": "track",
+        "display_name": "Noche de Fuego",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "album_id": "al_0037",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 231,
+        "lang": "es"
+      },
+      {
+        "id": "t_0432",
+        "type": "track",
+        "display_name": "Noche de Barrio",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "album_id": "al_0037",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 244,
+        "lang": "es"
+      },
+      {
+        "id": "t_0433",
+        "type": "track",
+        "display_name": "Río Sin Final",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "album_id": "al_0037",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 203,
+        "lang": "es"
+      },
+      {
+        "id": "t_0434",
+        "type": "track",
+        "display_name": "Noche Encendido",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "album_id": "al_0037",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 208,
+        "lang": "es"
+      },
+      {
+        "id": "t_0435",
+        "type": "track",
+        "display_name": "Ventana Encendido",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "album_id": "al_0037",
+        "genre": [
+          "champeta"
+        ],
+        "duration_s": 214,
+        "lang": "es"
+      },
+      {
+        "id": "t_0436",
+        "type": "track",
+        "display_name": "Ciudad Encendido",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "album_id": "al_0038",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 293,
+        "lang": "es"
+      },
+      {
+        "id": "t_0437",
+        "type": "track",
+        "display_name": "Río Morena",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "album_id": "al_0038",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 166,
+        "lang": "es"
+      },
+      {
+        "id": "t_0438",
+        "type": "track",
+        "display_name": "Montaña Encendido",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "album_id": "al_0038",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 202,
+        "lang": "es"
+      },
+      {
+        "id": "t_0439",
+        "type": "track",
+        "display_name": "Sol de Fuego",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "album_id": "al_0038",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 244,
+        "lang": "es"
+      },
+      {
+        "id": "t_0440",
+        "type": "track",
+        "display_name": "Brisa del Valle",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "album_id": "al_0038",
+        "genre": [
+          "pop"
+        ],
+        "duration_s": 255,
+        "lang": "es"
+      },
+      {
+        "id": "t_0441",
+        "type": "track",
+        "display_name": "Corazón de Papel",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "album_id": "al_0039",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 292,
+        "lang": "es"
+      },
+      {
+        "id": "t_0442",
+        "type": "track",
+        "display_name": "Sombra de Barrio",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "album_id": "al_0039",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 175,
+        "lang": "es"
+      },
+      {
+        "id": "t_0443",
+        "type": "track",
+        "display_name": "Luna de Barrio",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "album_id": "al_0039",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 244,
+        "lang": "es"
+      },
+      {
+        "id": "t_0444",
+        "type": "track",
+        "display_name": "Brisa Eterno",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "album_id": "al_0039",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 191,
+        "lang": "es"
+      },
+      {
+        "id": "t_0445",
+        "type": "track",
+        "display_name": "Camino Eterno",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "album_id": "al_0039",
+        "genre": [
+          "bambuco"
+        ],
+        "duration_s": 171,
+        "lang": "es"
+      },
+      {
+        "id": "t_0446",
+        "type": "track",
+        "display_name": "Luna Nocturno",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "album_id": "al_0040",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 161,
+        "lang": "es"
+      },
+      {
+        "id": "t_0447",
+        "type": "track",
+        "display_name": "Ciudad Morena",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "album_id": "al_0040",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 184,
+        "lang": "es"
+      },
+      {
+        "id": "t_0448",
+        "type": "track",
+        "display_name": "Carretera del Valle",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "album_id": "al_0040",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 291,
+        "lang": "es"
+      },
+      {
+        "id": "t_0449",
+        "type": "track",
+        "display_name": "Río de Fuego",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "album_id": "al_0040",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 289,
+        "lang": "es"
+      },
+      {
+        "id": "t_0450",
+        "type": "track",
+        "display_name": "Café Lejano",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "album_id": "al_0040",
+        "genre": [
+          "rock en espanol"
+        ],
+        "duration_s": 276,
+        "lang": "es"
+      }
+    ],
+    "artists": [
+      {
+        "id": "a_0040",
+        "type": "artist",
+        "display_name": "Los Juglares del Cesar",
+        "aliases": [],
+        "genre": [
+          "vallenato"
+        ]
+      },
+      {
+        "id": "a_0041",
+        "type": "artist",
+        "display_name": "Cumbia Brava",
+        "aliases": [],
+        "genre": [
+          "cumbia"
+        ]
+      },
+      {
+        "id": "a_0042",
+        "type": "artist",
+        "display_name": "La Orquesta del Pacífico",
+        "aliases": [],
+        "genre": [
+          "salsa"
+        ]
+      },
+      {
+        "id": "a_0043",
+        "type": "artist",
+        "display_name": "Valentín Arcoíris",
+        "aliases": [],
+        "genre": [
+          "pop"
+        ]
+      },
+      {
+        "id": "a_0044",
+        "type": "artist",
+        "display_name": "Neón Andino",
+        "aliases": [],
+        "genre": [
+          "electronica"
+        ]
+      },
+      {
+        "id": "a_0045",
+        "type": "artist",
+        "display_name": "Trío Guaduales",
+        "aliases": [],
+        "genre": [
+          "bambuco"
+        ]
+      },
+      {
+        "id": "a_0046",
+        "type": "artist",
+        "display_name": "Champeta Kingz",
+        "aliases": [],
+        "genre": [
+          "champeta"
+        ]
+      },
+      {
+        "id": "a_0047",
+        "type": "artist",
+        "display_name": "La Tribu de Cristal",
+        "aliases": [],
+        "genre": [
+          "rock en espanol"
+        ]
+      },
+      {
+        "id": "a_0048",
+        "type": "artist",
+        "display_name": "Mar de Leva",
+        "aliases": [],
+        "genre": [
+          "pop"
+        ]
+      },
+      {
+        "id": "a_0049",
+        "type": "artist",
+        "display_name": "Los Primos del Valle",
+        "aliases": [],
+        "genre": [
+          "vallenato"
+        ]
+      },
+      {
+        "id": "a_0050",
+        "type": "artist",
+        "display_name": "Sonora Ceibas",
+        "aliases": [],
+        "genre": [
+          "salsa"
+        ]
+      },
+      {
+        "id": "a_0051",
+        "type": "artist",
+        "display_name": "Doble Ritmo",
+        "aliases": [],
+        "genre": [
+          "reggaeton"
+        ]
+      },
+      {
+        "id": "a_0052",
+        "type": "artist",
+        "display_name": "Lucía Montaña",
+        "aliases": [],
+        "genre": [
+          "pop"
+        ]
+      },
+      {
+        "id": "a_0053",
+        "type": "artist",
+        "display_name": "Bajo Cauca Jazz",
+        "aliases": [],
+        "genre": [
+          "jazz"
+        ]
+      },
+      {
+        "id": "a_0054",
+        "type": "artist",
+        "display_name": "Los Arrieros",
+        "aliases": [],
+        "genre": [
+          "musica popular"
+        ]
+      },
+      {
+        "id": "a_0055",
+        "type": "artist",
+        "display_name": "Cristal y Bambú",
+        "aliases": [],
+        "genre": [
+          "bambuco"
+        ]
+      },
+      {
+        "id": "a_0056",
+        "type": "artist",
+        "display_name": "Sabana Beat",
+        "aliases": [],
+        "genre": [
+          "electronica"
+        ]
+      },
+      {
+        "id": "a_0057",
+        "type": "artist",
+        "display_name": "Kalua",
+        "aliases": [],
+        "genre": [
+          "reggaeton"
+        ]
+      },
+      {
+        "id": "a_0058",
+        "type": "artist",
+        "display_name": "Río Grande Combo",
+        "aliases": [],
+        "genre": [
+          "salsa"
+        ]
+      },
+      {
+        "id": "a_0059",
+        "type": "artist",
+        "display_name": "Fito Valles",
+        "aliases": [],
+        "genre": [
+          "vallenato"
+        ]
+      },
+      {
+        "id": "a_0060",
+        "type": "artist",
+        "display_name": "Las Hermanas Lirio",
+        "aliases": [],
+        "genre": [
+          "pop"
+        ]
+      },
+      {
+        "id": "a_0061",
+        "type": "artist",
+        "display_name": "Cometa Azul",
+        "aliases": [],
+        "genre": [
+          "rock en espanol"
+        ]
+      },
+      {
+        "id": "a_0062",
+        "type": "artist",
+        "display_name": "Tambó Caribe",
+        "aliases": [],
+        "genre": [
+          "cumbia"
+        ]
+      },
+      {
+        "id": "a_0063",
+        "type": "artist",
+        "display_name": "Don Polo y su Conjunto",
+        "aliases": [],
+        "genre": [
+          "musica popular"
+        ]
+      },
+      {
+        "id": "a_0064",
+        "type": "artist",
+        "display_name": "Nube Ocho",
+        "aliases": [],
+        "genre": [
+          "electronica"
+        ]
+      },
+      {
+        "id": "a_0065",
+        "type": "artist",
+        "display_name": "Marimba de Chonta",
+        "aliases": [],
+        "genre": [
+          "currulao"
+        ]
+      },
+      {
+        "id": "a_0066",
+        "type": "artist",
+        "display_name": "Yuca Brava",
+        "aliases": [],
+        "genre": [
+          "champeta"
+        ]
+      },
+      {
+        "id": "a_0067",
+        "type": "artist",
+        "display_name": "Andrea Selva",
+        "aliases": [],
+        "genre": [
+          "pop"
+        ]
+      },
+      {
+        "id": "a_0068",
+        "type": "artist",
+        "display_name": "Los Cafeteros",
+        "aliases": [],
+        "genre": [
+          "bambuco"
+        ]
+      },
+      {
+        "id": "a_0069",
+        "type": "artist",
+        "display_name": "Paralelo 4",
+        "aliases": [],
+        "genre": [
+          "rock en espanol"
+        ]
+      }
+    ],
+    "albums": [
+      {
+        "id": "al_0011",
+        "type": "album",
+        "display_name": "Brisa Dorado",
+        "artist_ids": [
+          "a_0040"
+        ],
+        "track_ids": [
+          "t_0301",
+          "t_0302",
+          "t_0303",
+          "t_0304",
+          "t_0305"
+        ]
+      },
+      {
+        "id": "al_0012",
+        "type": "album",
+        "display_name": "Sol Eterno",
+        "artist_ids": [
+          "a_0041"
+        ],
+        "track_ids": [
+          "t_0306",
+          "t_0307",
+          "t_0308",
+          "t_0309",
+          "t_0310"
+        ]
+      },
+      {
+        "id": "al_0013",
+        "type": "album",
+        "display_name": "Noche del Valle",
+        "artist_ids": [
+          "a_0042"
+        ],
+        "track_ids": [
+          "t_0311",
+          "t_0312",
+          "t_0313",
+          "t_0314",
+          "t_0315"
+        ]
+      },
+      {
+        "id": "al_0014",
+        "type": "album",
+        "display_name": "Montaña de Papel",
+        "artist_ids": [
+          "a_0043"
+        ],
+        "track_ids": [
+          "t_0316",
+          "t_0317",
+          "t_0318",
+          "t_0319",
+          "t_0320"
+        ]
+      },
+      {
+        "id": "al_0015",
+        "type": "album",
+        "display_name": "Carretera de Octubre",
+        "artist_ids": [
+          "a_0044"
+        ],
+        "track_ids": [
+          "t_0321",
+          "t_0322",
+          "t_0323",
+          "t_0324",
+          "t_0325"
+        ]
+      },
+      {
+        "id": "al_0016",
+        "type": "album",
+        "display_name": "Brisa de Papel",
+        "artist_ids": [
+          "a_0045"
+        ],
+        "track_ids": [
+          "t_0326",
+          "t_0327",
+          "t_0328",
+          "t_0329",
+          "t_0330"
+        ]
+      },
+      {
+        "id": "al_0017",
+        "type": "album",
+        "display_name": "Fuego de Barrio",
+        "artist_ids": [
+          "a_0046"
+        ],
+        "track_ids": [
+          "t_0331",
+          "t_0332",
+          "t_0333",
+          "t_0334",
+          "t_0335"
+        ]
+      },
+      {
+        "id": "al_0018",
+        "type": "album",
+        "display_name": "Fuego Morena",
+        "artist_ids": [
+          "a_0047"
+        ],
+        "track_ids": [
+          "t_0336",
+          "t_0337",
+          "t_0338",
+          "t_0339",
+          "t_0340"
+        ]
+      },
+      {
+        "id": "al_0019",
+        "type": "album",
+        "display_name": "Café Encendido",
+        "artist_ids": [
+          "a_0048"
+        ],
+        "track_ids": [
+          "t_0341",
+          "t_0342",
+          "t_0343",
+          "t_0344",
+          "t_0345"
+        ]
+      },
+      {
+        "id": "al_0020",
+        "type": "album",
+        "display_name": "Ciudad Perdido",
+        "artist_ids": [
+          "a_0049"
+        ],
+        "track_ids": [
+          "t_0346",
+          "t_0347",
+          "t_0348",
+          "t_0349",
+          "t_0350"
+        ]
+      },
+      {
+        "id": "al_0021",
+        "type": "album",
+        "display_name": "Sol Sin Final",
+        "artist_ids": [
+          "a_0050"
+        ],
+        "track_ids": [
+          "t_0351",
+          "t_0352",
+          "t_0353",
+          "t_0354",
+          "t_0355"
+        ]
+      },
+      {
+        "id": "al_0022",
+        "type": "album",
+        "display_name": "Camino del Sur",
+        "artist_ids": [
+          "a_0051"
+        ],
+        "track_ids": [
+          "t_0356",
+          "t_0357",
+          "t_0358",
+          "t_0359",
+          "t_0360"
+        ]
+      },
+      {
+        "id": "al_0023",
+        "type": "album",
+        "display_name": "Carretera Encendido",
+        "artist_ids": [
+          "a_0052"
+        ],
+        "track_ids": [
+          "t_0361",
+          "t_0362",
+          "t_0363",
+          "t_0364",
+          "t_0365"
+        ]
+      },
+      {
+        "id": "al_0024",
+        "type": "album",
+        "display_name": "Sombra del Valle",
+        "artist_ids": [
+          "a_0053"
+        ],
+        "track_ids": [
+          "t_0366",
+          "t_0367",
+          "t_0368",
+          "t_0369",
+          "t_0370"
+        ]
+      },
+      {
+        "id": "al_0025",
+        "type": "album",
+        "display_name": "Corazón Nocturno",
+        "artist_ids": [
+          "a_0054"
+        ],
+        "track_ids": [
+          "t_0371",
+          "t_0372",
+          "t_0373",
+          "t_0374",
+          "t_0375"
+        ]
+      },
+      {
+        "id": "al_0026",
+        "type": "album",
+        "display_name": "Café del Valle",
+        "artist_ids": [
+          "a_0055"
+        ],
+        "track_ids": [
+          "t_0376",
+          "t_0377",
+          "t_0378",
+          "t_0379",
+          "t_0380"
+        ]
+      },
+      {
+        "id": "al_0027",
+        "type": "album",
+        "display_name": "Camino Morena",
+        "artist_ids": [
+          "a_0056"
+        ],
+        "track_ids": [
+          "t_0381",
+          "t_0382",
+          "t_0383",
+          "t_0384",
+          "t_0385"
+        ]
+      },
+      {
+        "id": "al_0028",
+        "type": "album",
+        "display_name": "Carretera Eterno",
+        "artist_ids": [
+          "a_0057"
+        ],
+        "track_ids": [
+          "t_0386",
+          "t_0387",
+          "t_0388",
+          "t_0389",
+          "t_0390"
+        ]
+      },
+      {
+        "id": "al_0029",
+        "type": "album",
+        "display_name": "Café Dorado",
+        "artist_ids": [
+          "a_0058"
+        ],
+        "track_ids": [
+          "t_0391",
+          "t_0392",
+          "t_0393",
+          "t_0394",
+          "t_0395"
+        ]
+      },
+      {
+        "id": "al_0030",
+        "type": "album",
+        "display_name": "Ventana del Valle",
+        "artist_ids": [
+          "a_0059"
+        ],
+        "track_ids": [
+          "t_0396",
+          "t_0397",
+          "t_0398",
+          "t_0399",
+          "t_0400"
+        ]
+      },
+      {
+        "id": "al_0031",
+        "type": "album",
+        "display_name": "Río del Sur",
+        "artist_ids": [
+          "a_0060"
+        ],
+        "track_ids": [
+          "t_0401",
+          "t_0402",
+          "t_0403",
+          "t_0404",
+          "t_0405"
+        ]
+      },
+      {
+        "id": "al_0032",
+        "type": "album",
+        "display_name": "Ciudad de Papel",
+        "artist_ids": [
+          "a_0061"
+        ],
+        "track_ids": [
+          "t_0406",
+          "t_0407",
+          "t_0408",
+          "t_0409",
+          "t_0410"
+        ]
+      },
+      {
+        "id": "al_0033",
+        "type": "album",
+        "display_name": "Lluvia Eterno",
+        "artist_ids": [
+          "a_0062"
+        ],
+        "track_ids": [
+          "t_0411",
+          "t_0412",
+          "t_0413",
+          "t_0414",
+          "t_0415"
+        ]
+      },
+      {
+        "id": "al_0034",
+        "type": "album",
+        "display_name": "Ventana Eterno",
+        "artist_ids": [
+          "a_0063"
+        ],
+        "track_ids": [
+          "t_0416",
+          "t_0417",
+          "t_0418",
+          "t_0419",
+          "t_0420"
+        ]
+      },
+      {
+        "id": "al_0035",
+        "type": "album",
+        "display_name": "Sombra de Octubre",
+        "artist_ids": [
+          "a_0064"
+        ],
+        "track_ids": [
+          "t_0421",
+          "t_0422",
+          "t_0423",
+          "t_0424",
+          "t_0425"
+        ]
+      },
+      {
+        "id": "al_0036",
+        "type": "album",
+        "display_name": "Río Lejano",
+        "artist_ids": [
+          "a_0065"
+        ],
+        "track_ids": [
+          "t_0426",
+          "t_0427",
+          "t_0428",
+          "t_0429",
+          "t_0430"
+        ]
+      },
+      {
+        "id": "al_0037",
+        "type": "album",
+        "display_name": "Lluvia de Barrio",
+        "artist_ids": [
+          "a_0066"
+        ],
+        "track_ids": [
+          "t_0431",
+          "t_0432",
+          "t_0433",
+          "t_0434",
+          "t_0435"
+        ]
+      },
+      {
+        "id": "al_0038",
+        "type": "album",
+        "display_name": "Montaña Morena",
+        "artist_ids": [
+          "a_0067"
+        ],
+        "track_ids": [
+          "t_0436",
+          "t_0437",
+          "t_0438",
+          "t_0439",
+          "t_0440"
+        ]
+      },
+      {
+        "id": "al_0039",
+        "type": "album",
+        "display_name": "Café Sin Final",
+        "artist_ids": [
+          "a_0068"
+        ],
+        "track_ids": [
+          "t_0441",
+          "t_0442",
+          "t_0443",
+          "t_0444",
+          "t_0445"
+        ]
+      },
+      {
+        "id": "al_0040",
+        "type": "album",
+        "display_name": "Luna Sin Final",
+        "artist_ids": [
+          "a_0069"
+        ],
+        "track_ids": [
+          "t_0446",
+          "t_0447",
+          "t_0448",
+          "t_0449",
+          "t_0450"
+        ]
+      }
+    ],
+    "playlists": [
+      {
+        "id": "pl_0001",
+        "type": "playlist",
+        "display_name": "Para la carretera",
+        "aliases": [
+          "road trip"
+        ],
+        "track_ids": [
+          "t_0329",
+          "t_0437",
+          "t_0409",
+          "t_0349",
+          "t_0357",
+          "t_0380",
+          "t_0429",
+          "t_0373",
+          "t_0345",
+          "t_0336",
+          "t_0312",
+          "t_0315",
+          "t_0446",
+          "t_0384",
+          "t_0366",
+          "t_0360",
+          "t_0319",
+          "t_0396",
+          "t_0374",
+          "t_0377"
+        ]
+      },
+      {
+        "id": "pl_0002",
+        "type": "playlist",
+        "display_name": "Vallenatos de siempre",
+        "aliases": [],
+        "track_ids": [
+          "t_0301",
+          "t_0302",
+          "t_0303",
+          "t_0304",
+          "t_0305",
+          "t_0346",
+          "t_0347",
+          "t_0348",
+          "t_0349",
+          "t_0350",
+          "t_0396",
+          "t_0397",
+          "t_0398",
+          "t_0399",
+          "t_0400"
+        ]
+      },
+      {
+        "id": "pl_0003",
+        "type": "playlist",
+        "display_name": "Salsa para el viernes",
+        "aliases": [
+          "salsa"
+        ],
+        "track_ids": [
+          "t_0311",
+          "t_0312",
+          "t_0313",
+          "t_0314",
+          "t_0315",
+          "t_0351",
+          "t_0352",
+          "t_0353",
+          "t_0354",
+          "t_0355",
+          "t_0391",
+          "t_0392",
+          "t_0393",
+          "t_0394",
+          "t_0395"
+        ]
+      },
+      {
+        "id": "pl_0004",
+        "type": "playlist",
+        "display_name": "Chill andino",
+        "aliases": [],
+        "track_ids": [
+          "t_0321",
+          "t_0322",
+          "t_0323",
+          "t_0324",
+          "t_0325",
+          "t_0381",
+          "t_0382",
+          "t_0383",
+          "t_0384",
+          "t_0385",
+          "t_0421",
+          "t_0422",
+          "t_0423",
+          "t_0424",
+          "t_0425",
+          "t_0326",
+          "t_0327",
+          "t_0328",
+          "t_0329",
+          "t_0330",
+          "t_0376",
+          "t_0377",
+          "t_0378",
+          "t_0379",
+          "t_0380",
+          "t_0441",
+          "t_0442",
+          "t_0443",
+          "t_0444",
+          "t_0445"
+        ]
+      },
+      {
+        "id": "pl_0005",
+        "type": "playlist",
+        "display_name": "Fiesta en la casa",
+        "aliases": [
+          "fiesta"
+        ],
+        "track_ids": [
+          "t_0356",
+          "t_0357",
+          "t_0358",
+          "t_0359",
+          "t_0360",
+          "t_0386",
+          "t_0387",
+          "t_0388",
+          "t_0389",
+          "t_0390",
+          "t_0331",
+          "t_0332",
+          "t_0333",
+          "t_0334",
+          "t_0335",
+          "t_0431",
+          "t_0432",
+          "t_0433",
+          "t_0434",
+          "t_0435"
+        ]
+      },
+      {
+        "id": "pl_0006",
+        "type": "playlist",
+        "display_name": "Rock nacional",
+        "aliases": [],
+        "track_ids": [
+          "t_0336",
+          "t_0337",
+          "t_0338",
+          "t_0339",
+          "t_0340",
+          "t_0406",
+          "t_0407",
+          "t_0408",
+          "t_0409",
+          "t_0410",
+          "t_0446",
+          "t_0447",
+          "t_0448",
+          "t_0449",
+          "t_0450"
+        ]
+      },
+      {
+        "id": "pl_0007",
+        "type": "playlist",
+        "display_name": "Mañanas tranquilas",
+        "aliases": [],
+        "track_ids": [
+          "t_0366",
+          "t_0367",
+          "t_0368",
+          "t_0369",
+          "t_0370",
+          "t_0316",
+          "t_0317",
+          "t_0318",
+          "t_0319",
+          "t_0320",
+          "t_0341"
+        ]
+      },
+      {
+        "id": "pl_0008",
+        "type": "playlist",
+        "display_name": "Favoritas de Caro",
+        "aliases": [],
+        "track_ids": [
+          "t_0360",
+          "t_0437",
+          "t_0420",
+          "t_0405",
+          "t_0400",
+          "t_0309",
+          "t_0321",
+          "t_0365",
+          "t_0326",
+          "t_0310",
+          "t_0442",
+          "t_0314"
+        ]
+      }
+    ],
+    "stations": [
+      {
+        "id": "st_0001",
+        "type": "station",
+        "display_name": "Radio Montaña",
+        "band": "FM",
+        "frequency": "88.9",
+        "genre": [
+          "news"
+        ]
+      },
+      {
+        "id": "st_0002",
+        "type": "station",
+        "display_name": "La Vallenata Stereo",
+        "band": "FM",
+        "frequency": "91.3",
+        "genre": [
+          "vallenato"
+        ]
+      },
+      {
+        "id": "st_0003",
+        "type": "station",
+        "display_name": "Tropical FM",
+        "band": "FM",
+        "frequency": "93.7",
+        "genre": [
+          "salsa",
+          "cumbia"
+        ]
+      },
+      {
+        "id": "st_0004",
+        "type": "station",
+        "display_name": "Cultura Andina",
+        "band": "FM",
+        "frequency": "95.2",
+        "genre": [
+          "bambuco",
+          "news"
+        ]
+      },
+      {
+        "id": "st_0005",
+        "type": "station",
+        "display_name": "Rumba Stereo",
+        "band": "FM",
+        "frequency": "97.9",
+        "genre": [
+          "reggaeton"
+        ]
+      },
+      {
+        "id": "st_0006",
+        "type": "station",
+        "display_name": "Noticias 99",
+        "band": "FM",
+        "frequency": "99.1",
+        "genre": [
+          "news"
+        ]
+      },
+      {
+        "id": "st_0007",
+        "type": "station",
+        "display_name": "Clásicos del Recuerdo",
+        "band": "FM",
+        "frequency": "101.5",
+        "genre": [
+          "musica popular"
+        ]
+      },
+      {
+        "id": "st_0008",
+        "type": "station",
+        "display_name": "Rock Cordillera",
+        "band": "FM",
+        "frequency": "102.7",
+        "genre": [
+          "rock en espanol"
+        ]
+      },
+      {
+        "id": "st_0009",
+        "type": "station",
+        "display_name": "Jazz Nocturno",
+        "band": "FM",
+        "frequency": "104.3",
+        "genre": [
+          "jazz"
+        ]
+      },
+      {
+        "id": "st_0010",
+        "type": "station",
+        "display_name": "Pulso Deportivo",
+        "band": "FM",
+        "frequency": "106.1",
+        "genre": [
+          "sports"
+        ]
+      }
+    ],
+    "podcasts": [
+      {
+        "id": "pc_0001",
+        "type": "podcast",
+        "display_name": "Historias del Camino",
+        "episode_titles": [
+          "El puente de los arrieros",
+          "La ruta del café"
+        ]
+      },
+      {
+        "id": "pc_0002",
+        "type": "podcast",
+        "display_name": "Ciencia en Cinco",
+        "episode_titles": [
+          "Por qué llueve en la tarde",
+          "El cerebro al volante"
+        ]
+      },
+      {
+        "id": "pc_0003",
+        "type": "podcast",
+        "display_name": "Fútbol y Más",
+        "episode_titles": [
+          "La previa del clásico",
+          "Lo mejor de la fecha"
+        ]
+      },
+      {
+        "id": "pc_0004",
+        "type": "podcast",
+        "display_name": "Cocina de la Abuela",
+        "episode_titles": [
+          "Ajiaco paso a paso",
+          "Arepas sin trucos"
+        ]
+      }
+    ]
+  },
+  "pois": [
+    {
+      "id": "p_0127",
+      "display_name": "Droguería San Rafael",
+      "category": "pharmacy",
+      "subcategories": [],
+      "aliases": [
+        "la droguería"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -141.26,
+        "y": 620.92,
+        "road_node_id": "n_80"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0101",
+      "display_name": "Oficina",
+      "category": "work",
+      "subcategories": [],
+      "aliases": [
+        "el trabajo"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -111.01,
+        "y": 1172.24,
+        "road_node_id": "n_145"
+      },
+      "attributes": {},
+      "placement": "manual",
+      "locked": true
+    },
+    {
+      "id": "p_0137",
+      "display_name": "Taller El Paisa",
+      "category": "car_service",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -142.91,
+        "y": 1267.3,
+        "road_node_id": "n_155"
+      },
+      "opening_hours": "Mo-Fr 08:00-17:00; Sa 08:00-12:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0116",
+      "display_name": "Sazón de Mi Tierra",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -157.94,
+        "y": 1364.02,
+        "road_node_id": "n_165"
+      },
+      "opening_hours": "Mo-Sa 11:30-21:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0128",
+      "display_name": "Farmacia Vida",
+      "category": "pharmacy",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -201.9,
+        "y": 1455.83,
+        "road_node_id": "n_175"
+      },
+      "opening_hours": "Mo-Sa 07:00-21:00; Su 08:00-14:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0106",
+      "display_name": "Estación de Servicio El Retiro",
+      "category": "fuel",
+      "subcategories": [],
+      "aliases": [
+        "la bomba del Retiro"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -321.1,
+        "y": 1674.81,
+        "road_node_id": "n_200"
+      },
+      "opening_hours": "Mo-Sa 06:00-22:00; Su 07:00-20:00",
+      "attributes": {
+        "price_level": 2
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0131",
+      "display_name": "Hotel Los Pinos",
+      "category": "hotel",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -556.19,
+        "y": 1957.67,
+        "road_node_id": "n_240"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0135",
+      "display_name": "Cajero Express",
+      "category": "atm",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -783.79,
+        "y": 2349.35,
+        "road_node_id": "n_305"
+      },
+      "opening_hours": "Mo-Su 06:00-22:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0108",
+      "display_name": "Carga Rápida Altos",
+      "category": "ev_charging",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -750.68,
+        "y": 2578.33,
+        "road_node_id": "n_330"
+      },
+      "opening_hours": "Mo-Su 06:00-22:00",
+      "attributes": {
+        "connector_types": [
+          "CCS2",
+          "Type 2"
+        ]
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0120",
+      "display_name": "Tienda de Café Altamira",
+      "category": "cafe",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -776.14,
+        "y": 2774.27,
+        "road_node_id": "n_350"
+      },
+      "opening_hours": "Mo-Fr 07:00-18:00; Sa 08:00-13:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0136",
+      "display_name": "Montallantas El Rápido",
+      "category": "car_service",
+      "subcategories": [],
+      "aliases": [
+        "el montallantas"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -915.87,
+        "y": 2907.59,
+        "road_node_id": "n_370"
+      },
+      "opening_hours": "Mo-Sa 07:00-18:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0121",
+      "display_name": "Panadería La Espiga",
+      "category": "cafe",
+      "subcategories": [],
+      "aliases": [
+        "la Espiga"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -1259.18,
+        "y": 3247.1,
+        "road_node_id": "n_420"
+      },
+      "opening_hours": "Mo-Su 05:30-20:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0103",
+      "display_name": "Estación Terpel Calle 80",
+      "category": "fuel",
+      "subcategories": [
+        "ev_charging"
+      ],
+      "brand": "Terpel",
+      "aliases": [
+        "la Terpel",
+        "la bomba"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -1563.59,
+        "y": 3449.76,
+        "road_node_id": "n_460"
+      },
+      "opening_hours": "24/7",
+      "attributes": {
+        "price_level": 2
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0124",
+      "display_name": "Supermercado La Economía",
+      "category": "supermarket",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -1664.84,
+        "y": 3603.51,
+        "road_node_id": "n_480"
+      },
+      "opening_hours": "Mo-Su 07:00-21:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0134",
+      "display_name": "Cajero Servibanca Plaza",
+      "category": "atm",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -1714.49,
+        "y": 3690.65,
+        "road_node_id": "n_490"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0139",
+      "display_name": "Mirador de los Andes",
+      "category": "landmark",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -1999.34,
+        "y": 3995.71,
+        "road_node_id": "n_545"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0132",
+      "display_name": "Hostal Camino Real",
+      "category": "hotel",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -2089.48,
+        "y": 4037.57,
+        "road_node_id": "n_555"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0112",
+      "display_name": "Parqueadero El Tranvía",
+      "category": "parking",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3162.69,
+        "y": 4074.3,
+        "road_node_id": "n_670"
+      },
+      "opening_hours": "Mo-Fr 06:00-21:00; Sa 08:00-14:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0125",
+      "display_name": "Mercados El Vecino",
+      "category": "supermarket",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3752.11,
+        "y": 3862.08,
+        "road_node_id": "n_745"
+      },
+      "opening_hours": "Mo-Sa 08:00-20:00; Su 09:00-14:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0114",
+      "display_name": "Asadero Don Chepe",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3707.63,
+        "y": 4140.07,
+        "road_node_id": "n_780"
+      },
+      "opening_hours": "Mo-Su 12:00-23:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0109",
+      "display_name": "Parqueadero Central",
+      "category": "parking",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3585.86,
+        "y": 4301.57,
+        "road_node_id": "n_800"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0133",
+      "display_name": "Cajero Banco Andino",
+      "category": "atm",
+      "subcategories": [],
+      "aliases": [
+        "el cajero"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3569.46,
+        "y": 4404.76,
+        "road_node_id": "n_810"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0111",
+      "display_name": "Parqueo Mirador",
+      "category": "parking",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3546.42,
+        "y": 4739.68,
+        "road_node_id": "n_850"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0117",
+      "display_name": "Pescadería Puerto Nuevo",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3643.65,
+        "y": 4715.99,
+        "road_node_id": "n_860"
+      },
+      "opening_hours": "We-Su 12:00-20:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0122",
+      "display_name": "Café Mirador",
+      "category": "cafe",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3822.74,
+        "y": 4715.71,
+        "road_node_id": "n_910"
+      },
+      "opening_hours": "Sa,Su 09:00-18:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0118",
+      "display_name": "Pizzería Bella Napoli",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3904.62,
+        "y": 4967.69,
+        "road_node_id": "n_940"
+      },
+      "opening_hours": "Mo-Su 18:00-02:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0110",
+      "display_name": "Parqueadero La Plaza",
+      "category": "parking",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3802.54,
+        "y": 5191.16,
+        "road_node_id": "n_965"
+      },
+      "opening_hours": "Mo-Sa 06:00-22:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0104",
+      "display_name": "Primax La Ceja",
+      "category": "fuel",
+      "subcategories": [],
+      "brand": "Primax",
+      "aliases": [
+        "la Primax"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3902.46,
+        "y": 5735.62,
+        "road_node_id": "n_1045"
+      },
+      "opening_hours": "24/7",
+      "attributes": {
+        "price_level": 2
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0123",
+      "display_name": "Tostadora La Cumbre",
+      "category": "cafe",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3718.08,
+        "y": 5726.67,
+        "road_node_id": "n_1065"
+      },
+      "opening_hours": "Mo-Sa 07:00-17:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0105",
+      "display_name": "Biomax Las Palmas",
+      "category": "fuel",
+      "subcategories": [],
+      "brand": "Biomax",
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3778.57,
+        "y": 6293.53,
+        "road_node_id": "n_1140"
+      },
+      "opening_hours": "Mo-Su 05:00-23:00",
+      "attributes": {
+        "price_level": 2
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0119",
+      "display_name": "Café de la Esquina",
+      "category": "cafe",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3851.01,
+        "y": 6478.59,
+        "road_node_id": "n_1160"
+      },
+      "opening_hours": "Mo-Su 06:00-19:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0138",
+      "display_name": "Lavadero Brillo Total",
+      "category": "car_service",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -3846.54,
+        "y": 6724.41,
+        "road_node_id": "n_1185"
+      },
+      "opening_hours": "Mo-Su 08:00-17:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0126",
+      "display_name": "Minimercado Doña Rosa",
+      "category": "supermarket",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4067.58,
+        "y": 7007.81,
+        "road_node_id": "n_1235"
+      },
+      "opening_hours": "Mo-Su 06:00-22:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0140",
+      "display_name": "Parque Principal",
+      "category": "landmark",
+      "subcategories": [],
+      "aliases": [
+        "el parque"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4238.71,
+        "y": 7091.1,
+        "road_node_id": "n_1255"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0113",
+      "display_name": "Restaurante El Fogón Paisa",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [
+        "El Fogón"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4266.28,
+        "y": 7414.8,
+        "road_node_id": "n_1295"
+      },
+      "opening_hours": "Mo-Su 11:00-22:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0115",
+      "display_name": "La Fonda del Arriero",
+      "category": "restaurant",
+      "subcategories": [],
+      "aliases": [
+        "la Fonda"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4326.2,
+        "y": 7899.87,
+        "road_node_id": "n_1360"
+      },
+      "opening_hours": "Mo-Su 06:00-16:00",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0130",
+      "display_name": "Clínica Santa Ana",
+      "category": "hospital",
+      "subcategories": [],
+      "aliases": [
+        "la clínica"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4686.96,
+        "y": 7992.94,
+        "road_node_id": "n_1405"
+      },
+      "opening_hours": "24/7",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0107",
+      "display_name": "Electrolinera Verde",
+      "category": "ev_charging",
+      "subcategories": [],
+      "aliases": [
+        "el cargador"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4789.42,
+        "y": 8088.87,
+        "road_node_id": "n_1420"
+      },
+      "opening_hours": "24/7",
+      "attributes": {
+        "connector_types": [
+          "CCS2",
+          "Type 2"
+        ]
+      },
+      "placement": "procedural",
+      "locked": false
+    },
+    {
+      "id": "p_0102",
+      "display_name": "Casa",
+      "category": "home",
+      "subcategories": [],
+      "aliases": [
+        "mi casa"
+      ],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4859.65,
+        "y": 8158.54,
+        "road_node_id": "n_1430"
+      },
+      "attributes": {},
+      "placement": "manual",
+      "locked": true
+    },
+    {
+      "id": "p_0129",
+      "display_name": "Droguería La Salud",
+      "category": "pharmacy",
+      "subcategories": [],
+      "aliases": [],
+      "location": {
+        "coord_system": "map_local",
+        "x": -4900.45,
+        "y": 8660.7,
+        "road_node_id": "n_1485"
+      },
+      "opening_hours": "Mo-Fr 08:00-19:00; Sa 08:00-13:00; Su off",
+      "attributes": {},
+      "placement": "procedural",
+      "locked": false
+    }
+  ],
+  "designed_conditions": [
+    {
+      "type": "absent",
+      "label": "no Valentina",
+      "domain": "contacts",
+      "query_hint": "Valentina",
+      "must_not_match": true
+    },
+    {
+      "type": "ambiguous_pair",
+      "label": "two Andrés",
+      "ids": [
+        "c_0016",
+        "c_0017"
+      ],
+      "query_hint": "Andrés"
+    },
+    {
+      "type": "missing_attribute",
+      "label": "Claudia has no mobile",
+      "id": "c_0019",
+      "attribute": "numbers.mobile"
+    },
+    {
+      "type": "near_miss",
+      "label": "Camila -> Camilo",
+      "id": "c_0018",
+      "query_hint": "Camila"
+    }
+  ]
+}

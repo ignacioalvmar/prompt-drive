@@ -1,0 +1,384 @@
+{
+  "tools_version": "vehicle-tools/1.0",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_contacts",
+        "description": "Search the driver's phone contacts by name, nickname or relationship (e.g. \"Pipe\", \"my brother\"). Returns candidates with IDs and the number types each contact has. Does not call anyone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name, nickname or relationship as the driver said it."
+            },
+            "filter": {
+              "type": "object",
+              "description": "Optional filters applied before matching.",
+              "properties": {
+                "relationship": {
+                  "type": "string",
+                  "description": "Relationship, e.g. \"brother\", \"mother\", \"boss\"."
+                },
+                "tag": {
+                  "type": "string",
+                  "description": "Contact tag, e.g. \"family\" or \"work\"."
+                },
+                "favorite": {
+                  "type": "boolean",
+                  "description": "Only favorites when true."
+                }
+              },
+              "additionalProperties": false
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Maximum candidates to return (default 5, max 10)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_contact",
+        "description": "Get the full record of one contact by ID, including its phone number types.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "contact_id": {
+              "type": "string",
+              "description": "ID of the contact, as returned by a search function."
+            }
+          },
+          "required": [
+            "contact_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "call_contact",
+        "description": "Start a phone call to a contact by ID. Resolve the contact with search_contacts first. If number_type is omitted the contact's default number is used.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "contact_id": {
+              "type": "string",
+              "description": "ID of the contact, as returned by a search function."
+            },
+            "number_type": {
+              "type": "string",
+              "enum": [
+                "mobile",
+                "home",
+                "work",
+                "other"
+              ],
+              "description": "Which of the contact's numbers to call."
+            }
+          },
+          "required": [
+            "contact_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "send_message",
+        "description": "Send a text message to a contact by ID. Resolve the contact with search_contacts first.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "contact_id": {
+              "type": "string",
+              "description": "ID of the contact, as returned by a search function."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Message text, as dictated by the driver."
+            },
+            "number_type": {
+              "type": "string",
+              "enum": [
+                "mobile",
+                "home",
+                "work",
+                "other"
+              ],
+              "description": "Which of the contact's numbers to use (default: mobile, else the default number)."
+            }
+          },
+          "required": [
+            "contact_id",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_media",
+        "description": "Search the car's media library (songs, artists, albums, playlists, radio stations, podcasts) by title, name, frequency or genre. Returns candidates with IDs. Does not play anything.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Title, artist, station name or frequency, or genre as the driver said it."
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "track",
+                  "artist",
+                  "album",
+                  "playlist",
+                  "station",
+                  "podcast"
+                ]
+              },
+              "description": "Restrict to these media types, in order of preference."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Maximum candidates to return (default 5, max 10)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "play_media",
+        "description": "Play a media item by ID (track, artist, album, playlist, station or podcast). Resolve the item with search_media first.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "item_id": {
+              "type": "string",
+              "description": "ID of the media item, as returned by a search function."
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "shuffle": {
+                  "type": "boolean",
+                  "description": "Shuffle the items of an artist, album or playlist."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_playback_state",
+        "description": "Get what is currently playing, if anything.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_poi",
+        "description": "Search points of interest (places) by name, brand or category, near the vehicle, along the active route, or near the destination. Needs at least one of query or category. Returns candidates with IDs, network distance in meters and whether they are open now.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Place name, brand or kind of place as the driver said it."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "fuel",
+                "ev_charging",
+                "parking",
+                "restaurant",
+                "cafe",
+                "supermarket",
+                "pharmacy",
+                "hospital",
+                "hotel",
+                "atm",
+                "car_service",
+                "landmark",
+                "home",
+                "work"
+              ],
+              "description": "Restrict to one place category."
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "near_vehicle",
+                "along_route",
+                "near_destination"
+              ],
+              "description": "Where to search (default near_vehicle). along_route and near_destination need an active route."
+            },
+            "radius_m": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Search radius in meters along the road network (default 3000)."
+            },
+            "open_now": {
+              "type": "boolean",
+              "description": "Only places that are open now."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Maximum candidates to return (default 5, max 10)."
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "query"
+              ]
+            },
+            {
+              "required": [
+                "category"
+              ]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_poi",
+        "description": "Get the full record of one point of interest by ID, including opening hours and attributes.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "poi_id": {
+              "type": "string",
+              "description": "ID of the point of interest, as returned by a search function."
+            }
+          },
+          "required": [
+            "poi_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "navigate_to",
+        "description": "Start route guidance to a point of interest by ID, replacing any active route. Resolve the place with search_poi first.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "poi_id": {
+              "type": "string",
+              "description": "ID of the point of interest, as returned by a search function."
+            }
+          },
+          "required": [
+            "poi_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "add_waypoint",
+        "description": "Add a stop at a point of interest (by ID) to the active route, before the destination. Fails with no_route when no route is active.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "poi_id": {
+              "type": "string",
+              "description": "ID of the point of interest, as returned by a search function."
+            }
+          },
+          "required": [
+            "poi_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "end_task",
+        "description": "End the current task. Use completed when the request was carried out, not_possible when it cannot be fulfilled (for example the contact, item or place does not exist), and needs_user when you hand control back to the driver.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "not_possible",
+                "needs_user"
+              ],
+              "description": "How the task ended."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Short reason, e.g. \"No contact named Camila\"."
+            }
+          },
+          "required": [
+            "outcome"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

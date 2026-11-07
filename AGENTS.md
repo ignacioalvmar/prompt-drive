@@ -19,6 +19,7 @@ Edit the **source**, then rebuild:
 | Traffic road actors | `src/traffic/` | `npm run build:traffic` |
 | Integration API | `src/api/` | `npm run build:api` |
 | Cabin feedback features (Cabina Abierta) | `src/feedback/` (one file per feature in `features/`) | `npm run build:feedback` |
+| Content layer / vehicle-tools runtime | `src/content/` + shared `packages/vehicle-content/` | `npm run build:content` |
 | Game-engine behavior | `scripts/build-main.js` (patches `src-extracted/deobfuscated.js`) | `npm run build:main` |
 
 The built files **are committed to the repo**, so after editing source you must
@@ -52,6 +53,18 @@ subsystems are layered on top as separate IIFE bundles, each exposed as a
 | Traffic road actors | `src/traffic/` | `static/js/traffic.js` | `RoadTraffic` |
 | Integration API | `src/api/` | `static/js/api.js` | `PromptDrive` (+ `PromptDriveBridge`) |
 | Cabin feedback | `src/feedback/` | `static/js/feedback.js` | `CabinFeedback` (+ `PromptDrive.feedback`) |
+| Content layer | `src/content/` + `packages/vehicle-content/` | `static/js/content.js` | `VehicleContent` (+ `PromptDrive.content`) |
+
+**Content layer notes.** `packages/vehicle-content/` is the single shared copy of
+the resolver, tool schemas, validator and labeler (WorlDrive imports it): keep it
+plain dependency-free ES modules with no I/O, and bump `src/version.js` /
+the synonym `version` on any behavior change (thresholds are frozen within 1.x).
+`scripts/build-content.js` keeps one scope per module (unlike the other build
+scripts). After editing tool schemas run `npm run gen:tools` in the package (a
+drift test fails otherwise). Tests: `npm run test:content` (package unit tests +
+acceptance tests against the built bundle). Map geometry is pinned in
+`src/content/maps.js` + `maps/<id>/<version>/`; any engine change to the midline
+generator needs a new `map_version`.
 
 **Script load order matters** (see `index.html`): `cluster → metrics → lanes →
 traffic → api → main`. The API bundle must load after `lanes.js` and

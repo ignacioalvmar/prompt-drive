@@ -122,6 +122,7 @@
     <button data-tab="console">④ Center console</button>
     <button data-tab="vehicle">⑤ Vehicle state</button>
     <button data-tab="agent">⑥ Agent &amp; cabin feedback</button>
+    <button data-tab="content">⑦ Content &amp; vehicle-tools</button>
   </div></div>
 
   <div class="tabwrap">
@@ -625,6 +626,68 @@
         </div>
       </div>
     </div>
+    <!-- ============ CONTENT LAYER (vehicle-tools/1.0) ============ -->
+    <div class="tab-panel" id="tab-content">
+      <div class="gate full">⚠ The content layer lives in the <b>sim tab</b> (<code>window.VehicleContent</code>,
+        exposed as <code>PromptDrive.content</code>). Start a simulation on map <code>synth-town-01</code> first
+        (Hills, topography normal, seed <code>b4e6eba7</code>, start node 0) — a pack is refused on any other map.</div>
+      <div class="group needslive">
+        <h3>Session &amp; pack (fail closed)</h3>
+        <div class="body">
+          <div class="row"><label>Session id</label><input type="text" id="ct-session" value="S-apitest-1" /></div>
+          <div class="row"><label>Pack id / version</label>
+            <div class="setrow"><input type="text" id="ct-pack" value="es-CO-starter" /><input type="number" id="ct-pver" value="1" min="1" style="flex:0 0 70px" /></div></div>
+          <div class="row"><label>content_hash</label><input type="text" id="ct-hash" value="sha256:ed1475bb2015ae57b79f021f19ecd3ff8fed63ec562b2f4c6b6e12b1bb8664c1" /></div>
+          <div class="row"><label>Map id / version</label>
+            <div class="setrow"><input type="text" id="ct-map" value="synth-town-01" /><input type="text" id="ct-mver" value="2026.11" style="flex:0 0 90px" /></div></div>
+          <div class="btnrow">
+            <button data-call="ctMapApply" class="sec">Apply map scene (reloads)</button>
+            <button data-call="ctLoad" class="go">Load pack</button>
+            <button data-call="ctStatus" class="sec">Status</button>
+            <button data-call="ctEnd" class="danger">End session</button>
+          </div>
+          <p class="hint">Calls <code>content.load({ session })</code>: recomputes the hash, checks the pack's map against the
+            loaded road (geometry fingerprint) and the tools version. Change one character of the hash or the map version
+            to see the session stop with a message (that writes a <code>session_error</code>; reload to recover).</p>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Tool call</h3>
+        <div class="body">
+          <div class="row"><label>Function / source / turn</label>
+            <div class="setrow"><select id="ct-fn"></select><select id="ct-src"><option>agent</option><option>hmi_voice</option><option>hmi_touch</option></select><input type="number" id="ct-turn" value="1" min="1" style="flex:0 0 60px" /></div></div>
+          <div class="row"><label>Arguments (JSON)</label><textarea id="ct-args" rows="3" style="width:100%;font:12px var(--mono)">{ "query": "Pipe" }</textarea></div>
+          <div class="btnrow">
+            <button data-call="ctCall" class="go">Call</button>
+            <button data-call="ctTools" class="sec">Tool definitions (OpenAI)</button>
+            <button data-call="ctToolsGemini" class="sec">… (Gemini)</button>
+            <button data-call="ctPrompt" class="sec">System prompt block</button>
+          </div>
+          <p class="hint">Calls <code>content.tools.call(name, args, { source, turn })</code> and shows the contract envelope
+            (<code>status</code>, <code>candidates</code>, <code>action_id</code>, <code>error_code</code>…). Actions take IDs
+            only — search first. Every call is logged.</p>
+        </div>
+      </div>
+      <div class="group needslive">
+        <h3>Tasks &amp; log</h3>
+        <div class="body">
+          <div class="row"><label>Reference task</label>
+            <div class="setrow"><select id="ct-task"></select><button data-call="ctTaskStart">Start</button><button data-call="ctTaskEnd" class="sec">End (timeout)</button></div></div>
+          <div class="row"><label>Auto-ack log batches</label>
+            <div class="switchwrap"><label class="switch"><input type="checkbox" id="ct-ack" checked /><span class="track"></span></label><span class="state">ack contentLogBatch</span></div></div>
+          <div class="btnrow">
+            <button data-call="ctLogStatus" class="sec">Log status</button>
+            <button data-call="ctEvents" class="sec">Task ends (labels)</button>
+            <button data-call="ctSigns" class="sec">Roadside signs</button>
+            <button data-call="ctMapInfo" class="sec">Map info</button>
+          </div>
+          <p class="hint">Task definitions come from <code>packages/vehicle-content/packs/es-CO-starter.tasks.json</code>; a task
+            ends via the agent's <code>end_task</code>, its limits, or when the next one starts. Log batches are delivered
+            as <code>contentLogBatch</code> events and kept (also across reloads) until acknowledged.</p>
+          <pre class="out" id="ct-out" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ PERSISTENT FOOTER: live feed ============ -->
@@ -676,6 +739,7 @@
     if (event === 'ready' && !connected) waitForReady();
     if (event === 'pushToTalk') renderPtt(payload);
     if (event === 'agentState') renderAgent(payload);
+    if (event === 'contentLogBatch' && document.getElementById('ct-ack').checked) op('content.log.ack', payload.batch_id);
     if (event === 'wheelCalibrated' || event === 'wheelBinding' || event === 'wheelConnected' || event === 'wheelDisconnected') renderWheel();
     const cls = event === 'applied' || event === 'ended' ? 'applied' : (payload && payload.ok === false ? 'err' : '');
     log(event, payload, cls);
@@ -1084,6 +1148,43 @@
     fbList: async () => { const r = await op('feedback.list'); showOut('fb-out', r); return r; },
     fbState: async () => { const r = await op('feedback.state'); showOut('fb-out', r); return r; },
     // One scripted voice-agent turn, so every indicator state can be eyeballed in order.
+    // --- content layer (vehicle-tools/1.0) ---
+    ctMapApply: () => op('content.map.apply', val('ct-map'), val('ct-mver')),
+    ctLoad: async () => {
+      const session = {
+        session_id: val('ct-session'), study_id: 'api-test', condition: 'api-test', actor: 'agent', model: 'manual',
+        pack_id: val('ct-pack'), pack_version: num('ct-pver'), content_hash: val('ct-hash'),
+        map_id: val('ct-map'), map_version: val('ct-mver'), tools_version: 'vehicle-tools/1.0',
+      };
+      const r = await op('content.load', { session });
+      showOut('ct-out', r);
+      return r;
+    },
+    ctStatus: async () => { const r = await op('content.status'); showOut('ct-out', r); return r; },
+    ctEnd: async () => { const r = await op('content.end', { reason: 'api-test' }); showOut('ct-out', r); return r; },
+    ctCall: async () => {
+      let args;
+      try { args = JSON.parse(val('ct-args') || '{}'); } catch (e) { const r = { ok: false, error: 'bad_json', message: String(e) }; showOut('ct-out', r); return r; }
+      const r = await op('content.tools.call', val('ct-fn'), args, { source: val('ct-src'), turn: num('ct-turn') });
+      showOut('ct-out', r);
+      return r;
+    },
+    ctTools: async () => { const r = await op('content.tools.list', 'openai'); showOut('ct-out', r); return r; },
+    ctToolsGemini: async () => { const r = await op('content.tools.list', 'gemini'); showOut('ct-out', r); return r; },
+    ctPrompt: async () => { const r = await op('content.tools.systemPrompt'); showOut('ct-out', r); return r; },
+    ctTaskStart: async () => {
+      const t = (ctTasks || []).find((x) => x.task_id === val('ct-task'));
+      if (!t) return { ok: false, error: 'no task definitions loaded' };
+      const def = Object.assign({}, t, { prompt_for_driver: t.prompt_for_driver.es || t.prompt_for_driver });
+      const r = await op('content.task.start', def);
+      showOut('ct-out', r);
+      return r;
+    },
+    ctTaskEnd: () => op('content.task.end', { outcome: 'timeout', ended_by: 'timeout', reason: 'api-test' }),
+    ctLogStatus: async () => { const r = await op('content.log.status'); showOut('ct-out', r); return r; },
+    ctEvents: async () => { const r = await op('content.log.events', { type: 'task_end' }); showOut('ct-out', r); return r; },
+    ctSigns: async () => { const r = await op('content.signs'); showOut('ct-out', r); return r; },
+    ctMapInfo: async () => { const r = await op('content.map.info'); showOut('ct-out', r); return r; },
     agentDemo: async () => {
       const steps = [['listening', 1800], ['thinking', 1600], ['speaking', 2600, { text: 'Listo, 22 grados.' }],
         ['action', 1600, { tool: 'set_climate_temperature' }], ['idle', 0]];
@@ -1271,6 +1372,20 @@
 
   waitForReady();
 })();
+
+  // --- content tab: function list (fixed vehicle-tools/1.0) + reference tasks ---
+  let ctTasks = [];
+  (function initContentTab() {
+    const fns = ['search_contacts', 'get_contact', 'call_contact', 'send_message', 'search_media', 'play_media',
+      'get_playback_state', 'search_poi', 'get_poi', 'navigate_to', 'add_waypoint', 'end_task'];
+    const sel = document.getElementById('ct-fn');
+    for (const f of fns) { const o = document.createElement('option'); o.textContent = f; sel.appendChild(o); }
+    fetch('./packages/vehicle-content/packs/es-CO-starter.tasks.json').then((r) => r.json()).then((d) => {
+      ctTasks = d.tasks || [];
+      const ts = document.getElementById('ct-task');
+      for (const t of ctTasks) { const o = document.createElement('option'); o.textContent = t.task_id; ts.appendChild(o); }
+    }).catch(() => {});
+  })();
 </script>
 </body>
 </html>

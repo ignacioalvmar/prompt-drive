@@ -8,6 +8,7 @@
 
 import { CONSOLE_COLORS } from '../config.js';
 import { clamp, drawText, fillRoundRect, iconPlus, iconMinus, iconMap } from '../ui.js';
+import { contentLive, contentMapOverlay } from './ContentScreens.js';
 
 const MAP_ZOOMS = [0.55, 1, 1.8, 3.2]; // relative zoom steps
 const MAP_BASE_AHEAD = 420; // metres visible ahead of the ego at zoom 1
@@ -112,6 +113,15 @@ export const MapApp = {
         ctx.lineWidth = Math.max(1, roadW * 0.045);
         ctx.stroke();
         ctx.setLineDash([]);
+      }
+    }
+
+    // Content layer: route highlight + POI pins from the runtime service.
+    if (contentLive()) {
+      try {
+        contentMapOverlay(ctx, rect, (x, z) => mapW2S(x, z, ego, k, anchorX, anchorY), k);
+      } catch (_e) {
+        // display only — never break the map
       }
     }
 
